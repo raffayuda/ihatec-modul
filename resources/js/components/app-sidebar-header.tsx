@@ -5,6 +5,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { type BreadcrumbItem as BreadcrumbItemType, type SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
 import { Bell, CircleHelp, Search } from 'lucide-react';
+import AppearanceToggleDropdown from '@/components/appearance-dropdown';
 
 export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: BreadcrumbItemType[] }) {
     const page = usePage<SharedData>();
@@ -38,16 +39,17 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
             </div>
 
             {/* Right side: Actions & User Info */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
                 <div className="relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900">
-                    <Bell className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+                    <Bell className="h-5 w-5 text-neutral-600 dark:text-neutral-350" />
                     <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm">
                         12
                     </span>
                 </div>
                 <div className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900">
-                    <CircleHelp className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+                    <CircleHelp className="h-5 w-5 text-neutral-600 dark:text-neutral-350" />
                 </div>
+                <AppearanceToggleDropdown className="text-neutral-600 dark:text-neutral-350" />
 
                 {user && (
                     <div className="flex items-center gap-3 border-l border-neutral-100 pl-4 dark:border-neutral-800">
@@ -69,3 +71,4 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
         </header>
     );
 }
+

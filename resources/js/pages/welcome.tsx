@@ -1,789 +1,1451 @@
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { PieChart, Pie, Cell, Label } from 'recharts';
+import { motion, useScroll, useSpring } from 'framer-motion';
+import { useAppearance } from '@/hooks/use-appearance';
+import {
+    BookOpen,
+    ShieldCheck,
+    Folder,
+    GraduationCap,
+    TrendingUp,
+    Check,
+    Send,
+    Users,
+    Archive,
+    Rocket,
+    Menu,
+    X,
+    Bell,
+    LayoutDashboard,
+    FileText,
+    Settings,
+    HelpCircle,
+    Mail,
+    Sun,
+    Moon
+} from 'lucide-react';
+
+const CubeIcon = ({ className = "size-6" }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#357ae8" className="fill-blue-500 dark:fill-blue-400" />
+        <path d="M2 17L12 22V12L2 7V17Z" fill="#1b52ca" className="fill-blue-600 dark:fill-blue-500" />
+        <path d="M22 17L12 22V12L22 7V17Z" fill="#4d8cf4" className="fill-blue-400 dark:fill-blue-300" />
+    </svg>
+);
+
+// Interactive Features Data
+const featuresData = [
+    {
+        id: 0,
+        title: "Pengajuan Modul",
+        icon: FileText,
+        badge: "Cepat & Paperless",
+        desc: "Ajukan modul baru atau revisi secara digital dengan form terstandarisasi. Pengaju dapat melampirkan berkas, memilih program pelatihan, dan memberikan deskripsi detail.",
+        bullets: [
+            "Form input terstandarisasi untuk keseragaman",
+            "Mendukung lampiran file dokumen (PDF, Word)",
+            "Riwayat revisi dan status langsung terpantau",
+            "Notifikasi otomatis ke tim reviewer"
+        ],
+        colorClass: "text-blue-600 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400",
+        borderClass: "border-blue-200 dark:border-blue-900/50",
+        bgGradient: "from-blue-500/10 to-indigo-500/5",
+        mockup: (
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-md space-y-3">
+                <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-2">
+                    <span className="text-xs font-bold text-neutral-850 dark:text-neutral-100">Form Pengajuan Baru</span>
+                    <span className="text-[9px] bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-350 px-2 py-0.5 rounded-full font-semibold">Draft</span>
+                </div>
+                <div className="space-y-2">
+                    <div className="space-y-1">
+                        <label className="text-[8px] font-bold text-neutral-400 dark:text-neutral-500">Judul Modul</label>
+                        <div className="h-7 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded px-2 flex items-center text-[9px] text-neutral-600 dark:text-neutral-355">
+                            Pelayanan Pelanggan Prima v2
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                            <label className="text-[8px] font-bold text-neutral-400 dark:text-neutral-500">Program</label>
+                            <div className="h-7 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded px-2 flex items-center text-[9px] text-neutral-600 dark:text-neutral-355">
+                                Soft Skills
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[8px] font-bold text-neutral-400 dark:text-neutral-500">Lampiran</label>
+                            <div className="h-7 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 border-dashed rounded px-2 flex items-center justify-between text-[9px] text-neutral-450 dark:text-neutral-400">
+                                <span>modul_cs.pdf</span>
+                                <Check className="size-3 text-emerald-500" />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="w-full h-7 bg-blue-600 dark:bg-blue-500 text-white rounded text-[9px] font-bold flex items-center justify-center gap-1">
+                        <span>Kirim Pengajuan</span>
+                        <Send className="size-2.5" />
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 1,
+        title: "Approval Modul",
+        icon: ShieldCheck,
+        badge: "Transparan & Akuntabel",
+        desc: "Proses peninjauan bertingkat mulai dari Tim PD hingga Manager. Reviewer dapat menyetujui, meminta revisi dengan catatan spesifik, atau menolak pengajuan.",
+        bullets: [
+            "Alur approval bertingkat sesuai kewenangan",
+            "Kolom komentar revisi yang terdokumentasi",
+            "Sistem approval sekali-klik untuk efisiensi",
+            "Audit trail lengkap untuk setiap keputusan"
+        ],
+        colorClass: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400",
+        borderClass: "border-emerald-200 dark:border-emerald-900/50",
+        bgGradient: "from-emerald-500/10 to-teal-500/5",
+        mockup: (
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-md space-y-3">
+                <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-2">
+                    <span className="text-xs font-bold text-neutral-850 dark:text-neutral-100">Persetujuan Modul</span>
+                    <span className="text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-350 px-2 py-0.5 rounded-full font-semibold">Menunggu Review</span>
+                </div>
+                <div className="space-y-2 text-[9px]">
+                    <div className="bg-neutral-50 dark:bg-neutral-950 p-2 rounded border border-neutral-250 dark:border-neutral-800 space-y-1">
+                        <div className="flex justify-between font-bold text-neutral-855 dark:text-neutral-100">
+                            <span>Modul Leadership 101</span>
+                            <span className="text-neutral-400 dark:text-neutral-500">Oleh: Budi S.</span>
+                        </div>
+                        <p className="text-[8px] text-neutral-450 dark:text-neutral-400">Harap tinjau lampiran modul bab 3 mengenai delegasi.</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <div className="flex-1 h-7 bg-emerald-600 dark:bg-emerald-500 text-white rounded font-bold flex items-center justify-center">Approve</div>
+                        <div className="flex-1 h-7 bg-amber-500 dark:bg-amber-600 text-white rounded font-bold flex items-center justify-center">Minta Revisi</div>
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 2,
+        title: "Database Modul",
+        icon: Folder,
+        badge: "Terpusat & Aman",
+        desc: "Dokumen modul disimpan dengan sistem versioning yang ketat. Semua berkas tersimpan dengan aman, rapi, dan mudah dicari menggunakan filter kategori.",
+        bullets: [
+            "Pencarian cepat dengan filter kategori and program",
+            "Riwayat versi dokumen (version history) yang lengkap",
+            "Manajemen arsip modul non-aktif",
+            "Akses berkas aman hanya untuk user terotorisasi"
+        ],
+        colorClass: "text-purple-600 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400",
+        borderClass: "border-purple-200 dark:border-purple-900/50",
+        bgGradient: "from-purple-500/10 to-pink-500/5",
+        mockup: (
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-md space-y-2">
+                <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-2">
+                    <span className="text-xs font-bold text-neutral-850 dark:text-neutral-100">Katalog Modul Aktif</span>
+                    <span className="text-[8px] text-neutral-400 dark:text-neutral-500">Total: 386 Modul</span>
+                </div>
+                <div className="space-y-1.5 text-[8px] font-semibold">
+                    <div className="flex items-center justify-between p-1.5 bg-neutral-50 dark:bg-neutral-950 rounded border border-neutral-150 dark:border-neutral-850">
+                        <div className="flex items-center gap-1.5 text-neutral-800 dark:text-neutral-250">
+                            <FileText className="size-3 text-blue-500" />
+                            <span>Komunikasi Efektif.pdf</span>
+                        </div>
+                        <span className="text-neutral-400 dark:text-neutral-500">v3.2</span>
+                    </div>
+                    <div className="flex items-center justify-between p-1.5 bg-neutral-50 dark:bg-neutral-950 rounded border border-neutral-150 dark:border-neutral-850">
+                        <div className="flex items-center gap-1.5 text-neutral-800 dark:text-neutral-250">
+                            <FileText className="size-3 text-blue-500" />
+                            <span>Manajemen Konflik.pdf</span>
+                        </div>
+                        <span className="text-neutral-400 dark:text-neutral-500">v1.0</span>
+                    </div>
+                    <div className="flex items-center justify-between p-1.5 bg-neutral-50 dark:bg-neutral-950 rounded border border-neutral-150 dark:border-neutral-850">
+                        <div className="flex items-center gap-1.5 text-neutral-800 dark:text-neutral-250">
+                            <FileText className="size-3 text-blue-500" />
+                            <span>Pemecahan Masalah.pdf</span>
+                        </div>
+                        <span className="text-neutral-400 dark:text-neutral-500">v2.1</span>
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 3,
+        title: "Matriks Pelatihan",
+        icon: BookOpen,
+        badge: "Pemetaan & Monitoring",
+        desc: "Petakan seluruh kompetensi, modul, dan program pelatihan dalam bentuk matriks interaktif. Memudahkan pemantauan ketersediaan modul untuk setiap program.",
+        bullets: [
+            "Visualisasi relasi modul dan program pelatihan",
+            "Identifikasi cepat celah kompetensi (skills gap)",
+            "Filter matriks berdasarkan unit kerja atau kategori",
+            "Ekspor laporan matriks untuk perencanaan training tahunan"
+        ],
+        colorClass: "text-amber-600 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400",
+        borderClass: "border-amber-200 dark:border-amber-900/50",
+        bgGradient: "from-amber-500/10 to-orange-500/5",
+        mockup: (
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-md space-y-2">
+                <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-1">
+                    <span className="text-xs font-bold text-neutral-850 dark:text-neutral-100">Matriks Program & Modul</span>
+                </div>
+                <div className="space-y-1.5 text-[8px] text-neutral-800 dark:text-neutral-250">
+                    <div className="grid grid-cols-4 gap-1 font-bold text-neutral-400 dark:text-neutral-500 border-b border-neutral-100 dark:border-neutral-800 pb-1">
+                        <span>Program</span>
+                        <span className="text-center">Modul A</span>
+                        <span className="text-center">Modul B</span>
+                        <span className="text-center">Modul C</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1 py-1 border-b border-neutral-50 dark:border-neutral-900 font-semibold">
+                        <span>Induksi</span>
+                        <span className="text-center text-emerald-500 font-bold">✓</span>
+                        <span className="text-center text-emerald-500 font-bold">✓</span>
+                        <span className="text-center text-neutral-355">-</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1 py-1 font-semibold">
+                        <span>Supervisor</span>
+                        <span className="text-center text-neutral-355">-</span>
+                        <span className="text-center text-emerald-500 font-bold">✓</span>
+                        <span className="text-center text-emerald-500 font-bold">✓</span>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+];
+
+// Interactive Flow Steps Data
+const flowStepsData = [
+    {
+        id: 1,
+        title: "Ajukan Modul",
+        actor: "Pengaju / Trainer",
+        desc: "Pengaju mengisi detail modul (judul, deskripsi, program) dan mengunggah draf modul pelatihan dalam format PDF atau Word.",
+        requirements: "Draf dokumen modul, metadata program, deskripsi tujuan pelatihan.",
+        duration: "10 - 15 Menit",
+        output: "Pengajuan berstatus 'Review' terdaftar di sistem.",
+        icon: Send,
+        colorClass: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
+    },
+    {
+        id: 2,
+        title: "Review Tim PD",
+        actor: "Tim People Development (PD)",
+        desc: "Tim PD meninjau materi, relevansi dengan kurikulum, dan kesesuaian format. Memberikan catatan perbaikan jika diperlukan.",
+        requirements: "Draf modul yang diajukan.",
+        duration: "1 - 2 Hari Kerja",
+        output: "Catatan rekomendasi dan perubahan status ke 'Review Manager'.",
+        icon: Users,
+        colorClass: "bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400"
+    },
+    {
+        id: 3,
+        title: "Approval Manager",
+        actor: "Manager People Development / Unit",
+        desc: "Manager memeriksa draf akhir dan rekomendasi dari Tim PD untuk memutuskan apakah modul disetujui, ditolak, atau perlu direvisi.",
+        requirements: "Draf modul beserta rekomendasi hasil review Tim PD.",
+        duration: "1 Hari Kerja",
+        output: "Persetujuan final (Approved), Penolakan (Rejected), atau Permintaan Revisi (Revisi).",
+        icon: ShieldCheck,
+        colorClass: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+    },
+    {
+        id: 4,
+        title: "Distribusi & Arsip",
+        actor: "Administrator Sistem",
+        desc: "Modul yang disetujui otomatis masuk ke katalog database aktif, mendapatkan nomor versi resmi, dan dapat diakses untuk program pelatihan.",
+        requirements: "Modul dengan status persetujuan 'Approved'.",
+        duration: "Otomatis (Sistem)",
+        output: "Dokumen terpublikasi di katalog dan tercatat dalam matriks pelatihan.",
+        icon: Archive,
+        colorClass: "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
+    }
+];
+
+// Navigation menu links mapping
+const navLinks = [
+    { name: 'Beranda', href: '#', id: 'beranda' },
+    { name: 'Fitur', href: '#fitur', id: 'fitur' },
+    { name: 'Alur', href: '#alur', id: 'alur' },
+    { name: 'Tentang', href: '#tentang', id: 'tentang' },
+    { name: 'Kontak', href: '#kontak', id: 'kontak' }
+];
 
 export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [activeFeature, setActiveFeature] = useState(0);
+    const [activeStep, setActiveStep] = useState(1);
+    const [activeSection, setActiveSection] = useState('beranda');
+
+    // Theme Appearance State Hook
+    const { appearance, updateAppearance } = useAppearance();
+
+    // Contact Form States
+    const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+
+    // Framer Motion Scroll Progress
+    const { scrollYProgress } = useScroll();
+    const scaleX = useSpring(scrollYProgress, {
+        stiffness: 100,
+        damping: 30,
+        restDelta: 0.001
+    });
+
+    // Detect active section on scroll using IntersectionObserver
+    useEffect(() => {
+        const sections = ['beranda', 'fitur', 'alur', 'tentang', 'kontak'];
+        
+        const observerOptions = {
+            root: null,
+            rootMargin: '-30% 0px -50% 0px', // Sweet spot triggers when section is in viewport center
+            threshold: 0
+        };
+
+        const observerCallback = (entries: IntersectionObserverEntry[]) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    setActiveSection(entry.target.id);
+                }
+            });
+        };
+
+        const observer = new IntersectionObserver(observerCallback, observerOptions);
+
+        sections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) observer.observe(el);
+        });
+
+        // Set 'beranda' when scrolled very close to top
+        const handleScroll = () => {
+            if (window.scrollY < 80) {
+                setActiveSection('beranda');
+            }
+        };
+        window.addEventListener('scroll', handleScroll);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, []);
+
+    const toggleTheme = () => {
+        updateAppearance(appearance === 'dark' ? 'light' : 'dark');
+    };
+
+    const handleContactChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setContactForm({ ...contactForm, [e.target.name]: e.target.value });
+        if (formErrors[e.target.name]) {
+            setFormErrors({ ...formErrors, [e.target.name]: '' });
+        }
+    };
+
+    const handleContactSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        // Validation
+        const errors: { [key: string]: string } = {};
+        if (!contactForm.name.trim()) errors.name = "Nama lengkap wajib diisi";
+        if (!contactForm.email.trim()) {
+            errors.email = "Alamat email wajib diisi";
+        } else if (!/\S+@\S+\.\S+/.test(contactForm.email)) {
+            errors.email = "Format email tidak valid";
+        }
+        if (!contactForm.subject.trim()) errors.subject = "Subjek pesan wajib diisi";
+        if (!contactForm.message.trim()) errors.message = "Isi pesan wajib diisi";
+
+        if (Object.keys(errors).length > 0) {
+            setFormErrors(errors);
+            return;
+        }
+
+        setIsSubmitting(true);
+        setTimeout(() => {
+            setIsSubmitting(false);
+            setSubmitSuccess(true);
+            setContactForm({ name: '', email: '', subject: '', message: '' });
+            setTimeout(() => {
+                setSubmitSuccess(false);
+            }, 5000);
+        }, 1500);
+    };
+
+    // Mock Dashboard Data
+    const mockChartData = [
+        { name: 'Approved', value: 52, fill: '#10b981' },
+        { name: 'Review', value: 24, fill: '#3b82f6' },
+        { name: 'Revisi', value: 12, fill: '#f59e0b' },
+        { name: 'Rejected', value: 8, fill: '#ef4444' },
+    ];
+
+    const mockSubmissions = [
+        { title: 'Komunikasi Efektif', author: 'Budi Santoso', date: '20 Mei 2024', status: 'Review', badgeColor: 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/50' },
+        { title: 'Manajemen Waktu', author: 'Siti Aisyah', date: '18 Mei 2024', status: 'Review', badgeColor: 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/50' },
+        { title: 'Leadership Dasar', author: 'Rudi Hermawan', date: '17 Mei 2024', status: 'Approved', badgeColor: 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50' },
+        { title: 'Pelayanan Prima', author: 'Dewi Lestari', date: '15 Mei 2024', status: 'Revisi', badgeColor: 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50' },
+        { title: 'Problem Solving', author: 'Agus Setiawan', date: '14 Mei 2024', status: 'Rejected', badgeColor: 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50' },
+    ];
+
+    // Click handler for smooth scrolling
+    const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+        if (href.startsWith('#')) {
+            e.preventDefault();
+            const targetId = href.substring(1) || 'beranda';
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    };
 
     return (
         <>
-            <Head title="Welcome">
-                <link rel="preconnect" href="https://fonts.bunny.net" />
-                <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
+            <Head title="Training PD - Landing Page">
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+                <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
             </Head>
-            <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
-                <header className="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
-                    <nav className="flex items-center justify-end gap-4">
-                        {auth.user ? (
-                            <Link
-                                href={route('dashboard')}
-                                className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
+
+            {/* Scroll Progress Bar */}
+            <motion.div
+                className="fixed top-0 left-0 right-0 h-1 bg-blue-600 dark:bg-blue-500 z-[100] origin-left"
+                style={{ scaleX }}
+            />
+
+            <div id="beranda" className="min-h-screen bg-neutral-50/50 text-neutral-800 font-['Outfit',sans-serif] selection:bg-blue-600 selection:text-white dark:bg-neutral-900 dark:text-neutral-200 transition-colors duration-300 scroll-mt-16">
+                
+                {/* 1. HEADER / NAVBAR */}
+                <header className="sticky top-0 z-50 bg-white/80 dark:bg-neutral-950/80 backdrop-blur-md border-b border-neutral-200/50 dark:border-neutral-800/60 transition-colors">
+                    <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                        
+                        {/* Logo */}
+                        <Link href="/" className="flex items-center gap-2.5 group">
+                            <CubeIcon className="size-7 transition-transform duration-300 group-hover:rotate-12" />
+                            <span className="text-lg font-bold tracking-tight text-neutral-900 dark:text-white">
+                                Training PD
+                            </span>
+                        </Link>
+
+                        {/* Navigation Links */}
+                        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                            {navLinks.map((link) => {
+                                const isActive = activeSection === link.id;
+                                return (
+                                    <a
+                                        key={link.id}
+                                        href={link.href}
+                                        onClick={(e) => handleNavClick(e, link.href)}
+                                        className={`transition-colors pb-1 border-b-2 font-medium relative ${
+                                            isActive
+                                                ? 'text-blue-600 border-blue-600 dark:text-blue-400 dark:border-blue-400'
+                                                : 'text-neutral-600 dark:text-neutral-400 border-transparent hover:text-blue-600 dark:hover:text-blue-400'
+                                        }`}
+                                    >
+                                        {link.name}
+                                        {isActive && (
+                                            <motion.span
+                                                layoutId="activeNavIndicator"
+                                                className="absolute bottom-[-2px] left-0 right-0 h-[2px] bg-blue-600 dark:bg-blue-400"
+                                                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                                            />
+                                        )}
+                                    </a>
+                                );
+                            })}
+                        </nav>
+
+                        {/* CTAs */}
+                        <div className="hidden md:flex items-center gap-3">
+                            {/* Theme Toggle Switcher */}
+                            <button
+                                onClick={toggleTheme}
+                                className="p-2 mr-1 rounded-xl border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors cursor-pointer flex items-center justify-center"
+                                title={appearance === 'dark' ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
                             >
-                                Dashboard
-                            </Link>
-                        ) : (
-                            <>
+                                {appearance === 'dark' ? <Sun className="size-4.5" /> : <Moon className="size-4.5" />}
+                            </button>
+
+                            {auth.user ? (
                                 <Link
-                                    href={route('login')}
-                                    className="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#19140035] dark:text-[#EDEDEC] dark:hover:border-[#3E3E3A]"
+                                    href={route('dashboard')}
+                                    className="h-9.5 px-4.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs tracking-wide flex items-center justify-center transition-all duration-300 shadow-md shadow-blue-500/10 dark:bg-blue-500 dark:hover:bg-blue-600"
                                 >
-                                    Log in
+                                    Dashboard
                                 </Link>
+                            ) : (
+                                <>
+                                    <Link
+                                        href={route('login')}
+                                        className="h-9.5 px-4.5 rounded-xl border border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-350 font-semibold text-xs hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors flex items-center justify-center"
+                                    >
+                                        Masuk
+                                    </Link>
+                                    <Link
+                                        href={route('register')}
+                                        className="h-9.5 px-4.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs tracking-wide flex items-center justify-center transition-all duration-300 shadow-md shadow-blue-500/10 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                    >
+                                        Coba Demo
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Mobile Header elements (Theme + Trigger Menu) */}
+                        <div className="flex items-center gap-2 md:hidden">
+                            <button
+                                onClick={toggleTheme}
+                                className="p-2 rounded-lg border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors cursor-pointer flex items-center justify-center"
+                                title={appearance === 'dark' ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
+                            >
+                                {appearance === 'dark' ? <Sun className="size-4.5" /> : <Moon className="size-4.5" />}
+                            </button>
+                            <button 
+                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                                className="p-2 rounded-lg text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors"
+                            >
+                                {isMobileMenuOpen ? <X className="size-5.5" /> : <Menu className="size-5.5" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Mobile Navigation Drawer */}
+                    {isMobileMenuOpen && (
+                        <div className="md:hidden border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-6 py-4 flex flex-col gap-4 animate-in slide-in-from-top duration-300">
+                            {navLinks.map((link) => {
+                                const isActive = activeSection === link.id;
+                                return (
+                                    <a
+                                        key={link.id}
+                                        href={link.href}
+                                        onClick={(e) => {
+                                            setIsMobileMenuOpen(false);
+                                            handleNavClick(e, link.href);
+                                        }}
+                                        className={`font-semibold py-1 transition-colors ${
+                                            isActive ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-neutral-600 dark:text-neutral-400'
+                                        }`}
+                                    >
+                                        {link.name}
+                                    </a>
+                                );
+                            })}
+                            <hr className="border-neutral-150 dark:border-neutral-850" />
+                            {auth.user ? (
+                                <Link
+                                    href={route('dashboard')}
+                                    className="h-10 rounded-xl bg-blue-600 text-white font-semibold text-sm flex items-center justify-center"
+                                >
+                                    Dashboard
+                                </Link>
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    <Link
+                                        href={route('login')}
+                                        className="h-10 rounded-xl border border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-355 font-semibold text-sm flex items-center justify-center"
+                                    >
+                                        Masuk
+                                    </Link>
+                                    <Link
+                                        href={route('register')}
+                                        className="h-10 rounded-xl bg-blue-600 text-white font-semibold text-sm flex items-center justify-center"
+                                    >
+                                        Coba Demo
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </header>
+
+                {/* 2. HERO SECTION */}
+                <section className="relative py-12 lg:py-20 overflow-hidden">
+                    
+                    {/* Background Blobs */}
+                    <div className="absolute top-1/4 left-0 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-blue-400/10 dark:bg-blue-500/5 blur-3xl" />
+                    <div className="absolute top-1/3 right-0 translate-x-1/3 w-96 h-96 rounded-full bg-indigo-400/10 dark:bg-indigo-500/5 blur-3xl" />
+
+                    <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center relative z-10">
+                        
+                        {/* Copy Column (Left) */}
+                        <motion.div 
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6 }}
+                            className="lg:col-span-5 flex flex-col gap-6 text-center lg:text-left"
+                        >
+                            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-neutral-900 dark:text-white leading-[1.15]">
+                                Kelola Modul Pelatihan Lebih Cepat dan Terstruktur
+                            </h1>
+                            <p className="text-sm sm:text-base text-neutral-500 dark:text-neutral-455 leading-relaxed font-semibold">
+                                Training PD membantu Anda mengelola pengajuan modul baru, revisi modul, approval, database modul, dan matriks pelatihan dalam satu sistem terintegrasi.
+                            </p>
+                            
+                            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-2">
+                                <Link
+                                    href={auth.user ? route('dashboard') : route('register')}
+                                    className="h-11 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs tracking-wider uppercase flex items-center justify-center transition-all duration-300 shadow-lg shadow-blue-500/20 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                >
+                                    Mulai Sekarang
+                                </Link>
+                                <a
+                                    href="#fitur"
+                                    onClick={(e) => handleNavClick(e, '#fitur')}
+                                    className="h-11 px-6 rounded-xl bg-white border border-neutral-200 dark:bg-neutral-950 dark:border-neutral-800 text-neutral-700 dark:text-neutral-350 font-bold text-xs tracking-wider uppercase flex items-center justify-center hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
+                                >
+                                    Lihat Fitur
+                                </a>
+                            </div>
+
+                            {/* Checkmark List */}
+                            <div className="flex flex-col gap-3 mt-4 text-xs font-semibold text-neutral-600 dark:text-neutral-450">
+                                <div className="flex items-center gap-2.5 justify-center lg:justify-start">
+                                    <div className="flex size-5 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                                        <Check className="size-3.5 stroke-[3]" />
+                                    </div>
+                                    <span>Alur approval lebih rapi</span>
+                                </div>
+                                <div className="flex items-center gap-2.5 justify-center lg:justify-start">
+                                    <div className="flex size-5 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                                        <Check className="size-3.5 stroke-[3]" />
+                                    </div>
+                                    <span>Dokumen terpusat</span>
+                                </div>
+                                <div className="flex items-center gap-2.5 justify-center lg:justify-start">
+                                    <div className="flex size-5 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                                        <Check className="size-3.5 stroke-[3]" />
+                                    </div>
+                                    <span>Mudah dipantau admin dan tim</span>
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        {/* Interactive App Mockup (Right) */}
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.96 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.8, delay: 0.15 }}
+                            className="lg:col-span-7 select-none"
+                        >
+                            <div className="bg-white dark:bg-neutral-950 rounded-2xl border border-neutral-200/80 dark:border-neutral-800/80 shadow-2xl overflow-hidden aspect-[1.38] flex transition-all duration-300">
+                                
+                                {/* Mock Sidebar */}
+                                <aside className="w-[120px] sm:w-[150px] border-r border-neutral-100 dark:border-neutral-900 p-2 sm:p-3 flex flex-col justify-between flex-shrink-0 bg-neutral-50/50 dark:bg-neutral-950/50">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-1.5 px-1.5 py-1">
+                                            <CubeIcon className="size-4.5" />
+                                            <span className="text-[10px] sm:text-xs font-bold text-neutral-850 dark:text-white">Training PD</span>
+                                        </div>
+                                        <div className="space-y-1 text-[8px] sm:text-[10px] font-semibold">
+                                            <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
+                                                <LayoutDashboard className="size-3 sm:size-3.5" />
+                                                <span>Dashboard</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 px-2 py-1.5 text-neutral-500 dark:text-neutral-455 hover:bg-neutral-100/60 dark:hover:bg-neutral-900/40 rounded-lg">
+                                                <Send className="size-3 sm:size-3.5" />
+                                                <span>Pengajuan</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 px-2 py-1.5 text-neutral-500 dark:text-neutral-455 hover:bg-neutral-100/60 dark:hover:bg-neutral-900/40 rounded-lg">
+                                                <ShieldCheck className="size-3 sm:size-3.5" />
+                                                <span>Approval</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 px-2 py-1.5 text-neutral-500 dark:text-neutral-455 hover:bg-neutral-100/60 dark:hover:bg-neutral-900/40 rounded-lg">
+                                                <Folder className="size-3 sm:size-3.5" />
+                                                <span>Database</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 px-2 py-1.5 text-neutral-500 dark:text-neutral-455 hover:bg-neutral-100/60 dark:hover:bg-neutral-900/40 rounded-lg">
+                                                <GraduationCap className="size-3 sm:size-3.5" />
+                                                <span>Matriks</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-2 py-1.5 text-[8px] sm:text-[10px] font-semibold text-neutral-450 dark:text-neutral-600 border-t border-neutral-100 dark:border-neutral-900">
+                                        <Settings className="size-3" />
+                                        <span>Pengaturan</span>
+                                    </div>
+                                </aside>
+
+                                {/* Mock Main Area */}
+                                <main className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-neutral-950">
+                                    
+                                    {/* Mock Top bar */}
+                                    <header className="h-10 sm:h-12 border-b border-neutral-100 dark:border-neutral-900 px-4 flex items-center justify-between">
+                                        <span className="text-[10px] sm:text-xs font-bold text-neutral-900 dark:text-white">Dashboard</span>
+                                        <div className="flex items-center gap-2">
+                                            <Bell className="size-3 sm:size-3.5 text-neutral-400" />
+                                            <div className="size-5 sm:size-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[7px] sm:text-[9px] font-bold">AD</div>
+                                        </div>
+                                    </header>
+
+                                    {/* Mock Content */}
+                                    <div className="flex-1 p-3 sm:p-4 overflow-y-auto space-y-3 sm:space-y-4">
+                                        
+                                        {/* Mock Metric Row */}
+                                        <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-[7px] sm:text-[10px] font-semibold">
+                                            <div className="border border-neutral-150 dark:border-neutral-850 p-1.5 rounded-lg flex items-center gap-1.5">
+                                                <div className="size-5 rounded-md bg-blue-50 dark:bg-blue-950/30 text-blue-600 flex items-center justify-center flex-shrink-0"><Folder className="size-3" /></div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[9px] sm:text-xs font-extrabold">386</span>
+                                                    <span className="text-[6px] sm:text-[8px] text-neutral-400 dark:text-neutral-500 font-medium">Modul</span>
+                                                </div>
+                                            </div>
+                                            <div className="border border-neutral-150 dark:border-neutral-850 p-1.5 rounded-lg flex items-center gap-1.5">
+                                                <div className="size-5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 flex items-center justify-center flex-shrink-0"><Send className="size-3" /></div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[9px] sm:text-xs font-extrabold">96</span>
+                                                    <span className="text-[6px] sm:text-[8px] text-neutral-400 dark:text-neutral-500 font-medium">Pengajuan</span>
+                                                </div>
+                                            </div>
+                                            <div className="border border-neutral-150 dark:border-neutral-850 p-1.5 rounded-lg flex items-center gap-1.5">
+                                                <div className="size-5 rounded-md bg-violet-50 dark:bg-violet-950/30 text-violet-600 flex items-center justify-center flex-shrink-0"><ShieldCheck className="size-3" /></div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[9px] sm:text-xs font-extrabold">86%</span>
+                                                    <span className="text-[6px] sm:text-[8px] text-neutral-400 dark:text-neutral-500 font-medium">Approval</span>
+                                                </div>
+                                            </div>
+                                            <div className="border border-neutral-150 dark:border-neutral-850 p-1.5 rounded-lg flex items-center gap-1.5">
+                                                <div className="size-5 rounded-md bg-amber-50 dark:bg-amber-950/30 text-amber-600 flex items-center justify-center flex-shrink-0"><GraduationCap className="size-3" /></div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[9px] sm:text-xs font-extrabold">42</span>
+                                                    <span className="text-[6px] sm:text-[8px] text-neutral-400 dark:text-neutral-500 font-medium">Program</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Mock Charts & Table Row */}
+                                        <div className="grid grid-cols-12 gap-3">
+                                            
+                                            {/* Table Column */}
+                                            <div className="col-span-8 border border-neutral-150 dark:border-neutral-850 rounded-xl p-2 sm:p-3 space-y-2">
+                                                <span className="text-[8px] sm:text-[10px] font-bold block text-neutral-850 dark:text-neutral-100">Pengajuan Terbaru</span>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left text-[6px] sm:text-[9px] border-collapse">
+                                                        <thead>
+                                                            <tr className="border-b border-neutral-100 dark:border-neutral-900 font-semibold text-neutral-455">
+                                                                <th className="pb-1 font-semibold">Judul Modul</th>
+                                                                <th className="pb-1 font-semibold">Pengaju</th>
+                                                                <th className="pb-1 font-semibold text-right">Status</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-neutral-50 dark:divide-neutral-900">
+                                                            {mockSubmissions.map((sub, idx) => (
+                                                                <tr key={idx} className="text-neutral-600 dark:text-neutral-350">
+                                                                    <td className="py-1 sm:py-1.5 font-bold text-neutral-800 dark:text-neutral-200">{sub.title}</td>
+                                                                    <td className="py-1 sm:py-1.5 font-medium">{sub.author}</td>
+                                                                    <td className="py-1 sm:py-1.5 text-right">
+                                                                        <span className={`text-[5px] sm:text-[7px] font-bold px-1.5 py-0.5 rounded border ${sub.badgeColor}`}>
+                                                                            {sub.status}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                            {/* Chart Column */}
+                                            <div className="col-span-4 border border-neutral-150 dark:border-neutral-850 rounded-xl p-2 sm:p-3 flex flex-col items-center justify-between">
+                                                <span className="text-[7px] sm:text-[9px] font-bold block self-start text-neutral-850 dark:text-neutral-100">Distribusi Status</span>
+                                                <div className="relative size-14 sm:size-20 flex items-center justify-center">
+                                                    <PieChart width={80} height={80}>
+                                                        <Pie
+                                                            data={mockChartData}
+                                                            dataKey="value"
+                                                            innerRadius={18}
+                                                            outerRadius={28}
+                                                            strokeWidth={0}
+                                                        >
+                                                            {mockChartData.map((entry, index) => (
+                                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                            ))}
+                                                            <Label
+                                                                content={({ viewBox }) => {
+                                                                    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                                                                        return (
+                                                                            <g>
+                                                                                <text
+                                                                                    x={viewBox.cx}
+                                                                                    y={viewBox.cy}
+                                                                                    textAnchor="middle"
+                                                                                    dominantBaseline="middle"
+                                                                                    className="fill-foreground text-[8px] font-extrabold text-neutral-800 dark:fill-neutral-100"
+                                                                                >
+                                                                                    96
+                                                                                </text>
+                                                                                <text
+                                                                                    x={viewBox.cx}
+                                                                                    y={(viewBox.cy || 0) + 7}
+                                                                                    textAnchor="middle"
+                                                                                    dominantBaseline="middle"
+                                                                                    className="fill-muted-foreground text-[4px] font-bold text-neutral-450 dark:text-neutral-550 uppercase tracking-wider"
+                                                                                >
+                                                                                    Total
+                                                                                </text>
+                                                                            </g>
+                                                                        )
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </Pie>
+                                                    </PieChart>
+                                                </div>
+                                                <div className="w-full grid grid-cols-2 gap-1 text-[5px] sm:text-[7px] text-neutral-450 dark:text-neutral-550 font-semibold mt-1">
+                                                    <div className="flex items-center gap-1"><span className="size-1 rounded-full bg-emerald-500"></span><span>Appr (54%)</span></div>
+                                                    <div className="flex items-center gap-1"><span className="size-1 rounded-full bg-blue-500"></span><span>Rev (25%)</span></div>
+                                                    <div className="flex items-center gap-1"><span className="size-1 rounded-full bg-amber-500"></span><span>Revi (13%)</span></div>
+                                                    <div className="flex items-center gap-1"><span className="size-1 rounded-full bg-red-500"></span><span>Rej (8%)</span></div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+                                </main>
+
+                            </div>
+                        </motion.div>
+
+                    </div>
+                </section>
+
+                {/* 3. KEY METRICS INDICATORS ROW */}
+                <section className="py-8 bg-white dark:bg-neutral-950 border-y border-neutral-200/50 dark:border-neutral-800/60 transition-colors">
+                    <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 lg:grid-cols-4 gap-6">
+                        
+                        {/* Metric 1 */}
+                        <div className="flex items-center gap-4 justify-center">
+                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex-shrink-0">
+                                <Folder className="size-6" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">386</span>
+                                <span className="text-xs font-semibold text-neutral-450 dark:text-neutral-500 uppercase tracking-wider mt-0.5">Modul Tersimpan</span>
+                            </div>
+                        </div>
+
+                        {/* Metric 2 */}
+                        <div className="flex items-center gap-4 justify-center">
+                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 flex-shrink-0">
+                                <FileText className="size-6" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">96</span>
+                                <span className="text-xs font-semibold text-neutral-455 dark:text-neutral-500 uppercase tracking-wider mt-0.5">Pengajuan</span>
+                            </div>
+                        </div>
+
+                        {/* Metric 3 */}
+                        <div className="flex items-center gap-4 justify-center">
+                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400 flex-shrink-0">
+                                <TrendingUp className="size-6" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">86%</span>
+                                <span className="text-xs font-semibold text-neutral-455 dark:text-neutral-500 uppercase tracking-wider mt-0.5">Approval Rate</span>
+                            </div>
+                        </div>
+
+                        {/* Metric 4 */}
+                        <div className="flex items-center gap-4 justify-center">
+                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400 flex-shrink-0">
+                                <GraduationCap className="size-6" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">42</span>
+                                <span className="text-xs font-semibold text-neutral-455 dark:text-neutral-500 uppercase tracking-wider mt-0.5">Program Pelatihan</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                {/* 4. FITUR UTAMA SECTION - UPGRADED & INTERACTIVE WITH MOTION REVEAL */}
+                <motion.section 
+                    id="fitur" 
+                    initial={{ opacity: 0, y: 40 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.6 }}
+                    className="py-16 lg:py-24 relative overflow-hidden scroll-mt-16 bg-neutral-50/20 dark:bg-neutral-900/10"
+                >
+                    <div className="max-w-7xl mx-auto px-6 space-y-12">
+                        
+                        {/* Section Header */}
+                        <div className="text-center max-w-xl mx-auto flex flex-col gap-3">
+                            <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-blue-50 dark:bg-blue-950/40 px-3 py-1 rounded-full border border-blue-200/50 dark:border-blue-900/30 self-center">
+                                Fitur Unggulan
+                            </span>
+                            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900 dark:text-white">
+                                Jelajahi Fitur Utama Kami
+                            </h2>
+                            <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 font-semibold leading-relaxed">
+                                Klik salah satu tab fitur di bawah untuk melihat detail fungsi dan draf simulasi sistem.
+                            </p>
+                        </div>
+
+                        {/* Feature Explorer Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                            
+                            {/* Left Column: Interactive Selector List */}
+                            <div className="lg:col-span-5 flex flex-col gap-3 w-full">
+                                {featuresData.map((feat, idx) => {
+                                    const IconComponent = feat.icon;
+                                    const isActive = activeFeature === idx;
+                                    return (
+                                        <button
+                                            key={feat.id}
+                                            onClick={() => setActiveFeature(idx)}
+                                            className={`w-full text-left p-4.5 rounded-2xl border flex items-center gap-4 transition-all duration-300 relative overflow-hidden cursor-pointer ${
+                                                isActive
+                                                    ? 'bg-white border-blue-200 shadow-lg dark:bg-neutral-950 dark:border-blue-900/60 shadow-blue-500/5'
+                                                    : 'bg-transparent border-neutral-200/60 dark:border-neutral-800/60 hover:bg-white/50 dark:hover:bg-neutral-950/30'
+                                            }`}
+                                        >
+                                            {isActive && (
+                                                <motion.div
+                                                    layoutId="activeFeatureBg"
+                                                    className="absolute inset-0 bg-gradient-to-r from-blue-50/20 to-indigo-50/5 dark:from-blue-950/20 dark:to-neutral-900/10 -z-10"
+                                                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                                />
+                                            )}
+                                            <div className={`flex aspect-square size-11 items-center justify-center rounded-xl transition-colors ${
+                                                isActive ? feat.colorClass : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-450'
+                                            }`}>
+                                                <IconComponent className="size-5.5" />
+                                            </div>
+                                            <div className="space-y-0.5 flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-bold text-neutral-900 dark:text-white text-sm">{feat.title}</span>
+                                                    {isActive && (
+                                                        <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200/40 dark:border-blue-900/40">Active</span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-neutral-455 dark:text-neutral-500 leading-normal line-clamp-1 font-medium">
+                                                    {feat.desc}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Right Column: Display Feature Details */}
+                            <div className="lg:col-span-7 bg-white dark:bg-neutral-950 border border-neutral-200/80 dark:border-neutral-800/80 rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col gap-6 relative min-h-[350px] transition-all duration-300">
+                                <div className="absolute top-0 right-0 translate-x-4 -translate-y-4 size-32 rounded-full bg-blue-500/5 blur-2xl" />
+                                
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 dark:border-neutral-900 pb-4 relative z-10">
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] font-bold tracking-wider text-blue-600 dark:text-blue-400 uppercase bg-blue-50 dark:bg-blue-950/50 px-2.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-900/50">
+                                            {featuresData[activeFeature].badge}
+                                        </span>
+                                        <h3 className="text-lg font-bold text-neutral-900 dark:text-white">{featuresData[activeFeature].title}</h3>
+                                    </div>
+                                    <div className="text-xs font-bold text-neutral-455 dark:text-neutral-500">
+                                        Fitur #{activeFeature + 1} / 4
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center relative z-10">
+                                    {/* Copy details */}
+                                    <div className="md:col-span-6 space-y-4">
+                                        <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-455 leading-relaxed font-semibold">
+                                            {featuresData[activeFeature].desc}
+                                        </p>
+                                        <ul className="space-y-2 text-xs font-semibold text-neutral-600 dark:text-neutral-400">
+                                            {featuresData[activeFeature].bullets.map((bullet, idx) => (
+                                                <li key={idx} className="flex items-start gap-2.5">
+                                                    <div className="flex size-4.5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 mt-0.5 flex-shrink-0">
+                                                        <Check className="size-3 stroke-[3]" />
+                                                    </div>
+                                                    <span>{bullet}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+
+                                    {/* Interative simulated screen */}
+                                    <div className="md:col-span-6">
+                                        {featuresData[activeFeature].mockup}
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                </motion.section>
+
+                {/* 5. ALUR KERJA SECTION - INTERACTIVE WITH MOTION REVEAL */}
+                <motion.section 
+                    id="alur" 
+                    initial={{ opacity: 0, y: 40 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.6 }}
+                    className="py-16 lg:py-24 bg-white dark:bg-neutral-950 border-y border-neutral-200/40 dark:border-neutral-900 scroll-mt-16 transition-colors"
+                >
+                    <div className="max-w-7xl mx-auto px-6 space-y-12">
+                        
+                        {/* Section Header */}
+                        <div className="text-center max-w-xl mx-auto flex flex-col gap-3">
+                            <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-blue-50 dark:bg-blue-950/40 px-3 py-1 rounded-full border border-blue-200/50 dark:border-blue-900/30 self-center">
+                                Workflow Sistem
+                            </span>
+                            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900 dark:text-white">
+                                Alur Kerja Sederhana
+                            </h2>
+                            <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 font-semibold leading-relaxed">
+                                Klik setiap langkah alur kerja di bawah untuk melihat rincian detail pelaku, durasi, dan berkas keluaran.
+                            </p>
+                        </div>
+
+                        {/* Interactive Steps Horizontal Timeline */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 relative z-10">
+                            {flowStepsData.map((step, idx) => {
+                                const IconComp = step.icon;
+                                const isActive = activeStep === step.id;
+                                return (
+                                    <button
+                                        key={step.id}
+                                        onClick={() => setActiveStep(step.id)}
+                                        className={`p-5 rounded-2xl border text-left flex flex-col gap-4 relative transition-all duration-300 cursor-pointer ${
+                                            isActive
+                                                ? 'bg-neutral-50 border-blue-500 shadow-md dark:bg-neutral-900 dark:border-blue-500'
+                                                : 'bg-neutral-50/30 border-neutral-200/60 dark:bg-neutral-900/20 dark:border-neutral-850 hover:border-neutral-300 dark:hover:border-neutral-800'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className={`size-6 rounded-full font-bold text-[10px] flex items-center justify-center transition-colors ${
+                                                isActive ? 'bg-blue-600 text-white' : 'bg-neutral-200 text-neutral-500 dark:bg-neutral-850 dark:text-neutral-400'
+                                            }`}>
+                                                {step.id}
+                                            </div>
+                                            <div className={`flex aspect-square size-8 items-center justify-center rounded-lg ${step.colorClass}`}>
+                                                <IconComp className="size-4" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-neutral-900 dark:text-white text-xs sm:text-sm">{step.title}</h4>
+                                            <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-semibold">{step.actor}</span>
+                                        </div>
+                                        {isActive && (
+                                            <motion.div
+                                                layoutId="activeStepIndicator"
+                                                className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-neutral-50 border-b border-r border-blue-500 dark:bg-neutral-900 rotate-45 hidden md:block"
+                                                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                                            />
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Timeline Step Details Card */}
+                        <div className="bg-neutral-50 border border-neutral-200/70 dark:bg-neutral-900/40 dark:border-neutral-850 p-6 rounded-2xl shadow-sm transition-all duration-300">
+                            {flowStepsData.map((step) => {
+                                if (step.id !== activeStep) return null;
+                                return (
+                                    <div key={step.id} className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start animate-in fade-in duration-300">
+                                        <div className="md:col-span-4 space-y-2.5">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded border border-blue-200/50 dark:border-blue-900/50">Langkah {step.id}</span>
+                                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">• {step.actor}</span>
+                                            </div>
+                                            <h3 className="text-base font-extrabold text-neutral-900 dark:text-white">{step.title}</h3>
+                                            <p className="text-xs text-neutral-550 dark:text-neutral-450 leading-relaxed font-semibold">
+                                                {step.desc}
+                                            </p>
+                                        </div>
+
+                                        <div className="md:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-neutral-150 dark:border-neutral-850 md:border-t-0 md:border-l md:pl-6 pt-4 md:pt-0">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Persyaratan Input</span>
+                                                <p className="text-xs text-neutral-750 dark:text-neutral-300 font-bold leading-normal">{step.requirements}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Rata-rata Durasi</span>
+                                                <p className="text-xs text-neutral-750 dark:text-neutral-300 font-bold leading-normal">{step.duration}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Hasil Keluaran</span>
+                                                <p className="text-xs text-neutral-750 dark:text-neutral-300 font-bold leading-normal">{step.output}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                    </div>
+                </motion.section>
+
+                {/* 5.5. DEDICATED TENTANG SECTION WITH MOTION REVEAL */}
+                <motion.section 
+                    id="tentang" 
+                    initial={{ opacity: 0, y: 40 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.6 }}
+                    className="py-16 lg:py-24 relative overflow-hidden bg-neutral-50/50 dark:bg-neutral-900/40 scroll-mt-16 border-b border-neutral-200/50 dark:border-neutral-800/60 transition-colors"
+                >
+                    <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                        
+                        {/* Left: Values & Stats */}
+                        <div className="lg:col-span-6 space-y-8">
+                            <div className="space-y-3">
+                                <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-blue-50 dark:bg-blue-950/40 px-3 py-1 rounded-full border border-blue-200/50 dark:border-blue-900/30">
+                                    Visi & Misi Kami
+                                </span>
+                                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900 dark:text-white">
+                                    Menghubungkan Kompetensi, Kurikulum, dan Kolaborasi
+                                </h2>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-450 leading-relaxed font-semibold">
+                                    Training PD lahir dari kebutuhan akan transparansi dan efisiensi dalam mengelola modul pelatihan. Kami menyederhanakan birokrasi manual menjadi alur digital yang efisien dan termonitor dengan baik.
+                                </p>
+                            </div>
+
+                            {/* Grid Values */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="p-4 bg-white dark:bg-neutral-950 border border-neutral-200/60 dark:border-neutral-800/80 rounded-xl space-y-2">
+                                    <div className="size-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-450 flex items-center justify-center">
+                                        <TrendingUp className="size-4.5" />
+                                    </div>
+                                    <h4 className="font-bold text-neutral-900 dark:text-white text-xs">Transformasi Cepat</h4>
+                                    <p className="text-[10px] text-neutral-455 leading-relaxed">
+                                        Mengurangi waktu tunggu approval modul dari berminggu-minggu menjadi hitungan hari kerja.
+                                    </p>
+                                </div>
+
+                                <div className="p-4 bg-white dark:bg-neutral-950 border border-neutral-200/60 dark:border-neutral-800/80 rounded-xl space-y-2">
+                                    <div className="size-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-450 flex items-center justify-center">
+                                        <ShieldCheck className="size-4.5" />
+                                    </div>
+                                    <h4 className="font-bold text-neutral-900 dark:text-white text-xs">Keamanan & Keaslian</h4>
+                                    <p className="text-[10px] text-neutral-455 leading-relaxed">
+                                        Setiap dokumen modul tersimpan rapi dengan riwayat versi resmi guna menghindari kebingungan dokumen.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right: Visual Illustration & Performance Stats */}
+                        <div className="lg:col-span-6 bg-white dark:bg-neutral-950 border border-neutral-200/60 dark:border-neutral-800/80 p-6 sm:p-8 rounded-2xl shadow-xl space-y-6">
+                            <h3 className="font-extrabold text-neutral-900 dark:text-white text-lg">Dampak untuk Organisasi</h3>
+                            
+                            <div className="space-y-4">
+                                {/* Stat Progress Bar 1 */}
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-bold">
+                                        <span>Kecepatan Alur Kerja</span>
+                                        <span className="text-blue-600 dark:text-blue-450">10x Lebih Cepat</span>
+                                    </div>
+                                    <div className="h-2 bg-neutral-100 dark:bg-neutral-900 rounded-full overflow-hidden">
+                                        <motion.div 
+                                            initial={{ width: 0 }}
+                                            whileInView={{ width: '92%' }}
+                                            viewport={{ once: true }}
+                                            transition={{ duration: 1, ease: 'easeOut' }}
+                                            className="h-full bg-blue-600 rounded-full"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Stat Progress Bar 2 */}
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-bold">
+                                        <span>Digitalisasi Dokumen</span>
+                                        <span className="text-emerald-600 dark:text-emerald-450">100% Paperless</span>
+                                    </div>
+                                    <div className="h-2 bg-neutral-100 dark:bg-neutral-900 rounded-full overflow-hidden">
+                                        <motion.div 
+                                            initial={{ width: 0 }}
+                                            whileInView={{ width: '100%' }}
+                                            viewport={{ once: true }}
+                                            transition={{ duration: 1, ease: 'easeOut' }}
+                                            className="h-full bg-emerald-500 rounded-full"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Stat Progress Bar 3 */}
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-bold">
+                                        <span>Akurasi & Validitas Matriks</span>
+                                        <span className="text-violet-600 dark:text-violet-455">99.8% Tepat</span>
+                                    </div>
+                                    <div className="h-2 bg-neutral-100 dark:bg-neutral-900 rounded-full overflow-hidden">
+                                        <motion.div 
+                                            initial={{ width: 0 }}
+                                            whileInView={{ width: '99%' }}
+                                            viewport={{ once: true }}
+                                            transition={{ duration: 1, ease: 'easeOut' }}
+                                            className="h-full bg-violet-500 rounded-full"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-neutral-100 dark:border-neutral-900 flex justify-between text-center">
+                                <div>
+                                    <span className="block text-2xl font-black text-blue-600 dark:text-blue-400">80%</span>
+                                    <span className="text-[10px] font-bold text-neutral-450">Reduksi Birokrasi</span>
+                                </div>
+                                <div className="border-r border-neutral-100 dark:border-neutral-900"></div>
+                                <div>
+                                    <span className="block text-2xl font-black text-emerald-500">24/7</span>
+                                    <span className="text-[10px] font-bold text-neutral-450">Akses Real-Time</span>
+                                </div>
+                                <div className="border-r border-neutral-100 dark:border-neutral-900"></div>
+                                <div>
+                                    <span className="block text-2xl font-black text-violet-500">0%</span>
+                                    <span className="text-[10px] font-bold text-neutral-455">Dokumen Hilang</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </motion.section>
+
+                {/* 5.8. DEDICATED KONTAK SECTION WITH MOTION REVEAL */}
+                <motion.section 
+                    id="kontak" 
+                    initial={{ opacity: 0, y: 40 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.6 }}
+                    className="py-16 lg:py-24 relative overflow-hidden bg-white dark:bg-neutral-950 scroll-mt-16 transition-colors"
+                >
+                    <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12">
+                        
+                        {/* Left: Contact Info */}
+                        <div className="lg:col-span-5 space-y-8">
+                            <div className="space-y-3 text-center lg:text-left">
+                                <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-blue-50 dark:bg-blue-950/40 px-3 py-1 rounded-full border border-blue-200/50 dark:border-blue-900/30">
+                                    Hubungi Kami
+                                </span>
+                                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900 dark:text-white">
+                                    Hubungi Tim Kami
+                                </h2>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-455 leading-relaxed font-semibold">
+                                    Punya pertanyaan seputar platform atau ingin menjadwalkan konsultasi khusus? Silakan hubungi kami atau kirimkan pesan lewat form.
+                                </p>
+                            </div>
+
+                            <div className="space-y-4">
+                                {/* Info Card 1 */}
+                                <div className="flex gap-4 p-4 border border-neutral-150 dark:border-neutral-850 rounded-xl bg-neutral-50/30 dark:bg-neutral-900/10">
+                                    <div className="size-10 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-450 flex items-center justify-center flex-shrink-0">
+                                        <Mail className="size-5" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-neutral-900 dark:text-white text-xs">Kirim Email</h4>
+                                        <a href="mailto:info@trainingpd.co.id" className="text-xs text-neutral-500 hover:text-blue-600 dark:text-neutral-450 dark:hover:text-blue-400 font-semibold transition-colors">
+                                            info@trainingpd.co.id
+                                        </a>
+                                    </div>
+                                </div>
+
+                                {/* Info Card 2 */}
+                                <div className="flex gap-4 p-4 border border-neutral-150 dark:border-neutral-850 rounded-xl bg-neutral-50/30 dark:bg-neutral-900/10">
+                                    <div className="size-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-450 flex items-center justify-center flex-shrink-0">
+                                        <HelpCircle className="size-5" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-neutral-900 dark:text-white text-xs">Pusat Bantuan</h4>
+                                        <span className="text-xs text-neutral-500 dark:text-neutral-455 font-semibold">
+                                            +62 (21) 555-0199
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Info Card 3 */}
+                                <div className="flex gap-4 p-4 border border-neutral-150 dark:border-neutral-850 rounded-xl bg-neutral-50/30 dark:bg-neutral-900/10">
+                                    <div className="size-10 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-455 flex items-center justify-center flex-shrink-0">
+                                        <CubeIcon className="size-5" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-neutral-900 dark:text-white text-xs">Lokasi Kantor</h4>
+                                        <span className="text-xs text-neutral-500 dark:text-neutral-455 font-semibold">
+                                            Gedung Training PD, Jl. Jendral Sudirman No. 86, Jakarta
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right: Contact Form */}
+                        <div className="lg:col-span-7 bg-neutral-50/50 dark:bg-neutral-900/20 border border-neutral-200/60 dark:border-neutral-850 p-6 sm:p-8 rounded-2xl shadow-sm">
+                            <form onSubmit={handleContactSubmit} className="space-y-4">
+                                
+                                {submitSuccess && (
+                                    <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-250 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-350 rounded-xl flex items-center gap-3 animate-in fade-in duration-300">
+                                        <div className="size-6 rounded-full bg-emerald-500 text-white flex items-center justify-center flex-shrink-0">
+                                            <Check className="size-3.5 stroke-[3]" />
+                                        </div>
+                                        <div className="text-xs font-semibold">
+                                            <p className="font-bold text-emerald-900 dark:text-emerald-355">Pesan Berhasil Dikirim!</p>
+                                            <p className="text-emerald-700/80 dark:text-emerald-400/80">Tim kami akan segera menghubungi Anda kembali.</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400">Nama Lengkap</label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={contactForm.name}
+                                            onChange={handleContactChange}
+                                            className={`w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${formErrors.name ? 'border-red-500 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-800 focus:border-blue-500'}`}
+                                            placeholder="Contoh: Budi Santoso"
+                                        />
+                                        {formErrors.name && <span className="text-[10px] font-bold text-red-500 block">{formErrors.name}</span>}
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400">Alamat Email</label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={contactForm.email}
+                                            onChange={handleContactChange}
+                                            className={`w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${formErrors.email ? 'border-red-500 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-800 focus:border-blue-500'}`}
+                                            placeholder="Contoh: budi@company.com"
+                                        />
+                                        {formErrors.email && <span className="text-[10px] font-bold text-red-500 block">{formErrors.email}</span>}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400">Subjek</label>
+                                    <input
+                                        type="text"
+                                        name="subject"
+                                        value={contactForm.subject}
+                                        onChange={handleContactChange}
+                                        className={`w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${formErrors.subject ? 'border-red-500 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-800 focus:border-blue-500'}`}
+                                        placeholder="Contoh: Kemitraan Lisensi / Penjadwalan Demo"
+                                    />
+                                    {formErrors.subject && <span className="text-[10px] font-bold text-red-500 block">{formErrors.subject}</span>}
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-neutral-500 dark:text-neutral-455">Pesan</label>
+                                    <textarea
+                                        name="message"
+                                        value={contactForm.message}
+                                        onChange={handleContactChange}
+                                        rows={4}
+                                        className={`w-full p-3.5 bg-white dark:bg-neutral-950 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none ${formErrors.message ? 'border-red-500 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-800 focus:border-blue-500'}`}
+                                        placeholder="Tuliskan pesan Anda di sini..."
+                                    />
+                                    {formErrors.message && <span className="text-[10px] font-bold text-red-500 block">{formErrors.message}</span>}
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold tracking-wider uppercase flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-blue-500/10 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <div className="size-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                            <span>Mengirim...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Kirim Pesan</span>
+                                            <Send className="size-3.5" />
+                                        </>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </motion.section>
+
+                {/* 6. CALL TO ACTION (CTA) SECTION */}
+                <section className="py-16 lg:py-20 relative overflow-hidden bg-neutral-50/50 dark:bg-neutral-900/20">
+                    <div className="max-w-7xl mx-auto px-6 relative z-10">
+                        <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 rounded-3xl p-8 lg:p-12 shadow-xl flex flex-col lg:flex-row items-center justify-between gap-8 text-white">
+                            
+                            {/* Copy Columns */}
+                            <div className="flex items-center gap-6 text-center lg:text-left">
+                                <div className="flex aspect-square size-14 items-center justify-center rounded-2xl bg-white/10 text-white flex-shrink-0 hidden sm:flex">
+                                    <Rocket className="size-7.5 animate-bounce" />
+                                </div>
+                                <div className="space-y-2">
+                                    <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                                        Mulai Digitalisasi Pengelolaan Modul Pelatihan
+                                    </h3>
+                                    <p className="text-xs sm:text-sm text-blue-100 font-semibold leading-relaxed">
+                                        Tingkatkan efisiensi, transparansi, dan kualitas pelatihan organisasi Anda.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Buttons */}
+                            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-center">
                                 <Link
                                     href={route('register')}
-                                    className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
+                                    className="h-11 px-6 rounded-xl bg-white hover:bg-neutral-50 text-blue-600 font-bold text-xs tracking-wider uppercase flex items-center justify-center transition-colors w-full sm:w-auto font-Outfit font-bold"
                                 >
-                                    Register
+                                    Jadwalkan Demo
                                 </Link>
-                            </>
-                        )}
-                    </nav>
-                </header>
-                <div className="flex w-full items-center justify-center opacity-100 transition-opacity duration-750 lg:grow starting:opacity-0">
-                    <main className="flex w-full max-w-[335px] flex-col-reverse lg:max-w-4xl lg:flex-row">
-                        <div className="flex-1 rounded-br-lg rounded-bl-lg bg-white p-6 pb-12 text-[13px] leading-[20px] shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] lg:rounded-tl-lg lg:rounded-br-none lg:p-20 dark:bg-[#161615] dark:text-[#EDEDEC] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]">
-                            <h1 className="mb-1 font-medium">Let's get started</h1>
-                            <p className="mb-2 text-[#706f6c] dark:text-[#A1A09A]">
-                                Laravel has an incredibly rich ecosystem.
-                                <br />
-                                We suggest you start with the following.
+                                <a
+                                    href="#kontak"
+                                    onClick={(e) => handleNavClick(e, '#kontak')}
+                                    className="h-11 px-6 rounded-xl border border-white/30 hover:border-white/60 text-white font-bold text-xs tracking-wider uppercase flex items-center justify-center hover:bg-white/5 transition-all w-full sm:w-auto font-Outfit font-bold"
+                                >
+                                    Hubungi Kami
+                                </a>
+                            </div>
+
+                        </div>
+                    </div>
+                </section>
+
+                {/* 7. FOOTER */}
+                <footer className="bg-neutral-50 border-t border-neutral-200/50 dark:bg-neutral-950 dark:border-neutral-900 py-12 transition-colors">
+                    <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                        
+                        {/* Branding & Logo */}
+                        <div className="flex flex-col gap-3 text-center md:text-left max-w-sm">
+                            <Link href="/" className="flex items-center justify-center md:justify-start gap-2.5">
+                                <CubeIcon className="size-6.5" />
+                                <span className="text-base font-bold tracking-tight text-neutral-900 dark:text-white">
+                                    Training PD
+                                </span>
+                            </Link>
+                            <p className="text-[11px] sm:text-xs text-neutral-450 dark:text-neutral-500 font-semibold leading-relaxed">
+                                Platform pengelolaan modul pelatihan terintegrasi untuk organisasi modern.
                             </p>
-                            <ul className="mb-4 flex flex-col lg:mb-6">
-                                <li className="relative flex items-center gap-4 py-2 before:absolute before:top-1/2 before:bottom-0 before:left-[0.4rem] before:border-l before:border-[#e3e3e0] dark:before:border-[#3E3E3A]">
-                                    <span className="relative bg-white py-1 dark:bg-[#161615]">
-                                        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#e3e3e0] bg-[#FDFDFC] shadow-[0px_0px_1px_0px_rgba(0,0,0,0.03),0px_1px_2px_0px_rgba(0,0,0,0.06)] dark:border-[#3E3E3A] dark:bg-[#161615]">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-[#dbdbd7] dark:bg-[#3E3E3A]" />
-                                        </span>
-                                    </span>
-                                    <span>
-                                        Read the
-                                        <a
-                                            href="https://laravel.com/docs"
-                                            target="_blank"
-                                            className="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
-                                        >
-                                            <span>Documentation</span>
-                                            <svg
-                                                width={10}
-                                                height={11}
-                                                viewBox="0 0 10 11"
-                                                fill="none"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-2.5 w-2.5"
-                                            >
-                                                <path
-                                                    d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                                    stroke="currentColor"
-                                                    strokeLinecap="square"
-                                                />
-                                            </svg>
-                                        </a>
-                                    </span>
-                                </li>
-                                <li className="relative flex items-center gap-4 py-2 before:absolute before:top-0 before:bottom-1/2 before:left-[0.4rem] before:border-l before:border-[#e3e3e0] dark:before:border-[#3E3E3A]">
-                                    <span className="relative bg-white py-1 dark:bg-[#161615]">
-                                        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#e3e3e0] bg-[#FDFDFC] shadow-[0px_0px_1px_0px_rgba(0,0,0,0.03),0px_1px_2px_0px_rgba(0,0,0,0.06)] dark:border-[#3E3E3A] dark:bg-[#161615]">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-[#dbdbd7] dark:bg-[#3E3E3A]" />
-                                        </span>
-                                    </span>
-                                    <span>
-                                        Watch video tutorials at
-                                        <a
-                                            href="https://laracasts.com"
-                                            target="_blank"
-                                            className="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
-                                        >
-                                            <span>Laracasts</span>
-                                            <svg
-                                                width={10}
-                                                height={11}
-                                                viewBox="0 0 10 11"
-                                                fill="none"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-2.5 w-2.5"
-                                            >
-                                                <path
-                                                    d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                                    stroke="currentColor"
-                                                    strokeLinecap="square"
-                                                />
-                                            </svg>
-                                        </a>
-                                    </span>
-                                </li>
-                            </ul>
-                            <ul className="flex gap-3 text-sm leading-normal">
-                                <li>
-                                    <a
-                                        href="https://cloud.laravel.com"
-                                        target="_blank"
-                                        className="inline-block rounded-sm border border-black bg-[#1b1b18] px-5 py-1.5 text-sm leading-normal text-white hover:border-black hover:bg-black dark:border-[#eeeeec] dark:bg-[#eeeeec] dark:text-[#1C1C1A] dark:hover:border-white dark:hover:bg-white"
-                                    >
-                                        Deploy now
-                                    </a>
-                                </li>
-                            </ul>
+                            <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-semibold mt-1">
+                                &copy; {new Date().getFullYear()} Training PD. All rights reserved.
+                            </span>
                         </div>
-                        <div className="relative -mb-px aspect-[335/376] w-full shrink-0 overflow-hidden rounded-t-lg bg-[#fff2f2] lg:mb-0 lg:-ml-px lg:aspect-auto lg:w-[438px] lg:rounded-t-none lg:rounded-r-lg dark:bg-[#1D0002]">
-                            <svg
-                                className="w-full max-w-none translate-y-0 text-[#F53003] opacity-100 transition-all duration-750 dark:text-[#F61500] starting:translate-y-6 starting:opacity-0"
-                                viewBox="0 0 438 104"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path d="M17.2036 -3H0V102.197H49.5189V86.7187H17.2036V-3Z" fill="currentColor" />
-                                <path
-                                    d="M110.256 41.6337C108.061 38.1275 104.945 35.3731 100.905 33.3681C96.8667 31.3647 92.8016 30.3618 88.7131 30.3618C83.4247 30.3618 78.5885 31.3389 74.201 33.2923C69.8111 35.2456 66.0474 37.928 62.9059 41.3333C59.7643 44.7401 57.3198 48.6726 55.5754 53.1293C53.8287 57.589 52.9572 62.274 52.9572 67.1813C52.9572 72.1925 53.8287 76.8995 55.5754 81.3069C57.3191 85.7173 59.7636 89.6241 62.9059 93.0293C66.0474 96.4361 69.8119 99.1155 74.201 101.069C78.5885 103.022 83.4247 103.999 88.7131 103.999C92.8016 103.999 96.8667 102.997 100.905 100.994C104.945 98.9911 108.061 96.2359 110.256 92.7282V102.195H126.563V32.1642H110.256V41.6337ZM108.76 75.7472C107.762 78.4531 106.366 80.8078 104.572 82.8112C102.776 84.8161 100.606 86.4183 98.0637 87.6206C95.5202 88.823 92.7004 89.4238 89.6103 89.4238C86.5178 89.4238 83.7252 88.823 81.2324 87.6206C78.7388 86.4183 76.5949 84.8161 74.7998 82.8112C73.004 80.8078 71.6319 78.4531 70.6856 75.7472C69.7356 73.0421 69.2644 70.1868 69.2644 67.1821C69.2644 64.1758 69.7356 61.3205 70.6856 58.6154C71.6319 55.9102 73.004 53.5571 74.7998 51.5522C76.5949 49.5495 78.738 47.9451 81.2324 46.7427C83.7252 45.5404 86.5178 44.9396 89.6103 44.9396C92.7012 44.9396 95.5202 45.5404 98.0637 46.7427C100.606 47.9451 102.776 49.5487 104.572 51.5522C106.367 53.5571 107.762 55.9102 108.76 58.6154C109.756 61.3205 110.256 64.1758 110.256 67.1821C110.256 70.1868 109.756 73.0421 108.76 75.7472Z"
-                                    fill="currentColor"
-                                />
-                                <path
-                                    d="M242.805 41.6337C240.611 38.1275 237.494 35.3731 233.455 33.3681C229.416 31.3647 225.351 30.3618 221.262 30.3618C215.974 30.3618 211.138 31.3389 206.75 33.2923C202.36 35.2456 198.597 37.928 195.455 41.3333C192.314 44.7401 189.869 48.6726 188.125 53.1293C186.378 57.589 185.507 62.274 185.507 67.1813C185.507 72.1925 186.378 76.8995 188.125 81.3069C189.868 85.7173 192.313 89.6241 195.455 93.0293C198.597 96.4361 202.361 99.1155 206.75 101.069C211.138 103.022 215.974 103.999 221.262 103.999C225.351 103.999 229.416 102.997 233.455 100.994C237.494 98.9911 240.611 96.2359 242.805 92.7282V102.195H259.112V32.1642H242.805V41.6337ZM241.31 75.7472C240.312 78.4531 238.916 80.8078 237.122 82.8112C235.326 84.8161 233.156 86.4183 230.614 87.6206C228.07 88.823 225.251 89.4238 222.16 89.4238C219.068 89.4238 216.275 88.823 213.782 87.6206C211.289 86.4183 209.145 84.8161 207.35 82.8112C205.554 80.8078 204.182 78.4531 203.236 75.7472C202.286 73.0421 201.814 70.1868 201.814 67.1821C201.814 64.1758 202.286 61.3205 203.236 58.6154C204.182 55.9102 205.554 53.5571 207.35 51.5522C209.145 49.5495 211.288 47.9451 213.782 46.7427C216.275 45.5404 219.068 44.9396 222.16 44.9396C225.251 44.9396 228.07 45.5404 230.614 46.7427C233.156 47.9451 235.326 49.5487 237.122 51.5522C238.917 53.5571 240.312 55.9102 241.31 58.6154C242.306 61.3205 242.806 64.1758 242.806 67.1821C242.805 70.1868 242.305 73.0421 241.31 75.7472Z"
-                                    fill="currentColor"
-                                />
-                                <path d="M438 -3H421.694V102.197H438V-3Z" fill="currentColor" />
-                                <path d="M139.43 102.197H155.735V48.2834H183.712V32.1665H139.43V102.197Z" fill="currentColor" />
-                                <path
-                                    d="M324.49 32.1665L303.995 85.794L283.498 32.1665H266.983L293.748 102.197H314.242L341.006 32.1665H324.49Z"
-                                    fill="currentColor"
-                                />
-                                <path
-                                    d="M376.571 30.3656C356.603 30.3656 340.797 46.8497 340.797 67.1828C340.797 89.6597 356.094 104 378.661 104C391.29 104 399.354 99.1488 409.206 88.5848L398.189 80.0226C398.183 80.031 389.874 90.9895 377.468 90.9895C363.048 90.9895 356.977 79.3111 356.977 73.269H411.075C413.917 50.1328 398.775 30.3656 376.571 30.3656ZM357.02 61.0967C357.145 59.7487 359.023 43.3761 376.442 43.3761C393.861 43.3761 395.978 59.7464 396.099 61.0967H357.02Z"
-                                    fill="currentColor"
-                                />
-                            </svg>
-                            <svg
-                                className="relative -mt-[4.9rem] -ml-8 w-[448px] max-w-none lg:-mt-[6.6rem] lg:ml-0 dark:hidden"
-                                viewBox="0 0 440 376"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <g className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0">
-                                    <path
-                                        d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                        fill="black"
-                                    />
-                                    <path
-                                        d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                        fill="black"
-                                    />
-                                    <path
-                                        d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                        fill="#F8B803"
-                                    />
-                                    <path
-                                        d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                        fill="#F8B803"
-                                    />
-                                    <path
-                                        d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                >
-                                    <path
-                                        d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                        fill="#F0ACB8"
-                                    />
-                                    <path
-                                        d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                        fill="#F0ACB8"
-                                    />
-                                    <path
-                                        d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g
-                                    style={{ mixBlendMode: 'plus-darker' }}
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                >
-                                    <path
-                                        d="M230.951 281.792L231.282 281.793C238.128 274.907 248.453 265.823 262.256 254.539C275.617 243.256 285.666 234.267 292.402 227.573C299.027 220.688 303.554 213.421 305.983 205.771C308.412 198.12 307.253 190.183 302.504 181.959C297.203 172.778 289.749 165.415 280.142 159.868C270.645 154.13 260.596 151.26 249.995 151.26C239.615 151.26 232.823 154.033 229.621 159.579C226.309 164.934 227.413 172.393 232.935 181.956L168.335 181.954C159.058 165.888 155.082 151.543 156.407 138.92C157.953 126.298 164.247 116.544 175.289 109.659C186.442 102.583 201.294 99.045 219.846 99.0457C239.281 99.0464 258.551 102.585 277.655 109.663C296.649 116.549 313.986 126.303 329.667 138.927C345.349 151.551 357.827 165.895 367.104 181.961C375.718 196.88 379.528 209.981 378.535 221.265C377.762 232.549 374.063 242.399 367.438 250.814C361.033 259.229 351.095 269.557 337.624 281.796L419.782 281.8L448.605 331.719L259.774 331.712L230.951 281.792Z"
-                                        fill="#F3BEC7"
-                                    />
-                                    <path
-                                        d="M51.8063 152.402L28.9479 152.401L-0.0411453 102.195L85.7608 102.198L218.282 331.711L155.339 331.709L51.8063 152.402Z"
-                                        fill="#F3BEC7"
-                                    />
-                                    <path
-                                        d="M230.951 281.792L231.282 281.793C238.128 274.907 248.453 265.823 262.256 254.539C275.617 243.256 285.666 234.267 292.402 227.573C299.027 220.688 303.554 213.421 305.983 205.771C308.412 198.12 307.253 190.183 302.504 181.959C297.203 172.778 289.749 165.415 280.142 159.868C270.645 154.13 260.596 151.26 249.995 151.26C239.615 151.26 232.823 154.033 229.621 159.579C226.309 164.934 227.413 172.393 232.935 181.956L168.335 181.954C159.058 165.888 155.082 151.543 156.407 138.92C157.953 126.298 164.247 116.544 175.289 109.659C186.442 102.583 201.294 99.045 219.846 99.0457C239.281 99.0464 258.551 102.585 277.655 109.663C296.649 116.549 313.986 126.303 329.667 138.927C345.349 151.551 357.827 165.895 367.104 181.961C375.718 196.88 379.528 209.981 378.535 221.265C377.762 232.549 374.063 242.399 367.438 250.814C361.033 259.229 351.095 269.557 337.624 281.796L419.782 281.8L448.605 331.719L259.774 331.712L230.951 281.792Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M51.8063 152.402L28.9479 152.401L-0.0411453 102.195L85.7608 102.198L218.282 331.711L155.339 331.709L51.8063 152.402Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0">
-                                    <path
-                                        d="M188.467 355.363L188.798 355.363C195.644 348.478 205.969 339.393 219.772 328.11C233.133 316.826 243.181 307.837 249.917 301.144C253.696 297.217 256.792 293.166 259.205 288.991C261.024 285.845 262.455 282.628 263.499 279.341C265.928 271.691 264.768 263.753 260.02 255.529C254.719 246.349 247.265 238.985 237.657 233.438C228.16 227.7 218.111 224.831 207.51 224.83C197.13 224.83 190.339 227.603 187.137 233.149C183.824 238.504 184.929 245.963 190.45 255.527L125.851 255.524C116.574 239.458 112.598 225.114 113.923 212.491C114.615 206.836 116.261 201.756 118.859 197.253C122.061 191.704 126.709 187.03 132.805 183.229C143.958 176.153 158.81 172.615 177.362 172.616C196.797 172.617 216.067 176.156 235.171 183.233C254.164 190.119 271.502 199.874 287.183 212.497C302.864 225.121 315.343 239.466 324.62 255.532C333.233 270.45 337.044 283.551 336.05 294.835C335.46 303.459 333.16 311.245 329.151 318.194C327.915 320.337 326.515 322.4 324.953 324.384C318.549 332.799 308.611 343.127 295.139 355.367L377.297 355.37L406.121 405.289L217.29 405.282L188.467 355.363Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M9.32197 225.972L-13.5365 225.971L-42.5255 175.765L43.2765 175.768L175.798 405.282L112.854 405.279L9.32197 225.972Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M345.247 111.915C329.566 99.2919 312.229 89.5371 293.235 82.6512L235.167 183.228C254.161 190.114 271.498 199.869 287.179 212.492L345.247 111.915Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M382.686 154.964C373.41 138.898 360.931 124.553 345.25 111.93L287.182 212.506C302.863 225.13 315.342 239.475 324.618 255.541L382.686 154.964Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M293.243 82.6472C274.139 75.57 254.869 72.031 235.434 72.0303L177.366 172.607C196.801 172.608 216.071 176.147 235.175 183.224L293.243 82.6472Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M394.118 194.257C395.112 182.973 391.301 169.872 382.688 154.953L324.619 255.53C333.233 270.448 337.044 283.55 336.05 294.834L394.118 194.257Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M235.432 72.0311C216.88 72.0304 202.027 75.5681 190.875 82.6442L132.806 183.221C143.959 176.145 158.812 172.607 177.363 172.608L235.432 72.0311Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M265.59 124.25C276.191 124.251 286.24 127.12 295.737 132.858L237.669 233.435C228.172 227.697 218.123 224.828 207.522 224.827L265.59 124.25Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M295.719 132.859C305.326 138.406 312.78 145.77 318.081 154.95L260.013 255.527C254.712 246.347 247.258 238.983 237.651 233.436L295.719 132.859Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M387.218 217.608C391.227 210.66 393.527 202.874 394.117 194.25L336.049 294.827C335.459 303.451 333.159 311.237 329.15 318.185L387.218 217.608Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M245.211 132.577C248.413 127.03 255.204 124.257 265.584 124.258L207.516 224.835C197.136 224.834 190.345 227.607 187.143 233.154L245.211 132.577Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M318.094 154.945C322.842 163.17 324.002 171.107 321.573 178.757L263.505 279.334C265.934 271.684 264.774 263.746 260.026 255.522L318.094 154.945Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M176.925 96.6737C180.127 91.1249 184.776 86.4503 190.871 82.6499L132.803 183.227C126.708 187.027 122.059 191.702 118.857 197.25L176.925 96.6737Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M387.226 217.606C385.989 219.749 384.59 221.813 383.028 223.797L324.96 324.373C326.522 322.39 327.921 320.326 329.157 318.183L387.226 217.606Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M317.269 188.408C319.087 185.262 320.519 182.045 321.562 178.758L263.494 279.335C262.451 282.622 261.019 285.839 259.201 288.985L317.269 188.408Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M245.208 132.573C241.895 137.928 243 145.387 248.522 154.95L190.454 255.527C184.932 245.964 183.827 238.505 187.14 233.15L245.208 132.573Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M176.93 96.6719C174.331 101.175 172.686 106.255 171.993 111.91L113.925 212.487C114.618 206.831 116.263 201.752 118.862 197.249L176.93 96.6719Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M317.266 188.413C314.853 192.589 311.757 196.64 307.978 200.566L249.91 301.143C253.689 297.216 256.785 293.166 259.198 288.99L317.266 188.413Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M464.198 304.708L435.375 254.789L377.307 355.366L406.13 405.285L464.198 304.708Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M353.209 254.787C366.68 242.548 376.618 232.22 383.023 223.805L324.955 324.382C318.55 332.797 308.612 343.124 295.141 355.364L353.209 254.787Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M435.37 254.787L353.212 254.784L295.144 355.361L377.302 355.364L435.37 254.787Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M183.921 154.947L248.521 154.95L190.453 255.527L125.853 255.524L183.921 154.947Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M171.992 111.914C170.668 124.537 174.643 138.881 183.92 154.947L125.852 255.524C116.575 239.458 112.599 225.114 113.924 212.491L171.992 111.914Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M307.987 200.562C301.251 207.256 291.203 216.244 277.842 227.528L219.774 328.105C233.135 316.821 243.183 307.832 249.919 301.139L307.987 200.562Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M15.5469 75.1797L44.5359 125.386L-13.5321 225.963L-42.5212 175.756L15.5469 75.1797Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M277.836 227.536C264.033 238.82 253.708 247.904 246.862 254.789L188.794 355.366C195.64 348.481 205.965 339.397 219.768 328.113L277.836 227.536Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M275.358 304.706L464.189 304.713L406.12 405.29L217.29 405.283L275.358 304.706Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M44.5279 125.39L67.3864 125.39L9.31834 225.967L-13.5401 225.966L44.5279 125.39Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M101.341 75.1911L233.863 304.705L175.795 405.282L43.2733 175.768L101.341 75.1911ZM15.5431 75.19L-42.525 175.767L43.277 175.77L101.345 75.1932L15.5431 75.19Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M246.866 254.784L246.534 254.784L188.466 355.361L188.798 355.361L246.866 254.784Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M246.539 254.781L275.362 304.701L217.294 405.277L188.471 355.358L246.539 254.781Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M67.3906 125.391L170.923 304.698L112.855 405.275L9.32257 225.967L67.3906 125.391Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M170.921 304.699L233.865 304.701L175.797 405.278L112.853 405.276L170.921 304.699Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                </g>
-                                <g
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                >
-                                    <path
-                                        d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                        fill="#F0ACB8"
-                                    />
-                                    <path
-                                        d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="round"
-                                    />
-                                </g>
-                                <g
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                >
-                                    <path
-                                        d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                        fill="#F0ACB8"
-                                    />
-                                    <path
-                                        d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                            </svg>
-                            <svg
-                                className="relative -mt-[4.9rem] -ml-8 hidden w-[448px] max-w-none lg:-mt-[6.6rem] lg:ml-0 dark:block"
-                                viewBox="0 0 440 376"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <g className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0">
-                                    <path
-                                        d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                        fill="black"
-                                    />
-                                    <path
-                                        d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                        fill="black"
-                                    />
-                                    <path
-                                        d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                        fill="#391800"
-                                    />
-                                    <path
-                                        d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                        fill="#391800"
-                                    />
-                                    <path
-                                        d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                >
-                                    <path
-                                        d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                        fill="#733000"
-                                    />
-                                    <path
-                                        d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                        fill="#733000"
-                                    />
-                                    <path
-                                        d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0">
-                                    <path
-                                        d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.726 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0">
-                                    <path
-                                        d="M188.467 355.363L188.798 355.363C195.644 348.478 205.969 339.393 219.772 328.11C233.133 316.826 243.181 307.837 249.917 301.144C253.696 297.217 256.792 293.166 259.205 288.991C261.024 285.845 262.455 282.628 263.499 279.341C265.928 271.691 264.768 263.753 260.02 255.529C254.719 246.349 247.265 238.985 237.657 233.438C228.16 227.7 218.111 224.831 207.51 224.83C197.13 224.83 190.339 227.603 187.137 233.149C183.824 238.504 184.929 245.963 190.45 255.527L125.851 255.524C116.574 239.458 112.598 225.114 113.923 212.491C114.615 206.836 116.261 201.756 118.859 197.253C122.061 191.704 126.709 187.03 132.805 183.229C143.958 176.153 158.81 172.615 177.362 172.616C196.797 172.617 216.067 176.156 235.171 183.233C254.164 190.119 271.502 199.874 287.183 212.497C302.864 225.121 315.343 239.466 324.62 255.532C333.233 270.45 337.044 283.551 336.05 294.835C335.46 303.459 333.16 311.245 329.151 318.194C327.915 320.337 326.515 322.4 324.953 324.384C318.549 332.799 308.611 343.127 295.139 355.367L377.297 355.37L406.121 405.289L217.29 405.282L188.467 355.363Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M9.32197 225.972L-13.5365 225.971L-42.5255 175.765L43.2765 175.768L175.798 405.282L112.854 405.279L9.32197 225.972Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M345.247 111.915C329.566 99.2919 312.229 89.5371 293.235 82.6512L235.167 183.228C254.161 190.114 271.498 199.869 287.179 212.492L345.247 111.915Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M382.686 154.964C373.41 138.898 360.931 124.553 345.25 111.93L287.182 212.506C302.863 225.13 315.342 239.475 324.618 255.541L382.686 154.964Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M293.243 82.6472C274.139 75.57 254.869 72.031 235.434 72.0303L177.366 172.607C196.801 172.608 216.071 176.147 235.175 183.224L293.243 82.6472Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M394.118 194.257C395.112 182.973 391.301 169.872 382.688 154.953L324.619 255.53C333.233 270.448 337.044 283.55 336.05 294.834L394.118 194.257Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M235.432 72.0311C216.88 72.0304 202.027 75.5681 190.875 82.6442L132.806 183.221C143.959 176.145 158.812 172.607 177.363 172.608L235.432 72.0311Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M265.59 124.25C276.191 124.251 286.24 127.12 295.737 132.858L237.669 233.435C228.172 227.697 218.123 224.828 207.522 224.827L265.59 124.25Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M295.719 132.859C305.326 138.406 312.78 145.77 318.081 154.95L260.013 255.527C254.712 246.347 247.258 238.983 237.651 233.436L295.719 132.859Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M387.218 217.608C391.227 210.66 393.527 202.874 394.117 194.25L336.049 294.827C335.459 303.451 333.159 311.237 329.15 318.185L387.218 217.608Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M245.211 132.577C248.413 127.03 255.204 124.257 265.584 124.258L207.516 224.835C197.136 224.834 190.345 227.607 187.143 233.154L245.211 132.577Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M318.094 154.945C322.842 163.17 324.002 171.107 321.573 178.757L263.505 279.334C265.934 271.684 264.774 263.746 260.026 255.522L318.094 154.945Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M176.925 96.6737C180.127 91.1249 184.776 86.4503 190.871 82.6499L132.803 183.227C126.708 187.027 122.059 191.702 118.857 197.25L176.925 96.6737Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M387.226 217.606C385.989 219.749 384.59 221.813 383.028 223.797L324.96 324.373C326.522 322.39 327.921 320.326 329.157 318.183L387.226 217.606Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M317.269 188.408C319.087 185.262 320.519 182.045 321.562 178.758L263.494 279.335C262.451 282.622 261.019 285.839 259.201 288.985L317.269 188.408Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M245.208 132.573C241.895 137.928 243 145.387 248.522 154.95L190.454 255.527C184.932 245.964 183.827 238.505 187.14 233.15L245.208 132.573Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M176.93 96.6719C174.331 101.175 172.686 106.255 171.993 111.91L113.925 212.487C114.618 206.831 116.263 201.752 118.862 197.249L176.93 96.6719Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M317.266 188.413C314.853 192.589 311.757 196.64 307.978 200.566L249.91 301.143C253.689 297.216 256.785 293.166 259.198 288.99L317.266 188.413Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M464.198 304.708L435.375 254.789L377.307 355.366L406.13 405.285L464.198 304.708Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M353.209 254.787C366.68 242.548 376.618 232.22 383.023 223.805L324.955 324.382C318.55 332.797 308.612 343.124 295.141 355.364L353.209 254.787Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M435.37 254.787L353.212 254.784L295.144 355.361L377.302 355.364L435.37 254.787Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M183.921 154.947L248.521 154.95L190.453 255.527L125.853 255.524L183.921 154.947Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M171.992 111.914C170.668 124.537 174.643 138.881 183.92 154.947L125.852 255.524C116.575 239.458 112.599 225.114 113.924 212.491L171.992 111.914Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M307.987 200.562C301.251 207.256 291.203 216.244 277.842 227.528L219.774 328.105C233.135 316.821 243.183 307.832 249.919 301.139L307.987 200.562Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M15.5469 75.1797L44.5359 125.386L-13.5321 225.963L-42.5212 175.756L15.5469 75.1797Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M277.836 227.536C264.033 238.82 253.708 247.904 246.862 254.789L188.794 355.366C195.64 348.481 205.965 339.397 219.768 328.113L277.836 227.536Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M275.358 304.706L464.189 304.713L406.12 405.29L217.29 405.283L275.358 304.706Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M44.5279 125.39L67.3864 125.39L9.31834 225.967L-13.5401 225.966L44.5279 125.39Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M101.341 75.1911L233.863 304.705L175.795 405.282L43.2733 175.768L101.341 75.1911ZM15.5431 75.19L-42.525 175.767L43.277 175.77L101.345 75.1932L15.5431 75.19Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M246.866 254.784L246.534 254.784L188.466 355.361L188.798 355.361L246.866 254.784Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M246.539 254.781L275.362 304.701L217.294 405.277L188.471 355.358L246.539 254.781Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M67.3906 125.391L170.923 304.698L112.855 405.275L9.32257 225.967L67.3906 125.391Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M170.921 304.699L233.865 304.701L175.797 405.278L112.853 405.276L170.921 304.699Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                </g>
-                                <g
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                >
-                                    <path
-                                        d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                        fill="#4B0600"
-                                    />
-                                    <path
-                                        d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="round"
-                                    />
-                                </g>
-                                <g
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                >
-                                    <path
-                                        d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                        fill="#4B0600"
-                                    />
-                                    <path
-                                        d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                            </svg>
-                            <div className="absolute inset-0 rounded-t-lg shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] lg:rounded-t-none lg:rounded-r-lg dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]" />
+
+                        {/* Navigation maps */}
+                        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-xs font-semibold text-neutral-500 dark:text-neutral-450">
+                            <a href="#fitur" onClick={(e) => handleNavClick(e, '#fitur')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Fitur</a>
+                            <a href="#alur" onClick={(e) => handleNavClick(e, '#alur')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Alur</a>
+                            <a href="#tentang" onClick={(e) => handleNavClick(e, '#tentang')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Tentang</a>
+                            <a href="#kontak" onClick={(e) => handleNavClick(e, '#kontak')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Kontak</a>
+                            <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Privacy</a>
                         </div>
-                    </main>
-                </div>
-                <div className="hidden h-14.5 lg:block"></div>
+
+                    </div>
+                </footer>
+
             </div>
         </>
     );
