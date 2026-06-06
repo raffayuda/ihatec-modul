@@ -2,7 +2,7 @@ import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Label } from 'recharts';
-import { motion, useScroll, useSpring } from 'framer-motion';
+import { motion, useScroll, useSpring, AnimatePresence } from 'framer-motion';
 import { useAppearance } from '@/hooks/use-appearance';
 import {
     BookOpen,
@@ -281,6 +281,53 @@ export default function Welcome() {
     const [activeStep, setActiveStep] = useState(1);
     const [activeSection, setActiveSection] = useState('beranda');
 
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadingProgress, setLoadingProgress] = useState(0);
+    const [loadingText, setLoadingText] = useState('Menginisialisasi sistem...');
+
+    useEffect(() => {
+        const hasLoaded = sessionStorage.getItem('hasLoadedBefore');
+        if (hasLoaded) {
+            setIsLoading(false);
+            return;
+        }
+
+        let progressInterval: NodeJS.Timeout;
+        const startTime = Date.now();
+        const duration = 2500; // 2.5 seconds loading
+
+        const updateProgress = () => {
+            const elapsed = Date.now() - startTime;
+            const percentage = Math.min(Math.floor((elapsed / duration) * 100), 100);
+            
+            setLoadingProgress(percentage);
+
+            if (percentage < 30) {
+                setLoadingText('Menginisialisasi sistem...');
+            } else if (percentage < 60) {
+                setLoadingText('Memuat komponen antarmuka...');
+            } else if (percentage < 85) {
+                setLoadingText('Menghubungkan ke pangkalan data...');
+            } else {
+                setLoadingText('Mempersiapkan beranda...');
+            }
+
+            if (elapsed >= duration) {
+                clearInterval(progressInterval);
+                sessionStorage.setItem('hasLoadedBefore', 'true');
+                setTimeout(() => {
+                    setIsLoading(false);
+                }, 400);
+            }
+        };
+
+        progressInterval = setInterval(updateProgress, 30);
+
+        return () => {
+            if (progressInterval) clearInterval(progressInterval);
+        };
+    }, []);
+
     // Theme Appearance State Hook
     const { appearance, updateAppearance } = useAppearance();
 
@@ -420,7 +467,105 @@ export default function Welcome() {
                 style={{ scaleX }}
             />
 
-            <div id="beranda" className="min-h-screen bg-neutral-50/50 text-neutral-800 font-['Outfit',sans-serif] selection:bg-blue-600 selection:text-white dark:bg-neutral-900 dark:text-neutral-200 transition-colors duration-300 scroll-mt-16">
+            {isLoading && (
+                <style>{`body { overflow: hidden !important; }`}</style>
+            )}
+
+            <AnimatePresence>
+                {isLoading && (
+                    <motion.div
+                        key="loader"
+                        initial={{ opacity: 1 }}
+                        exit={{ 
+                            opacity: 0,
+                            transition: { duration: 0.6, ease: [0.43, 0.13, 0.23, 0.96] }
+                        }}
+                        className="fixed inset-0 bg-neutral-950 flex flex-col items-center justify-center z-[9999] overflow-hidden"
+                    >
+                        {/* Radial subtle grid glow */}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] pointer-events-none" />
+                        
+                        <div className="flex flex-col items-center max-w-sm px-6 text-center select-none relative z-10">
+                            {/* Glowing brand icon */}
+                            <motion.div
+                                className="relative size-24 flex items-center justify-center mb-8"
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ duration: 0.5 }}
+                            >
+                                <div className="absolute inset-0 bg-blue-500/15 rounded-full blur-2xl animate-pulse" />
+                                
+                                <motion.div
+                                    className="absolute inset-0 rounded-full border-2 border-dashed border-blue-500/20 dark:border-blue-400/20"
+                                    animate={{ rotate: 360 }}
+                                    transition={{ repeat: Infinity, duration: 12, ease: "linear" }}
+                                />
+
+                                <motion.div
+                                    className="relative z-10 size-14 bg-neutral-900/90 border border-neutral-800 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/5"
+                                    animate={{ 
+                                        scale: [1, 1.06, 1],
+                                        rotateY: [0, 180, 360]
+                                    }}
+                                    transition={{ 
+                                        repeat: Infinity, 
+                                        duration: 4.5, 
+                                        ease: "easeInOut" 
+                                    }}
+                                >
+                                    <CubeIcon className="size-8 animate-pulse" />
+                                </motion.div>
+                            </motion.div>
+
+                            {/* Dynamic Title */}
+                            <motion.h2 
+                                className="text-xl font-bold tracking-tight text-white mb-2"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2, duration: 0.5 }}
+                            >
+                                Training Portal Digital
+                            </motion.h2>
+
+                            {/* Progress percentage */}
+                            <div className="font-mono text-3xl font-extrabold text-blue-500 tracking-wider mb-4">
+                                {String(loadingProgress).padStart(3, '0')}%
+                            </div>
+
+                            {/* Progress bar container */}
+                            <div className="w-56 h-1.5 bg-neutral-900 border border-neutral-800/80 rounded-full overflow-hidden relative">
+                                <motion.div
+                                    className="h-full bg-blue-500 rounded-full"
+                                    style={{ width: `${loadingProgress}%` }}
+                                    transition={{ ease: "easeInOut" }}
+                                />
+                            </div>
+
+                            {/* Dynamic load text indicator */}
+                            <motion.div 
+                                className="text-[10px] font-bold tracking-widest text-neutral-500 uppercase mt-4"
+                                key={loadingText}
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -5 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                {loadingText}
+                            </motion.div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ 
+                    opacity: isLoading ? 0 : 1, 
+                    scale: isLoading ? 0.98 : 1 
+                }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+            >
+                <div id="beranda" className="min-h-screen bg-neutral-50/50 text-neutral-800 font-['Outfit',sans-serif] selection:bg-blue-600 selection:text-white dark:bg-neutral-900 dark:text-neutral-200 transition-colors duration-300 scroll-mt-16">
                 
                 {/* 1. HEADER / NAVBAR */}
                 <header className="sticky top-0 z-50 bg-white/80 dark:bg-neutral-950/80 backdrop-blur-md border-b border-neutral-200/50 dark:border-neutral-800/60 transition-colors">
@@ -1447,6 +1592,7 @@ export default function Welcome() {
                 </footer>
 
             </div>
+            </motion.div>
         </>
     );
 }
