@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, usePage, Link } from '@inertiajs/react';
+import { Head, usePage, Link, useForm, router } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,8 @@ import {
     ExternalLink,
     ShieldCheck,
     Briefcase,
-    History
+    History,
+    Loader2
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -41,7 +42,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { PieChart, Pie, Cell, Label } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 
@@ -72,173 +73,145 @@ interface ModuleItem {
     }>;
 }
 
-export default function DatabaseModul() {
+interface DatabaseModulProps {
+    modules?: ModuleItem[];
+    metrics?: {
+        total: number;
+        approved: number;
+        revisi: number;
+        arsip: number;
+    };
+    categories?: Array<{
+        name: string;
+        value: number;
+        fill: string;
+    }>;
+    popular?: Array<{
+        id: string;
+        title: string;
+        views: number;
+    }>;
+}
+
+interface PdfThumbnailProps {
+    url: string;
+    fallback: React.ReactNode;
+}
+
+export function PdfThumbnail({ url, fallback }: PdfThumbnailProps) {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        let isMounted = true;
+        setLoading(true);
+        setError(false);
+
+        const renderPdf = async () => {
+            try {
+                // Ensure pdfjsLib is loaded
+                if (!(window as any).pdfjsLib) {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+                        script.onload = () => {
+                            (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+                            resolve(true);
+                        };
+                        script.onerror = reject;
+                        document.body.appendChild(script);
+                    });
+                }
+
+                const pdfjsLib = (window as any).pdfjsLib;
+                if (!pdfjsLib) {
+                    throw new Error('PDF.js not loaded');
+                }
+
+                const loadingTask = pdfjsLib.getDocument({
+                    url: url,
+                    withCredentials: true
+                });
+                const pdf = await loadingTask.promise;
+                
+                if (!isMounted) return;
+
+                const page = await pdf.getPage(1);
+                
+                if (!isMounted) return;
+
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const context = canvas.getContext('2d');
+                if (!context) return;
+
+                // Adjust to fit container width (96px/w-24)
+                const unscaledViewport = page.getViewport({ scale: 1 });
+                const scale = 96 / unscaledViewport.width;
+                const viewport = page.getViewport({ scale: scale });
+
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport,
+                };
+
+                await page.render(renderContext).promise;
+
+                if (isMounted) {
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error('Error rendering PDF thumbnail:', err);
+                if (isMounted) {
+                    setError(true);
+                    setLoading(false);
+                }
+            }
+        };
+
+        renderPdf();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [url]);
+
+    if (error) {
+        return <>{fallback}</>;
+    }
+
+    return (
+        <div className="w-24 h-32 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-850 flex items-center justify-center relative shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+            {loading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-neutral-950/80 z-10 font-medium">
+                    <Loader2 className="size-4 animate-spin text-blue-600 dark:text-blue-500" />
+                </div>
+            )}
+            <canvas ref={canvasRef} className="w-full h-full object-cover" />
+        </div>
+    );
+}
+
+export default function DatabaseModul({
+    modules: initialModules = [],
+    metrics = { total: 0, approved: 0, revisi: 0, arsip: 0 },
+    categories = [],
+    popular = []
+}: DatabaseModulProps) {
     const page = usePage<SharedData>();
     const user = page.props.auth?.user;
     const role = user?.role || 'User';
 
-    // Mock dataset matching the user's screenshot
-    const [modules, setModules] = useState<ModuleItem[]>([
-        {
-            id: 'ILN.1.8',
-            title: 'Interpretasi Sistem dan Implementasi ISO 17025',
-            program: 'Manajerial & Kepemimpinan',
-            revision: '2.1',
-            language: 'Indonesia',
-            updatedAt: '12 Jun 2024 09:21',
-            status: 'Approved',
-            fileSize: '2.45 MB',
-            filePages: 24,
-            description: 'Panduan teknis dan implementasi persyaratan umum kompetensi laboratorium pengujian dan kalibrasi sesuai standar ISO/IEC 17025:2017.',
-            revisionsHistory: [
-                { version: '2.1', date: '12 Jun 2024 09:21 WIB', author: 'Raffa (Administrator)', note: 'Perbaikan minor pada materi dan update referensi.', status: 'Approved' },
-                { version: '2.0', date: '30 Mei 2024 11:28 WIB', author: 'Dewi Lestari', note: 'Penyesuaian prosedur dan penambahan studi kasus.', status: 'Approved' },
-                { version: '1.1', date: '15 Mei 2024 14:05 WIB', author: 'Budi Santoso', note: 'Penambahan materi pada bab 3 dan 4.', status: 'Approved' },
-                { version: '1.0', date: '01 Mei 2024 09:00 WIB', author: 'Budi Santoso', note: 'Versi awal modul.', status: 'Approved' }
-            ]
-        },
-        {
-            id: 'SJPH',
-            title: 'Sistem Jaminan Produk Halal (SJPH)',
-            program: 'Regulasi & Kepatuhan',
-            revision: '1.3',
-            language: 'Indonesia',
-            updatedAt: '07 Jun 2024 14:35',
-            status: 'Approved',
-            fileSize: '3.12 MB',
-            filePages: 35,
-            description: 'Acuan standard implementasi jaminan produk halal di industri pangan, farmasi, dan kosmetika berdasarkan regulasi BPJPH.',
-            revisionsHistory: [
-                { version: '1.3', date: '07 Jun 2024 14:35 WIB', author: 'Dewi Lestari', note: 'Sinkronisasi kriteria SJPH Kemenag terbaru.', status: 'Approved' },
-                { version: '1.2', date: '12 Apr 2024 10:15 WIB', author: 'Budi Santoso', note: 'Penambahan diagram alir proses sertifikasi.', status: 'Approved' },
-                { version: '1.0', date: '02 Jan 2024 09:00 WIB', author: 'Budi Santoso', note: 'Rilis pertama modul panduan SJPH.', status: 'Approved' }
-            ]
-        },
-        {
-            id: 'AUD.HALAL',
-            title: 'Auditor Halal',
-            program: 'Sertifikasi & Auditor',
-            revision: '3.0',
-            language: 'Indonesia',
-            updatedAt: '04 Jun 2024 10:12',
-            status: 'Approved',
-            fileSize: '4.80 MB',
-            filePages: 48,
-            description: 'Kurikulum standar kompetensi kerja auditor halal mencakup teknik pemeriksaan dokumen, audit lapangan, dan pelaporan.',
-            revisionsHistory: [
-                { version: '3.0', date: '04 Jun 2024 10:12 WIB', author: 'Mega Kusuma', note: 'Pembaruan materi checklist bahan kritis.', status: 'Approved' },
-                { version: '2.0', date: '18 Nov 2023 15:40 WIB', author: 'Dewi Lestari', note: 'Penambahan simulasi kasus audit pabrik skala besar.', status: 'Approved' }
-            ]
-        },
-        {
-            id: 'PPH.01',
-            title: 'Pemeriksaan Bahan PPH',
-            program: 'Teknis Laboratorium',
-            revision: '1.2',
-            language: 'Indonesia',
-            updatedAt: '02 Jun 2024 16:47',
-            status: 'Revisi',
-            fileSize: '1.95 MB',
-            filePages: 18,
-            description: 'Tata cara pemeriksaan bahan baku, bahan tambahan, dan bahan penolong dalam Proses Produk Halal.',
-            revisionsHistory: [
-                { version: '1.2', date: '02 Jun 2024 16:47 WIB', author: 'Budi Santoso', note: 'Draft usulan revisi tabel titik kritis bahan hewani.', status: 'Draft' },
-                { version: '1.0', date: '10 Feb 2024 11:20 WIB', author: 'Budi Santoso', note: 'Rilis pertama.', status: 'Approved' }
-            ]
-        },
-        {
-            id: 'CPPOB.02',
-            title: 'Cara Produksi Pangan Olahan yang Baik',
-            program: 'Teknis Produksi',
-            revision: '2.0',
-            language: 'Indonesia',
-            updatedAt: '30 Mei 2024 11:28',
-            status: 'Approved',
-            fileSize: '2.70 MB',
-            filePages: 26,
-            description: 'Pedoman industri pengolahan pangan untuk menghasilkan produk pangan yang aman, bermutu, dan layak dikonsumsi.',
-            revisionsHistory: [
-                { version: '2.0', date: '30 Mei 2024 11:28 WIB', author: 'Yusuf Setiawan', note: 'Pembaruan panduan sanitasi peralatan pabrik.', status: 'Approved' },
-                { version: '1.0', date: '15 Okt 2023 09:30 WIB', author: 'Yusuf Setiawan', note: 'Versi awal.', status: 'Approved' }
-            ]
-        },
-        {
-            id: 'TRACE.01',
-            title: 'Traceability Rantai Pasok Halal',
-            program: 'Supply Chain & Logistik',
-            revision: '1.0',
-            language: 'Indonesia',
-            updatedAt: '28 Mei 2024 08:55',
-            status: 'Revisi',
-            fileSize: '1.60 MB',
-            filePages: 15,
-            description: 'Prinsip ketertelusuran produk dari bahan baku hingga produk sampai ke konsumen untuk menjamin integritas halal.',
-            revisionsHistory: [
-                { version: '1.0', date: '28 Mei 2024 08:55 WIB', author: 'Mega Kusuma', note: 'Draft usulan modul baru ketertelusuran logistik.', status: 'Draft' }
-            ]
-        },
-        {
-            id: 'HALAL.AWARE',
-            title: 'Halal Awareness',
-            program: 'Pengembangan SDM',
-            revision: '1.1',
-            language: 'English',
-            updatedAt: '24 Mei 2024 15:32',
-            status: 'Approved',
-            fileSize: '1.40 MB',
-            filePages: 14,
-            description: 'Basic introduction to halal and haram concepts for general staff and third-party contractors.',
-            revisionsHistory: [
-                { version: '1.1', date: '24 Mei 2024 15:32 WIB', author: 'Nita Fadilah', note: 'English translation review & grammar adjustments.', status: 'Approved' },
-                { version: '1.0', date: '01 Apr 2024 09:30 WIB', author: 'Nita Fadilah', note: 'First release.', status: 'Approved' }
-            ]
-        },
-        {
-            id: 'MGMT.RISK',
-            title: 'Manajemen Risiko',
-            program: 'Manajerial & Kepemimpinan',
-            revision: '2.2',
-            language: 'Indonesia',
-            updatedAt: '22 Mei 2024 09:10',
-            status: 'Arsip',
-            fileSize: '2.10 MB',
-            filePages: 22,
-            description: 'Kerangka manajemen risiko perusahaan secara korporat, metode identifikasi risiko dan penyusunan risk register.',
-            revisionsHistory: [
-                { version: '2.2', date: '22 Mei 2024 09:10 WIB', author: 'Andi Pratama', note: 'Modul diarsipkan karena digantikan oleh versi terintegrasi.', status: 'Approved' }
-            ]
-        },
-        {
-            id: 'SAMPL.01',
-            title: 'Teknik Pengambilan Sampel',
-            program: 'Teknis Laboratorium',
-            revision: '1.0',
-            language: 'Indonesia',
-            updatedAt: '20 Mei 2024 13:41',
-            status: 'Approved',
-            fileSize: '2.15 MB',
-            filePages: 20,
-            description: 'Pedoman pengambilan contoh uji di lapangan guna menjaga validitas hasil pengujian laboratorium kimia dan mikrobiologi.',
-            revisionsHistory: [
-                { version: '1.0', date: '20 Mei 2024 13:41 WIB', author: 'Budi Santoso', note: 'Rilis pertama.', status: 'Approved' }
-            ]
-        },
-        {
-            id: 'LAB.SAFE',
-            title: 'Keselamatan dan Kesehatan Kerja Laboratorium',
-            program: 'K3 & Keamanan',
-            revision: '1.3',
-            language: 'Indonesia',
-            updatedAt: '18 Mei 2024 10:05',
-            status: 'Revisi',
-            fileSize: '2.50 MB',
-            filePages: 25,
-            description: 'Pedoman keselamatan penggunaan bahan kimia berbahaya, penanganan kecelakaan kerja, dan penggunaan alat pelindung diri.',
-            revisionsHistory: [
-                { version: '1.3', date: '18 Mei 2024 10:05 WIB', author: 'Budi Santoso', note: 'Penambahan panduan MSDS format GHS terbaru.', status: 'Draft' }
-            ]
-        }
-    ]);
+    const [modules, setModules] = useState<ModuleItem[]>(initialModules);
+
+    React.useEffect(() => {
+        setModules(initialModules);
+    }, [initialModules]);
 
     // Selection check boxes
     const [selectedModules, setSelectedModules] = useState<string[]>([]);
@@ -249,24 +222,54 @@ export default function DatabaseModul() {
     const [langFilter, setLangFilter] = useState('Semua Bahasa');
     const [statusFilter, setStatusFilter] = useState('Semua Status');
     const [revFilter, setRevFilter] = useState('Semua Revisi');
+    const [showArchivedOnly, setShowArchivedOnly] = useState(false);
 
     // Selected Module for Right Column Preview
-    const [selectedModuleId, setSelectedModuleId] = useState<string>('ILN.1.8');
+    const [selectedModuleId, setSelectedModuleId] = useState<string>('');
+
+    // If selectedModuleId is empty, use the first module code if any
+    const activeSelectedId = useMemo(() => {
+        if (selectedModuleId) return selectedModuleId;
+        return modules.length > 0 ? modules[0].id : '';
+    }, [modules, selectedModuleId]);
 
     // Add module form modal
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [newId, setNewId] = useState('');
-    const [newTitle, setNewTitle] = useState('');
-    const [newProgram, setNewProgram] = useState('Regulasi & Kepatuhan');
-    const [newLanguage, setNewLanguage] = useState('Indonesia');
-    const [newDescription, setNewDescription] = useState('');
+
+    // Form hook
+    const { data, setData, post, processing, errors, reset } = useForm({
+        code: '',
+        title: '',
+        program: 'Regulasi & Kepatuhan',
+        language: 'Indonesia',
+        description: '',
+        file: null as File | null,
+    });
+
+    const [isReviseModalOpen, setIsReviseModalOpen] = useState(false);
+
+    const reviseForm = useForm({
+        code: '',
+        revision: '',
+        note: '',
+        file: null as File | null,
+    });
+
+    const {
+        data: reviseData,
+        setData: setReviseData,
+        post: postRevise,
+        processing: reviseProcessing,
+        errors: reviseErrors,
+        reset: resetRevise
+    } = reviseForm;
 
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
     // Active item matching
     const selectedModule = useMemo(() => {
-        return modules.find(m => m.id === selectedModuleId) || modules[0] || null;
-    }, [modules, selectedModuleId]);
+        return modules.find(m => m.id === activeSelectedId) || modules[0] || null;
+    }, [modules, activeSelectedId]);
 
     // Handle check all
     const handleSelectAll = (checked: boolean) => {
@@ -289,6 +292,12 @@ export default function DatabaseModul() {
     // Filter logic
     const filteredModules = useMemo(() => {
         return modules.filter((m) => {
+            if (showArchivedOnly) {
+                if (m.status !== 'Arsip') return false;
+            } else {
+                if (m.status === 'Arsip') return false;
+            }
+
             const matchesSearch = 
                 m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -301,7 +310,7 @@ export default function DatabaseModul() {
 
             return matchesSearch && matchesType && matchesLang && matchesStatus && matchesRev;
         });
-    }, [modules, searchQuery, typeFilter, langFilter, statusFilter, revFilter]);
+    }, [modules, searchQuery, typeFilter, langFilter, statusFilter, revFilter, showArchivedOnly]);
 
     // Reset Filters
     const handleResetFilters = () => {
@@ -310,37 +319,33 @@ export default function DatabaseModul() {
         setLangFilter('Semua Bahasa');
         setStatusFilter('Semua Status');
         setRevFilter('Semua Revisi');
+        setShowArchivedOnly(false);
     };
 
     // Add module submit handler
     const handleAddModule = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newId || !newTitle) return;
+        post('/database', {
+            onSuccess: () => {
+                setIsAddModalOpen(false);
+                reset();
+                setToastMessage(`Modul ${data.code.toUpperCase()} berhasil ditambahkan ke database.`);
+                setTimeout(() => setToastMessage(null), 4000);
+            },
+        });
+    };
 
-        const newMod: ModuleItem = {
-            id: newId.toUpperCase(),
-            title: newTitle,
-            program: newProgram,
-            revision: '1.0',
-            language: newLanguage,
-            updatedAt: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-            status: 'Approved',
-            fileSize: '1.50 MB',
-            filePages: 15,
-            description: newDescription || 'Deskripsi modul pelatihan.',
-            revisionsHistory: [
-                { version: '1.0', date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ' WIB', author: user?.name || 'Raffa Yuda Pratama', note: 'Rilis pertama modul baru.', status: 'Approved' }
-            ]
-        };
-
-        setModules(prev => [newMod, ...prev]);
-        setIsAddModalOpen(false);
-        setNewId('');
-        setNewTitle('');
-        setNewDescription('');
-
-        setToastMessage(`Modul ${newId.toUpperCase()} berhasil ditambahkan ke database.`);
-        setTimeout(() => setToastMessage(null), 4000);
+    // Revise module submit handler
+    const handleReviseModule = (e: React.FormEvent) => {
+        e.preventDefault();
+        postRevise(`/database/${reviseData.code}/revision`, {
+            onSuccess: () => {
+                setIsReviseModalOpen(false);
+                resetRevise();
+                setToastMessage(`Revisi ${reviseData.revision} untuk modul ${reviseData.code} berhasil ditambahkan.`);
+                setTimeout(() => setToastMessage(null), 4000);
+            },
+        });
     };
 
     const chartConfig = {
@@ -352,14 +357,16 @@ export default function DatabaseModul() {
         lainnya: { label: 'Lainnya', color: '#38bdf8' },
     } satisfies ChartConfig;
 
-    const categoryChartData = useMemo(() => [
-        { name: 'Regulasi & Kepatuhan', value: 108, fill: '#3b82f6' },
-        { name: 'Teknis Laboratorium', value: 92, fill: '#a855f7' },
-        { name: 'Sertifikasi & Auditor', value: 68, fill: '#ec4899' },
-        { name: 'Manajerial & Kepemimpinan', value: 55, fill: '#f59e0b' },
-        { name: 'Teknis Produksi', value: 38, fill: '#10b981' },
-        { name: 'Lainnya', value: 25, fill: '#38bdf8' },
-    ], []);
+    const categoryChartData = useMemo(() => {
+        return categories.length > 0 ? categories : [
+            { name: 'Regulasi & Kepatuhan', value: 0, fill: '#3b82f6' },
+            { name: 'Teknis Laboratorium', value: 0, fill: '#a855f7' },
+            { name: 'Sertifikasi & Auditor', value: 0, fill: '#ec4899' },
+            { name: 'Manajerial & Kepemimpinan', value: 0, fill: '#f59e0b' },
+            { name: 'Teknis Produksi', value: 0, fill: '#10b981' },
+            { name: 'Lainnya', value: 0, fill: '#38bdf8' },
+        ];
+    }, [categories]);
 
     const totalCategoryModules = useMemo(() => {
         return categoryChartData.reduce((acc, curr) => acc + curr.value, 0);
@@ -398,7 +405,7 @@ export default function DatabaseModul() {
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Total Modul</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">386</span>
+                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{metrics.total}</span>
                                 <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500 mt-1">
                                     <span>↑ 18 dari bulan lalu</span>
                                 </span>
@@ -414,7 +421,7 @@ export default function DatabaseModul() {
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Modul Approved</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">312</span>
+                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{metrics.approved}</span>
                                 <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500 mt-1">
                                     <span>↑ 22 dari bulan lalu</span>
                                 </span>
@@ -430,7 +437,7 @@ export default function DatabaseModul() {
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Revisi Aktif</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">50</span>
+                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{metrics.revisi}</span>
                                 <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500 mt-1">
                                     <span>↑ 6 dari bulan lalu</span>
                                 </span>
@@ -446,7 +453,7 @@ export default function DatabaseModul() {
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Arsip</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">24</span>
+                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{metrics.arsip}</span>
                                 <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500 mt-1">
                                     <span>↑ 2 dari bulan lalu</span>
                                 </span>
@@ -545,6 +552,20 @@ export default function DatabaseModul() {
                                     >
                                         <RefreshCw className="mr-1.5 size-3.5" />
                                         Reset Filter
+                                    </Button>
+
+                                    <Button
+                                        onClick={() => setShowArchivedOnly(!showArchivedOnly)}
+                                        variant={showArchivedOnly ? "default" : "outline"}
+                                        size="sm"
+                                        className={`h-9 px-3.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 ${
+                                            showArchivedOnly 
+                                                ? 'bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 border-amber-600' 
+                                                : 'border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-300'
+                                        }`}
+                                    >
+                                        <Archive className={`size-3.5 ${showArchivedOnly ? 'animate-pulse' : ''}`} />
+                                        <span>{showArchivedOnly ? "Tampilkan Aktif" : "Lihat Arsip"}</span>
                                     </Button>
 
                                     <Button
@@ -664,10 +685,62 @@ export default function DatabaseModul() {
                                                                     </button>
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end" className="w-40 text-xs">
-                                                                    <DropdownMenuItem className="cursor-pointer font-medium">Unduh PDF</DropdownMenuItem>
-                                                                    <DropdownMenuItem className="cursor-pointer font-medium">Buat Revisi</DropdownMenuItem>
-                                                                    <DropdownMenuItem className="cursor-pointer font-medium">Arsipkan Modul</DropdownMenuItem>
-                                                                    <DropdownMenuItem className="cursor-pointer font-medium text-rose-600">Hapus Modul</DropdownMenuItem>
+                                                                    <DropdownMenuItem className="cursor-pointer font-medium" onClick={() => window.location.href = `/database/${item.id}/download`}>Unduh PDF</DropdownMenuItem>
+                                                                    <DropdownMenuItem 
+                                                                        className="cursor-pointer font-medium"
+                                                                        onClick={() => {
+                                                                            let nextRevision = '1.1';
+                                                                            if (item.revision) {
+                                                                                const parsed = parseFloat(item.revision);
+                                                                                if (!isNaN(parsed)) {
+                                                                                    nextRevision = (parsed + 0.1).toFixed(1);
+                                                                                }
+                                                                            }
+                                                                            setReviseData({
+                                                                                code: item.id,
+                                                                                revision: nextRevision,
+                                                                                note: '',
+                                                                                file: null,
+                                                                            });
+                                                                            setIsReviseModalOpen(true);
+                                                                        }}
+                                                                    >
+                                                                        Buat Revisi
+                                                                    </DropdownMenuItem>
+                                                                    {item.status === 'Arsip' ? (
+                                                                        <DropdownMenuItem 
+                                                                            className="cursor-pointer font-medium text-emerald-600 dark:text-emerald-400"
+                                                                            onClick={() => {
+                                                                                if (confirm(`Apakah Anda yakin ingin mengaktifkan kembali (batal arsip) modul ${item.id}?`)) {
+                                                                                    router.post(`/database/${item.id}/unarchive`, {}, {
+                                                                                        onSuccess: () => {
+                                                                                            setToastMessage(`Modul ${item.id} berhasil diaktifkan kembali.`);
+                                                                                            setTimeout(() => setToastMessage(null), 4000);
+                                                                                        }
+                                                                                    });
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            Batal Arsipkan
+                                                                        </DropdownMenuItem>
+                                                                    ) : (
+                                                                        <DropdownMenuItem 
+                                                                            className="cursor-pointer font-medium"
+                                                                            onClick={() => {
+                                                                                if (confirm(`Apakah Anda yakin ingin mengarsipkan modul ${item.id}?`)) {
+                                                                                    router.post(`/database/${item.id}/archive`, {}, {
+                                                                                        onSuccess: () => {
+                                                                                            setToastMessage(`Modul ${item.id} berhasil diarsipkan.`);
+                                                                                            setTimeout(() => setToastMessage(null), 4000);
+                                                                                        }
+                                                                                    });
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            Arsipkan Modul
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                    <DropdownMenuItem className="cursor-pointer font-medium text-rose-600" onClick={() => { if (confirm(`Apakah Anda yakin ingin menghapus modul ${item.id}?`)) { router.delete(`/database/${item.id}`); } }}>Hapus Modul</DropdownMenuItem>
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
                                                         </div>
@@ -768,48 +841,17 @@ export default function DatabaseModul() {
 
                                     {/* Legends list */}
                                     <div className="flex-1 space-y-2 text-[10px] w-full font-semibold">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="size-2 rounded-full bg-blue-500"></span>
-                                                <span className="text-neutral-500 dark:text-neutral-400">Regulasi & Kepatuhan</span>
+                                        {categoryChartData.map((cat, idx) => (
+                                            <div key={idx} className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="size-2 rounded-full" style={{ backgroundColor: cat.fill }}></span>
+                                                    <span className="text-neutral-500 dark:text-neutral-400">{cat.name}</span>
+                                                </div>
+                                                <span className="text-neutral-800 dark:text-neutral-200">
+                                                    {cat.value} <span className="text-neutral-400 font-normal text-[9px] ml-1">({totalCategoryModules > 0 ? ((cat.value / totalCategoryModules) * 100).toFixed(1) : 0}%)</span>
+                                                </span>
                                             </div>
-                                            <span className="text-neutral-800 dark:text-neutral-200">108 <span className="text-neutral-400 font-normal text-[9px] ml-1">({((108 / totalCategoryModules) * 100).toFixed(1)}%)</span></span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="size-2 rounded-full bg-purple-500"></span>
-                                                <span className="text-neutral-500 dark:text-neutral-400">Teknis Laboratorium</span>
-                                            </div>
-                                            <span className="text-neutral-800 dark:text-neutral-200">92 <span className="text-neutral-400 font-normal text-[9px] ml-1">({((92 / totalCategoryModules) * 100).toFixed(1)}%)</span></span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="size-2 rounded-full bg-pink-500"></span>
-                                                <span className="text-neutral-500 dark:text-neutral-400">Sertifikasi & Auditor</span>
-                                            </div>
-                                            <span className="text-neutral-800 dark:text-neutral-200">68 <span className="text-neutral-400 font-normal text-[9px] ml-1">({((68 / totalCategoryModules) * 100).toFixed(1)}%)</span></span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="size-2 rounded-full bg-amber-500"></span>
-                                                <span className="text-neutral-500 dark:text-neutral-400">Manajerial & Kepemimpinan</span>
-                                            </div>
-                                            <span className="text-neutral-800 dark:text-neutral-200">55 <span className="text-neutral-400 font-normal text-[9px] ml-1">({((55 / totalCategoryModules) * 100).toFixed(1)}%)</span></span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="size-2 rounded-full bg-emerald-500"></span>
-                                                <span className="text-neutral-500 dark:text-neutral-400">Teknis Produksi</span>
-                                            </div>
-                                            <span className="text-neutral-800 dark:text-neutral-200">38 <span className="text-neutral-400 font-normal text-[9px] ml-1">({((38 / totalCategoryModules) * 100).toFixed(1)}%)</span></span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="size-2 rounded-full bg-sky-400"></span>
-                                                <span className="text-neutral-500 dark:text-neutral-400">Lainnya</span>
-                                            </div>
-                                            <span className="text-neutral-800 dark:text-neutral-200">25 <span className="text-neutral-400 font-normal text-[9px] ml-1">({((25 / totalCategoryModules) * 100).toFixed(1)}%)</span></span>
-                                        </div>
+                                        ))}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -824,50 +866,21 @@ export default function DatabaseModul() {
                                 </div>
                                 <CardContent className="p-5 flex-1 flex flex-col justify-between gap-3 text-xs font-medium">
                                     <div className="space-y-3">
-                                        {/* Rank 1 */}
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex size-5 items-center justify-center rounded bg-amber-500 text-white font-extrabold text-[10px]">1</span>
-                                                <span className="text-neutral-800 dark:text-neutral-200 truncate max-w-[220px]">SJPH - Sistem Jaminan Produk Halal (SJPH)</span>
-                                            </div>
-                                            <span className="text-neutral-550 dark:text-neutral-400 font-semibold flex items-center gap-1"><Eye className="size-3" /> 2,842</span>
-                                        </div>
-
-                                        {/* Rank 2 */}
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex size-5 items-center justify-center rounded bg-neutral-400 text-white font-extrabold text-[10px]">2</span>
-                                                <span className="text-neutral-800 dark:text-neutral-200 truncate max-w-[220px]">Auditor Halal</span>
-                                            </div>
-                                            <span className="text-neutral-550 dark:text-neutral-400 font-semibold flex items-center gap-1"><Eye className="size-3" /> 2,196</span>
-                                        </div>
-
-                                        {/* Rank 3 */}
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex size-5 items-center justify-center rounded bg-amber-700 text-white font-extrabold text-[10px]">3</span>
-                                                <span className="text-neutral-800 dark:text-neutral-200 truncate max-w-[220px]">Interpretasi Sistem dan Implementasi ISO 17025</span>
-                                            </div>
-                                            <span className="text-neutral-550 dark:text-neutral-400 font-semibold flex items-center gap-1"><Eye className="size-3" /> 1,896</span>
-                                        </div>
-
-                                        {/* Rank 4 */}
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex size-5 items-center justify-center rounded bg-neutral-100 text-neutral-600 dark:bg-neutral-850 dark:text-neutral-400 font-extrabold text-[10px]">4</span>
-                                                <span className="text-neutral-800 dark:text-neutral-200 truncate max-w-[220px]">CPPOB.02 - Cara Produksi Pangan Olahan yang Baik</span>
-                                            </div>
-                                            <span className="text-neutral-550 dark:text-neutral-400 font-semibold flex items-center gap-1"><Eye className="size-3" /> 1,654</span>
-                                        </div>
-
-                                        {/* Rank 5 */}
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex size-5 items-center justify-center rounded bg-neutral-100 text-neutral-600 dark:bg-neutral-850 dark:text-neutral-400 font-extrabold text-[10px]">5</span>
-                                                <span className="text-neutral-800 dark:text-neutral-200 truncate max-w-[220px]">Halal Awareness</span>
-                                            </div>
-                                            <span className="text-neutral-550 dark:text-neutral-400 font-semibold flex items-center gap-1"><Eye className="size-3" /> 1,502</span>
-                                        </div>
+                                        {popular.length > 0 ? (
+                                            popular.map((item, idx) => (
+                                                <div key={item.id} className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`flex size-5 items-center justify-center rounded text-white font-extrabold text-[10px] ${
+                                                            idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-neutral-400' : idx === 2 ? 'bg-amber-700' : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-850 dark:text-neutral-400'
+                                                        }`}>{idx + 1}</span>
+                                                        <span className="text-neutral-800 dark:text-neutral-200 truncate max-w-[220px]">{item.id} - {item.title}</span>
+                                                    </div>
+                                                    <span className="text-neutral-550 dark:text-neutral-400 font-semibold flex items-center gap-1"><Eye className="size-3" /> {item.views.toLocaleString('id-ID')}</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-4 text-neutral-400">Belum ada modul diakses.</div>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -892,22 +905,27 @@ export default function DatabaseModul() {
                                     <div className="space-y-4">
                                         <div className="flex gap-4">
                                             {/* Cover Card */}
-                                            <div className="w-24 h-32 rounded-lg bg-neutral-50 dark:bg-neutral-900 border flex flex-col p-2.5 items-center justify-between relative shadow-sm hover:shadow-md transition-shadow">
-                                                <div className="flex justify-between w-full items-center">
-                                                    <span className="text-[7px] font-bold text-neutral-400 uppercase leading-none tracking-wider">Module</span>
-                                                    <BookOpen className="size-3 text-neutral-400" />
-                                                </div>
-                                                <div className="flex flex-col items-center text-center gap-1">
-                                                    <span className="text-[6px] font-extrabold text-neutral-900 dark:text-neutral-100 leading-tight uppercase line-clamp-3">
-                                                        {selectedModule.title}
-                                                    </span>
-                                                    <span className="text-[5px] text-neutral-400">Revisi {selectedModule.revision}</span>
-                                                </div>
-                                                <div className="flex justify-between w-full items-center border-t pt-1.5 dark:border-neutral-850">
-                                                    <span className="text-[5px] font-semibold text-neutral-400">{selectedModule.id}</span>
-                                                    <Badge className="font-extrabold rounded px-1.5 py-0.2 text-[5px] bg-rose-50 text-rose-600 leading-none">PDF</Badge>
-                                                </div>
-                                            </div>
+                                            <PdfThumbnail 
+                                                url={`/database/${selectedModule.id}/preview`} 
+                                                fallback={
+                                                    <div className="w-24 h-32 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex flex-col p-2.5 items-center justify-between relative shadow-sm hover:shadow-md transition-shadow">
+                                                        <div className="flex justify-between w-full items-center">
+                                                            <span className="text-[7px] font-bold text-neutral-400 uppercase leading-none tracking-wider">Module</span>
+                                                            <BookOpen className="size-3 text-neutral-400" />
+                                                        </div>
+                                                        <div className="flex flex-col items-center text-center gap-1">
+                                                            <span className="text-[6px] font-extrabold text-neutral-900 dark:text-neutral-100 leading-tight uppercase line-clamp-3">
+                                                                {selectedModule.title}
+                                                            </span>
+                                                            <span className="text-[5px] text-neutral-400">Revisi {selectedModule.revision}</span>
+                                                        </div>
+                                                        <div className="flex justify-between w-full items-center border-t pt-1.5 dark:border-neutral-850">
+                                                            <span className="text-[5px] font-semibold text-neutral-400">{selectedModule.id}</span>
+                                                            <Badge className="font-extrabold rounded px-1.5 py-0.2 text-[5px] bg-rose-50 text-rose-600 leading-none">PDF</Badge>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            />
 
                                             {/* Specs */}
                                             <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
@@ -945,10 +963,19 @@ export default function DatabaseModul() {
 
                                     {/* Action buttons */}
                                     <div className="grid grid-cols-2 gap-2 pt-2 border-t dark:border-neutral-800">
-                                        <Button size="sm" variant="outline" className="h-9 rounded-lg text-xs font-semibold border-neutral-200 dark:border-neutral-800 text-neutral-600">
+                                        <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            className="h-9 rounded-lg text-xs font-semibold border-neutral-200 dark:border-neutral-800 text-neutral-600"
+                                            onClick={() => window.open(`/database/${selectedModule.id}/preview`, '_blank', 'noopener,noreferrer')}
+                                        >
                                             Lihat Detail
                                         </Button>
-                                        <Button size="sm" className="h-9 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-sm">
+                                        <Button 
+                                            size="sm" 
+                                            className="h-9 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-sm"
+                                            onClick={() => window.location.href = `/database/${selectedModule.id}/download`}
+                                        >
                                             <span>Download PDF</span>
                                             <Download className="size-3.5" />
                                         </Button>
@@ -1041,11 +1068,14 @@ export default function DatabaseModul() {
                             <input
                                 type="text"
                                 required
-                                value={newId}
-                                onChange={(e) => setNewId(e.target.value)}
+                                value={data.code}
+                                onChange={(e) => setData('code', e.target.value)}
                                 placeholder="Contoh: SJPH.01"
                                 className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                             />
+                            {errors.code && (
+                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{errors.code}</p>
+                            )}
                         </div>
 
                         {/* Judul Modul */}
@@ -1056,11 +1086,14 @@ export default function DatabaseModul() {
                             <input
                                 type="text"
                                 required
-                                value={newTitle}
-                                onChange={(e) => setNewTitle(e.target.value)}
+                                value={data.title}
+                                onChange={(e) => setData('title', e.target.value)}
                                 placeholder="Contoh: Pengenalan ISO 9001:2015"
                                 className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                             />
+                            {errors.title && (
+                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{errors.title}</p>
+                            )}
                         </div>
 
                         {/* Program & Bahasa */}
@@ -1070,8 +1103,8 @@ export default function DatabaseModul() {
                                     Program / Jenis Pelatihan
                                 </label>
                                 <select
-                                    value={newProgram}
-                                    onChange={(e) => setNewProgram(e.target.value)}
+                                    value={data.program}
+                                    onChange={(e) => setData('program', e.target.value)}
                                     className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                                 >
                                     <option value="Regulasi & Kepatuhan">Regulasi & Kepatuhan</option>
@@ -1089,8 +1122,8 @@ export default function DatabaseModul() {
                                     Bahasa
                                 </label>
                                 <select
-                                    value={newLanguage}
-                                    onChange={(e) => setNewLanguage(e.target.value)}
+                                    value={data.language}
+                                    onChange={(e) => setData('language', e.target.value)}
                                     className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                                 >
                                     <option value="Indonesia">Indonesia</option>
@@ -1105,11 +1138,28 @@ export default function DatabaseModul() {
                                 Deskripsi Ringkas Modul
                             </label>
                             <textarea
-                                value={newDescription}
-                                onChange={(e) => setNewDescription(e.target.value)}
+                                value={data.description}
+                                onChange={(e) => setData('description', e.target.value)}
                                 placeholder="Jelaskan secara singkat ruang lingkup modul pelatihan..."
                                 className="w-full h-20 rounded-lg border border-neutral-200 bg-neutral-50/50 p-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                             />
+                        </div>
+
+                        {/* PDF File Upload */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                File PDF Modul
+                            </label>
+                            <input
+                                type="file"
+                                accept="application/pdf"
+                                required
+                                onChange={(e) => setData('file', e.target.files ? e.target.files[0] : null)}
+                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 file:mr-2.5 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-neutral-800 dark:file:text-blue-400 cursor-pointer"
+                            />
+                            {errors.file && (
+                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{errors.file}</p>
+                            )}
                         </div>
 
                         <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
@@ -1126,6 +1176,107 @@ export default function DatabaseModul() {
                                 className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold"
                             >
                                 Simpan Modul
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: Buat Revisi Modul */}
+            <Dialog open={isReviseModalOpen} onOpenChange={setIsReviseModalOpen}>
+                <DialogContent className="max-w-md bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                            <RefreshCw className="size-5 text-blue-600 dark:text-blue-400" />
+                            <span>Buat Revisi Modul</span>
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-neutral-400 dark:text-neutral-500">
+                            Unggah dokumen versi baru untuk merevisi modul <span className="font-bold">{reviseData.code}</span>.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleReviseModule} className="space-y-4 py-2 text-xs">
+                        {/* Kode Modul (Read Only) */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                Kode Modul
+                            </label>
+                            <input
+                                type="text"
+                                readOnly
+                                disabled
+                                value={reviseData.code}
+                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-100 px-3 text-xs outline-none dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-400"
+                            />
+                        </div>
+
+                        {/* Versi Revisi */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                Versi Revisi Baru
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={reviseData.revision}
+                                onChange={(e) => setReviseData('revision', e.target.value)}
+                                placeholder="Contoh: 1.1 atau 2.0"
+                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                            />
+                            {reviseErrors.revision && (
+                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{reviseErrors.revision}</p>
+                            )}
+                        </div>
+
+                        {/* Catatan Revisi */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                Catatan Perubahan (Revisi)
+                            </label>
+                            <textarea
+                                required
+                                value={reviseData.note}
+                                onChange={(e) => setReviseData('note', e.target.value)}
+                                placeholder="Jelaskan perubahan utama pada dokumen versi baru ini..."
+                                className="w-full h-20 rounded-lg border border-neutral-200 bg-neutral-50/50 p-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                            />
+                            {reviseErrors.note && (
+                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{reviseErrors.note}</p>
+                            )}
+                        </div>
+
+                        {/* PDF File Upload */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                File PDF Modul Versi Baru
+                            </label>
+                            <input
+                                type="file"
+                                accept="application/pdf"
+                                required
+                                onChange={(e) => setReviseData('file', e.target.files ? e.target.files[0] : null)}
+                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 file:mr-2.5 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-neutral-800 dark:file:text-blue-400 cursor-pointer"
+                            />
+                            {reviseErrors.file && (
+                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{reviseErrors.file}</p>
+                            )}
+                        </div>
+
+                        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => setIsReviseModalOpen(false)}
+                                className="rounded-lg h-9 px-4 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-500 dark:text-neutral-400"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={reviseProcessing}
+                                className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold"
+                            >
+                                {reviseProcessing ? 'Mengunggah...' : 'Simpan Revisi'}
                             </Button>
                         </DialogFooter>
                     </form>

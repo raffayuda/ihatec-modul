@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\GoogleDriveOAuthController;
+use App\Http\Controllers\ModuleController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -24,9 +26,17 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('pengajuan');
     })->name('pengajuan');
 
-    Route::get('database', function () {
-        return Inertia::render('database');
-    })->name('database');
+    Route::get('database', [ModuleController::class, 'index'])->name('database');
+    Route::post('database', [ModuleController::class, 'store'])->name('database.store');
+    Route::get('database/{code}/download', [ModuleController::class, 'download'])->name('database.download');
+    Route::get('database/{code}/preview', [ModuleController::class, 'preview'])->name('database.preview');
+    Route::post('database/{code}/archive', [ModuleController::class, 'archive'])->name('database.archive');
+    Route::post('database/{code}/unarchive', [ModuleController::class, 'unarchive'])->name('database.unarchive');
+    Route::post('database/{code}/revision', [ModuleController::class, 'revision'])->name('database.revision');
+    Route::delete('database/{code}', [ModuleController::class, 'destroy'])->name('database.destroy');
+
+    Route::get('google-drive/connect', [GoogleDriveOAuthController::class, 'connect'])->name('google-drive.connect');
+    Route::get('google-drive/callback', [GoogleDriveOAuthController::class, 'callback'])->name('google-drive.callback');
 
     Route::get('matriks', function () {
         return Inertia::render('matriks');
