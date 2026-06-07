@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    \Illuminate\Support\Facades\Mail::fake();
     $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'Aktif']);
     $this->manager = User::factory()->create(['role' => 'manager PD', 'status' => 'Aktif']);
     $this->user = User::factory()->create(['role' => 'User', 'status' => 'Aktif']);
@@ -68,6 +69,9 @@ test('manager can approve a new module request', function () {
         'revision' => '1.0',
         'reason' => $req->description,
     ]);
+
+    \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\ModuleRequestProcessedMail::class);
+    \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\ModuleApprovedMail::class);
 });
 
 test('manager can approve a revision module request', function () {
@@ -117,6 +121,9 @@ test('manager can approve a revision module request', function () {
         'reason' => 'Perubahan regulasi pemerintah.',
         'note' => 'Revisi approved oleh '.$this->manager->name,
     ]);
+
+    \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\ModuleRequestProcessedMail::class);
+    \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\ModuleApprovedMail::class);
 });
 
 test('manager can reject a module request', function () {
@@ -136,4 +143,6 @@ test('manager can reject a module request', function () {
         'reject_reason' => 'Dokumen pendukung kurang lengkap.',
         'processed_by' => $this->manager->id,
     ]);
+
+    \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\ModuleRequestProcessedMail::class);
 });

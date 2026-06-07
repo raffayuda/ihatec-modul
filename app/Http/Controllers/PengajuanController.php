@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -323,6 +324,26 @@ class PengajuanController extends Controller
         }
 
         $moduleRequest->update(['status' => 'Menunggu Approval']);
+
+        try {
+            // Kirim email ke pemohon
+            if ($moduleRequest->applicant && $moduleRequest->applicant->email) {
+                \Illuminate\Support\Facades\Mail::to($moduleRequest->applicant->email)
+                    ->send(new \App\Mail\ModuleRequestSubmittedMail($moduleRequest));
+            }
+
+            // Kirim email ke semua Manager PD
+            $managerEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['manager pd'])
+                ->where('status', 'Aktif')
+                ->pluck('email');
+            
+            if ($managerEmails->isNotEmpty()) {
+                \Illuminate\Support\Facades\Mail::to($managerEmails)
+                    ->send(new \App\Mail\ModuleRequestSubmittedMail($moduleRequest));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Gagal mengirim email notifikasi submit: ' . $e->getMessage());
+        }
 
         return redirect()->route('pengajuan')
             ->with('message', "Pengajuan {$moduleRequest->request_number} berhasil dikirim ke antrian approval.");

@@ -8,6 +8,7 @@ use Illuminate\Http\UploadedFile;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    \Illuminate\Support\Facades\Mail::fake();
     // Create users for each role
     $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'Aktif', 'unit' => 'IT & Digital']);
     $this->manager = User::factory()->create(['role' => 'manager PD', 'status' => 'Aktif', 'unit' => 'Pengembangan SDM']);
@@ -171,6 +172,7 @@ it('user can submit pengajuan to approval queue', function () {
     $response = $this->actingAs($this->user)->post("/pengajuan/{$req->id}/submit");
     $response->assertRedirect('/pengajuan');
     $this->assertDatabaseHas('module_requests', ['id' => $req->id, 'status' => 'Menunggu Approval']);
+    \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\ModuleRequestSubmittedMail::class);
 });
 
 it('user can create a new revision pengajuan with a file upload', function () {

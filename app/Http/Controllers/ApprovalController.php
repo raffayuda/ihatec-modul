@@ -223,6 +223,45 @@ class ApprovalController extends Controller
             'reject_reason' => null,
         ]);
 
+        try {
+            // 1. Email Processed ke Pemohon & Manager PD
+            $emailsToNotify = collect();
+            if ($moduleRequest->applicant && $moduleRequest->applicant->email) {
+                $emailsToNotify->push($moduleRequest->applicant->email);
+            }
+            $managerEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['manager pd'])
+                ->where('status', 'Aktif')
+                ->pluck('email');
+            $emailsToNotify = $emailsToNotify->merge($managerEmails)->unique()->filter();
+            
+            if ($emailsToNotify->isNotEmpty()) {
+                \Illuminate\Support\Facades\Mail::to($emailsToNotify)
+                    ->send(new \App\Mail\ModuleRequestProcessedMail($moduleRequest));
+            }
+
+            // 2. Email Approved ke Tim Training & Staff PD (jika Modul Baru / Revisi Modul)
+            if (in_array($moduleRequest->type, ['Modul Baru', 'Revisi Modul'])) {
+                $savedModule = isset($module) ? $module : (isset($existingModule) ? $existingModule : null);
+                if ($savedModule) {
+                    $timTrainingEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['tim training'])
+                        ->where('status', 'Aktif')
+                        ->pluck('email');
+                    $stafPDEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['staf pd'])
+                        ->where('status', 'Aktif')
+                        ->pluck('email');
+                        
+                    $approvedEmailsToNotify = $timTrainingEmails->merge($stafPDEmails)->unique()->filter();
+                    
+                    if ($approvedEmailsToNotify->isNotEmpty()) {
+                        \Illuminate\Support\Facades\Mail::to($approvedEmailsToNotify)
+                            ->send(new \App\Mail\ModuleApprovedMail($savedModule));
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Gagal mengirim email notifikasi approval: ' . $e->getMessage());
+        }
+
         $successMsg = match ($moduleRequest->type) {
             'Modul Baru' => "Pengajuan {$moduleRequest->request_number} disetujui. Modul baru berhasil masuk ke Database Modul.",
             'Revisi Modul' => "Pengajuan {$moduleRequest->request_number} disetujui. Revisi modul berhasil diperbarui.",
@@ -263,6 +302,25 @@ class ApprovalController extends Controller
             'processed_by' => $user->id,
             'processed_at' => now(),
         ]);
+
+        try {
+            // Email Processed ke Pemohon & Manager PD saat ditolak
+            $emailsToNotify = collect();
+            if ($moduleRequest->applicant && $moduleRequest->applicant->email) {
+                $emailsToNotify->push($moduleRequest->applicant->email);
+            }
+            $managerEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['manager pd'])
+                ->where('status', 'Aktif')
+                ->pluck('email');
+            $emailsToNotify = $emailsToNotify->merge($managerEmails)->unique()->filter();
+            
+            if ($emailsToNotify->isNotEmpty()) {
+                \Illuminate\Support\Facades\Mail::to($emailsToNotify)
+                    ->send(new \App\Mail\ModuleRequestProcessedMail($moduleRequest));
+            }
+        } catch (\Exception $e) {
+            Log::error('Gagal mengirim email notifikasi rejection: ' . $e->getMessage());
+        }
 
         return redirect()->route('approval')
             ->with('message', "Pengajuan {$moduleRequest->request_number} telah ditolak.");
