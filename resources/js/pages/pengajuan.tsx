@@ -79,6 +79,21 @@ interface SubmissionItem {
     relatedModuleCode?: string | null;
     relatedModuleTitle?: string | null;
     relatedModuleRevision?: string | null;
+    
+    // Kebutuhan Khusus fields
+    jenis_kebutuhan?: string | null;
+    nama_instansi?: string | null;
+    judul_program?: string | null;
+    jam_khusus?: string | null;
+    pre_post_test?: string | null;
+    keterangan_kebutuhan?: string | null;
+    
+    // Processing fields
+    link_modul?: string | null;
+    tanggal_realisasi?: string | null;
+    tanggal_realisasi_formatted?: string | null;
+    tanggal_kebutuhan_baru?: string | null;
+    tanggal_kebutuhan_baru_formatted?: string | null;
 }
 
 interface Stats {
@@ -109,6 +124,8 @@ interface PengajuanProps extends SharedData {
     chartData: ChartDataItem[];
     availableModules: AvailableModule[];
     trainingTypes?: string[];
+    jenisKebutuhanOptions?: string[];
+    bahasaPengantarOptions?: string[];
     flash?: {
         message?: string;
         error?: string;
@@ -121,6 +138,8 @@ const STATUS_COLORS: Record<string, string> = {
     'Menunggu Approval': 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
     Selesai: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
     Ditolak: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
+    Batal: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
+    Hold: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -255,8 +274,9 @@ function FileDropZone({ onFileSelect, selectedFile, existingFileName, existingFi
 
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function Pengajuan() {
-    const { auth, submissions, stats, chartData, availableModules, flash, trainingTypes } = usePage<PengajuanProps>().props;
+    const { auth, submissions, stats, chartData, availableModules, flash, trainingTypes, jenisKebutuhanOptions, bahasaPengantarOptions } = usePage<PengajuanProps>().props;
     const role = auth?.user?.role ?? 'User';
+    const isProcessor = ['Admin', 'Staf PD'].includes(role);
 
     const trainingTypeList = trainingTypes || [
         "Regulasi & Kepatuhan",
@@ -268,6 +288,19 @@ export default function Pengajuan() {
         "K3 & Keamanan",
         "Pengembangan SDM",
         "Lainnya"
+    ];
+
+    const jenisKebutuhanList = jenisKebutuhanOptions || [
+        "Pelatihan Inhouse",
+        "Pelatihan Internal",
+        "Seminar"
+    ];
+
+    const bahasaPengantarList = bahasaPengantarOptions || [
+        "Indonesia",
+        "English",
+        "Arab",
+        "Mandarin"
     ];
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -282,10 +315,20 @@ export default function Pengajuan() {
     const [detailItem, setDetailItem] = useState<SubmissionItem | null>(null);
     const [uploadItem, setUploadItem] = useState<SubmissionItem | null>(null);
 
+    // Helper for validating needs date (14 days in future)
+    const isDateValid = (dateStr: string) => {
+        if (!dateStr) return true;
+        const selectedDate = new Date(dateStr);
+        const minDate = new Date();
+        minDate.setDate(minDate.getDate() + 14);
+        minDate.setHours(0, 0, 0, 0);
+        return selectedDate >= minDate;
+    };
+
     // Create form — using FormData compatible approach via router.post
     const [createFile, setCreateFile] = useState<File | null>(null);
     const [createData, setCreateData] = useState({
-        type: 'Modul Baru',
+        type: role === 'User' ? 'Kebutuhan Khusus' : 'Modul Baru',
         title: '',
         unit: '',
         description: '',
@@ -296,6 +339,13 @@ export default function Pengajuan() {
         language: 'Indonesia',
         training_days: '',
         revision_reason: '',
+        // Kebutuhan Khusus fields
+        jenis_kebutuhan: '',
+        nama_instansi: '',
+        judul_program: '',
+        jam_khusus: '',
+        pre_post_test: 'Tidak',
+        keterangan_kebutuhan: '',
     });
     const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
     const [createProcessing, setCreateProcessing] = useState(false);
@@ -315,6 +365,18 @@ export default function Pengajuan() {
         language: 'Indonesia',
         training_days: '' as string | number,
         revision_reason: '',
+        // Kebutuhan Khusus fields
+        jenis_kebutuhan: '',
+        nama_instansi: '',
+        judul_program: '',
+        jam_khusus: '',
+        pre_post_test: 'Tidak',
+        keterangan_kebutuhan: '',
+        // Admin processing fields
+        link_modul: '',
+        tanggal_realisasi: '',
+        tanggal_kebutuhan_baru: '',
+        reject_reason: '',
     });
 
     // Standalone file upload
@@ -359,19 +421,40 @@ export default function Pengajuan() {
             return;
         }
 
+        // Front-end validation for deadline in Kebutuhan Khusus
+        if (createData.type === 'Kebutuhan Khusus' && !isDateValid(createData.deadline)) {
+            setCreateErrors({
+                ...createErrors,
+                deadline: 'Tanggal kebutuhan khusus minimal harus 14 hari dari hari ini.',
+            });
+            return;
+        }
+
         setCreateProcessing(true);
         const formData = new FormData();
         formData.append('type', createData.type);
-        formData.append('title', createData.title);
-        formData.append('unit', createData.unit || auth?.user?.unit || '');
+        
+        if (createData.type === 'Kebutuhan Khusus') {
+            formData.append('title', createData.judul_program);
+            formData.append('jenis_kebutuhan', createData.jenis_kebutuhan);
+            formData.append('nama_instansi', createData.nama_instansi);
+            formData.append('judul_program', createData.judul_program);
+            formData.append('jam_khusus', createData.jam_khusus);
+            formData.append('pre_post_test', createData.pre_post_test);
+            formData.append('keterangan_kebutuhan', createData.keterangan_kebutuhan);
+            formData.append('language', createData.language);
+        } else {
+            formData.append('title', createData.title);
+            formData.append('program', createData.program);
+            formData.append('language', createData.language);
+            formData.append('training_days', createData.training_days);
+            formData.append('revision_reason', createData.revision_reason);
+        }
+        
         formData.append('description', createData.description);
         formData.append('deadline', createData.deadline);
         formData.append('priority', createData.priority);
         if (createData.related_module_id) formData.append('related_module_id', createData.related_module_id);
-        formData.append('program', createData.program);
-        formData.append('language', createData.language);
-        formData.append('training_days', createData.training_days);
-        formData.append('revision_reason', createData.revision_reason);
         if (createFile) formData.append('file', createFile);
 
         router.post(route('pengajuan.store'), formData, {
@@ -379,7 +462,7 @@ export default function Pengajuan() {
             onSuccess: () => {
                 setIsCreateOpen(false);
                 setCreateData({
-                    type: 'Modul Baru',
+                    type: role === 'User' ? 'Kebutuhan Khusus' : 'Modul Baru',
                     title: '',
                     unit: '',
                     description: '',
@@ -390,6 +473,13 @@ export default function Pengajuan() {
                     language: 'Indonesia',
                     training_days: '',
                     revision_reason: '',
+                    // Kebutuhan Khusus fields
+                    jenis_kebutuhan: '',
+                    nama_instansi: '',
+                    judul_program: '',
+                    jam_khusus: '',
+                    pre_post_test: 'Tidak',
+                    keterangan_kebutuhan: '',
                 });
                 setCreateFile(null);
                 setCreateErrors({});
@@ -434,7 +524,7 @@ export default function Pengajuan() {
         editForm.setData({
             type: item.type,
             title: item.title,
-            unit: item.unit !== '-' ? item.unit : '',
+            unit: '', // Hapus unit kerja
             description: item.description,
             deadline: item.deadline || '',
             priority: item.priority,
@@ -444,6 +534,18 @@ export default function Pengajuan() {
             language: item.language ?? 'Indonesia',
             training_days: item.training_days ?? '',
             revision_reason: item.revision_reason ?? '',
+            // Kebutuhan Khusus
+            jenis_kebutuhan: item.jenis_kebutuhan ?? '',
+            nama_instansi: item.nama_instansi ?? '',
+            judul_program: item.judul_program ?? '',
+            jam_khusus: item.jam_khusus ?? '',
+            pre_post_test: item.pre_post_test ?? 'Tidak',
+            keterangan_kebutuhan: item.keterangan_kebutuhan ?? '',
+            // Admin processing fields
+            link_modul: item.link_modul ?? '',
+            tanggal_realisasi: item.tanggal_realisasi ?? '',
+            tanggal_kebutuhan_baru: item.tanggal_kebutuhan_baru ?? '',
+            reject_reason: item.rejectReason ?? '',
         });
         setEditFile(null);
         setEditItem(item);
@@ -457,6 +559,48 @@ export default function Pengajuan() {
         if (editForm.data.type === 'Revisi Modul' && !editFile && !editItem.fileName) {
             editForm.setError('file', 'Dokumen PDF wajib dilampirkan untuk revisi modul.');
             return;
+        }
+
+        // Front-end validation for deadline in Kebutuhan Khusus
+        const isProcessor = ['Admin', 'Staf PD'].includes(role);
+        if (!isProcessor && editForm.data.type === 'Kebutuhan Khusus' && !isDateValid(editForm.data.deadline)) {
+            editForm.setError('deadline', 'Tanggal kebutuhan khusus minimal harus 14 hari dari hari ini.');
+            return;
+        }
+
+        // Front-end validation for processor panel (Kebutuhan Khusus)
+        if (isProcessor && editForm.data.type === 'Kebutuhan Khusus') {
+            editForm.clearErrors();
+            let hasError = false;
+            if (editForm.data.status === 'Selesai') {
+                if (!editForm.data.link_modul) {
+                    editForm.setError('link_modul', 'Link Modul wajib diisi jika status Selesai.');
+                    hasError = true;
+                }
+                if (!editForm.data.tanggal_realisasi) {
+                    editForm.setError('tanggal_realisasi', 'Tanggal Realisasi wajib diisi jika status Selesai.');
+                    hasError = true;
+                }
+                if (!editForm.data.reject_reason) {
+                    editForm.setError('reject_reason', 'Keterangan wajib diisi.');
+                    hasError = true;
+                }
+            } else if (editForm.data.status === 'Hold') {
+                if (!editForm.data.tanggal_kebutuhan_baru) {
+                    editForm.setError('tanggal_kebutuhan_baru', 'Tanggal Kebutuhan Baru wajib diisi jika status Hold.');
+                    hasError = true;
+                }
+                if (!editForm.data.reject_reason) {
+                    editForm.setError('reject_reason', 'Keterangan wajib diisi.');
+                    hasError = true;
+                }
+            } else if (editForm.data.status === 'Batal') {
+                if (!editForm.data.reject_reason) {
+                    editForm.setError('reject_reason', 'Keterangan wajib diisi.');
+                    hasError = true;
+                }
+            }
+            if (hasError) return;
         }
 
         if (editFile) {
@@ -533,6 +677,38 @@ export default function Pengajuan() {
                     <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-400">
                         <AlertTriangle className="size-4.5" />
                         <span>{flash.error}</span>
+                    </div>
+                )}
+
+                {/* Completed Requests Notification Banner */}
+                {role === 'User' && submissions.some(item => item.status === 'Selesai' && item.type === 'Kebutuhan Khusus') && (
+                    <div className="space-y-2.5">
+                        {submissions.filter(item => item.status === 'Selesai' && item.type === 'Kebutuhan Khusus').map(item => (
+                            <div key={item.id} className="flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-xs font-medium text-emerald-800 shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex size-7 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">
+                                        <CheckCircle2 className="size-4.5" />
+                                    </div>
+                                    <div>
+                                        <p className="font-bold">Pengajuan modul dengan nomor {item.id} telah selesai.</p>
+                                        <p className="text-emerald-600/95 dark:text-emerald-400/90 mt-0.5 font-normal font-sans">
+                                            Silakan klik tombol detail atau gunakan tombol di samping untuk melihat link modulnya.
+                                        </p>
+                                    </div>
+                                </div>
+                                {item.link_modul && (
+                                    <a
+                                        href={item.link_modul}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:underline dark:text-emerald-300 bg-white/80 dark:bg-emerald-950/50 px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 font-sans"
+                                    >
+                                        <ArrowUpRight className="size-3.5" />
+                                        Buka Modul
+                                    </a>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 )}
 
@@ -675,13 +851,17 @@ export default function Pengajuan() {
                                                                 )}
                                                             </div>
                                                         ) : (
-                                                            <button
-                                                                onClick={() => { setUploadItem(item); setStandaloneFile(null); }}
-                                                                className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                                            >
-                                                                <Upload className="size-3" />
-                                                                Upload
-                                                            </button>
+                                                            item.type === 'Kebutuhan Khusus' ? (
+                                                                <span className="text-[10px] text-neutral-400 font-medium font-sans italic">Tidak ada dokumen</span>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => { setUploadItem(item); setStandaloneFile(null); }}
+                                                                    className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                                                >
+                                                                    <Upload className="size-3" />
+                                                                    Upload
+                                                                </button>
+                                                            )
                                                         )}
                                                     </td>
                                                     <td className="px-5 py-4">
@@ -700,9 +880,11 @@ export default function Pengajuan() {
                                                                 <DropdownMenuItem onClick={() => setDetailItem(item)} className="cursor-pointer font-medium">
                                                                     <ArrowUpRight className="mr-2 size-3.5" /> Lihat Detail
                                                                 </DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => { setUploadItem(item); setStandaloneFile(null); }} className="cursor-pointer font-medium text-blue-600">
-                                                                    <Upload className="mr-2 size-3.5" /> Upload / Ganti File
-                                                                </DropdownMenuItem>
+                                                                {item.type !== 'Kebutuhan Khusus' && (
+                                                                    <DropdownMenuItem onClick={() => { setUploadItem(item); setStandaloneFile(null); }} className="cursor-pointer font-medium text-blue-600">
+                                                                        <Upload className="mr-2 size-3.5" /> Upload / Ganti File
+                                                                    </DropdownMenuItem>
+                                                                )}
                                                                 {canSubmit(item.status) && (
                                                                     <DropdownMenuItem onClick={() => handleSubmitForApproval(item)} className="cursor-pointer font-medium text-amber-600">
                                                                         <Send className="mr-2 size-3.5" /> Kirim ke Approval
@@ -808,15 +990,27 @@ export default function Pengajuan() {
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tipe Modul *</label>
-                                <select value={createData.type} onChange={(e) => setCreateData({ ...createData, type: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
-                                    <option value="Modul Baru">Modul Baru</option>
-                                    <option value="Revisi Modul">Revisi Modul</option>
+                                <select
+                                    value={createData.type}
+                                    onChange={(e) => setCreateData({ ...createData, type: e.target.value })}
+                                    disabled={role === 'User'}
+                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 disabled:opacity-75 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
+                                >
+                                    {role !== 'User' && <option value="Modul Baru">Modul Baru</option>}
+                                    {role !== 'User' && <option value="Revisi Modul">Revisi Modul</option>}
                                     <option value="Kebutuhan Khusus">Kebutuhan Khusus</option>
                                 </select>
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tanggal Kebutuhan *</label>
                                 <input type="date" value={createData.deadline} onChange={(e) => setCreateData({ ...createData, deadline: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required />
+                                {createData.type === 'Kebutuhan Khusus' && !isDateValid(createData.deadline) && createData.deadline && (
+                                    <p className="mt-1 text-[9px] text-rose-500 font-sans flex items-center gap-0.5 leading-none">
+                                        <AlertTriangle className="size-2.5 flex-shrink-0" />
+                                        Harus minimal 14 hari ke depan.
+                                    </p>
+                                )}
+                                {createErrors.deadline && <p className="mt-1 text-[10px] text-rose-500 font-sans">{createErrors.deadline}</p>}
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Prioritas *</label>
@@ -825,10 +1019,6 @@ export default function Pengajuan() {
                                     <option value="Medium">Medium</option>
                                     <option value="Low">Low</option>
                                 </select>
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Unit Kerja</label>
-                                <input type="text" value={createData.unit} onChange={(e) => setCreateData({ ...createData, unit: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="e.g. Pengembangan SDM" />
                             </div>
                         </div>
 
@@ -919,14 +1109,101 @@ export default function Pengajuan() {
                             <div className="space-y-3 p-3.5 border border-teal-100 dark:border-teal-900/40 rounded-xl bg-teal-50/20 dark:bg-teal-950/5">
                                 <div className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-1">Detail Kebutuhan Khusus</div>
                                 
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jenis Kebutuhan *</label>
+                                        <select
+                                            value={createData.jenis_kebutuhan}
+                                            onChange={(e) => setCreateData({ ...createData, jenis_kebutuhan: e.target.value, nama_instansi: e.target.value !== 'Pelatihan Inhouse' ? '' : createData.nama_instansi })}
+                                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                            required
+                                        >
+                                            <option value="">-- Pilih Jenis --</option>
+                                            {jenisKebutuhanList.map((jk) => (
+                                                <option key={jk} value={jk}>{jk}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Bahasa Pengantar *</label>
+                                        <select
+                                            value={createData.language}
+                                            onChange={(e) => setCreateData({ ...createData, language: e.target.value })}
+                                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                            required
+                                        >
+                                            <option value="">-- Pilih Bahasa --</option>
+                                            {bahasaPengantarList.map((bp) => (
+                                                <option key={bp} value={bp}>{bp}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {createData.jenis_kebutuhan === 'Pelatihan Inhouse' && (
+                                    <div className="transition-all">
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Nama Instansi *</label>
+                                        <input
+                                            type="text"
+                                            value={createData.nama_instansi}
+                                            onChange={(e) => setCreateData({ ...createData, nama_instansi: e.target.value })}
+                                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                            placeholder="e.g. PT Maju Bersama"
+                                            required
+                                        />
+                                    </div>
+                                )}
+
                                 <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Judul Permintaan *</label>
-                                    <input type="text" value={createData.title} onChange={(e) => setCreateData({ ...createData, title: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="e.g. Pelatihan Khusus Karyawan Baru" required />
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Judul Program / Modul *</label>
+                                    <input
+                                        type="text"
+                                        value={createData.judul_program}
+                                        onChange={(e) => setCreateData({ ...createData, judul_program: e.target.value, title: e.target.value })}
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        placeholder="e.g. Inhouse Training ISO 9001:2015"
+                                        required
+                                    />
+                                    {createErrors.title && <p className="mt-1 text-xs text-rose-500">{createErrors.title}</p>}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jam Khusus / Jumlah Jam *</label>
+                                        <input
+                                            type="text"
+                                            value={createData.jam_khusus}
+                                            onChange={(e) => setCreateData({ ...createData, jam_khusus: e.target.value })}
+                                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                            placeholder="e.g. 16 Jam Pelatihan"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Pre & Post Test *</label>
+                                        <select
+                                            value={createData.pre_post_test}
+                                            onChange={(e) => setCreateData({ ...createData, pre_post_test: e.target.value })}
+                                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                            required
+                                        >
+                                            <option value="Ya">Ya</option>
+                                            <option value="Tidak">Tidak</option>
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Deskripsi Kebutuhan *</label>
-                                    <textarea value={createData.description} onChange={(e) => setCreateData({ ...createData, description: e.target.value })} rows={4} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="Jelaskan secara rinci detail kebutuhan pelatihan..." required />
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Keterangan / Detail Kebutuhan</label>
+                                    <textarea
+                                        value={createData.description}
+                                        onChange={(e) => setCreateData({ ...createData, description: e.target.value, keterangan_kebutuhan: e.target.value })}
+                                        rows={4}
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        placeholder="Jelaskan detail kebutuhan modul atau program yang diminta..."
+                                        required
+                                    />
                                 </div>
                             </div>
                         )}
@@ -1000,15 +1277,27 @@ export default function Pengajuan() {
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tipe Modul *</label>
-                                <select value={editForm.data.type} onChange={(e) => editForm.setData('type', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
-                                    <option value="Modul Baru">Modul Baru</option>
-                                    <option value="Revisi Modul">Revisi Modul</option>
+                                <select
+                                    value={editForm.data.type}
+                                    onChange={(e) => editForm.setData('type', e.target.value)}
+                                    disabled={role === 'User'}
+                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 disabled:opacity-75 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
+                                >
+                                    {role !== 'User' && <option value="Modul Baru">Modul Baru</option>}
+                                    {role !== 'User' && <option value="Revisi Modul">Revisi Modul</option>}
                                     <option value="Kebutuhan Khusus">Kebutuhan Khusus</option>
                                 </select>
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tanggal Kebutuhan *</label>
                                 <input type="date" value={editForm.data.deadline} onChange={(e) => editForm.setData('deadline', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required />
+                                {editForm.data.type === 'Kebutuhan Khusus' && !['Admin', 'Staf PD'].includes(role) && !isDateValid(editForm.data.deadline) && editForm.data.deadline && (
+                                    <p className="mt-1 text-[9px] text-rose-500 font-sans flex items-center gap-0.5 leading-none">
+                                        <AlertTriangle className="size-2.5 flex-shrink-0" />
+                                        Harus minimal 14 hari ke depan.
+                                    </p>
+                                )}
+                                {editForm.errors.deadline && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.deadline}</p>}
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Prioritas *</label>
@@ -1017,10 +1306,6 @@ export default function Pengajuan() {
                                     <option value="Medium">Medium</option>
                                     <option value="Low">Low</option>
                                 </select>
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Unit Kerja</label>
-                                <input type="text" value={editForm.data.unit} onChange={(e) => editForm.setData('unit', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" />
                             </div>
                         </div>
 
@@ -1108,18 +1393,193 @@ export default function Pengajuan() {
 
                         {/* ── CONDITIONAL SECTION: KEBUTUHAN KHUSUS ── */}
                         {editForm.data.type === 'Kebutuhan Khusus' && (
-                            <div className="space-y-3 p-3.5 border border-teal-100 dark:border-teal-900/40 rounded-xl bg-teal-50/20 dark:bg-teal-950/5">
-                                <div className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-1">Detail Kebutuhan Khusus</div>
-                                
-                                <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Judul Permintaan *</label>
-                                    <input type="text" value={editForm.data.title} onChange={(e) => editForm.setData('title', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required />
+                            <div className="space-y-4">
+                                <div className="space-y-3 p-3.5 border border-teal-100 dark:border-teal-900/40 rounded-xl bg-teal-50/20 dark:bg-teal-950/5">
+                                    <div className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-1">Detail Kebutuhan Khusus</div>
+                                    
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jenis Kebutuhan *</label>
+                                            <select
+                                                value={editForm.data.jenis_kebutuhan}
+                                                onChange={(e) => editForm.setData((data) => ({ ...data, jenis_kebutuhan: e.target.value, nama_instansi: e.target.value !== 'Pelatihan Inhouse' ? '' : data.nama_instansi }))}
+                                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                required
+                                                disabled={isProcessor} // disable input if processing
+                                            >
+                                                <option value="">-- Pilih Jenis --</option>
+                                                {jenisKebutuhanList.map((jk) => (
+                                                    <option key={jk} value={jk}>{jk}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Bahasa Pengantar *</label>
+                                            <select
+                                                value={editForm.data.language}
+                                                onChange={(e) => editForm.setData('language', e.target.value)}
+                                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                required
+                                                disabled={isProcessor}
+                                            >
+                                                <option value="">-- Pilih Bahasa --</option>
+                                                {bahasaPengantarList.map((bp) => (
+                                                    <option key={bp} value={bp}>{bp}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {editForm.data.jenis_kebutuhan === 'Pelatihan Inhouse' && (
+                                        <div className="transition-all">
+                                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Nama Instansi *</label>
+                                            <input
+                                                type="text"
+                                                value={editForm.data.nama_instansi}
+                                                onChange={(e) => editForm.setData('nama_instansi', e.target.value)}
+                                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                placeholder="e.g. PT Maju Bersama"
+                                                required
+                                                disabled={isProcessor}
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Judul Program / Modul *</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.data.judul_program}
+                                            onChange={(e) => editForm.setData((data) => ({ ...data, judul_program: e.target.value, title: e.target.value }))}
+                                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                            placeholder="e.g. Inhouse Training ISO 9001:2015"
+                                            required
+                                            disabled={isProcessor}
+                                        />
+                                        {editForm.errors.title && <p className="mt-1 text-xs text-rose-500">{editForm.errors.title}</p>}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jam Khusus / Jumlah Jam *</label>
+                                            <input
+                                                type="text"
+                                                value={editForm.data.jam_khusus}
+                                                onChange={(e) => editForm.setData('jam_khusus', e.target.value)}
+                                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                placeholder="e.g. 16 Jam Pelatihan"
+                                                required
+                                                disabled={isProcessor}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Pre & Post Test *</label>
+                                            <select
+                                                value={editForm.data.pre_post_test}
+                                                onChange={(e) => editForm.setData('pre_post_test', e.target.value)}
+                                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                required
+                                                disabled={isProcessor}
+                                            >
+                                                <option value="Ya">Ya</option>
+                                                <option value="Tidak">Tidak</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Keterangan / Detail Kebutuhan</label>
+                                        <textarea
+                                            value={editForm.data.description}
+                                            onChange={(e) => editForm.setData((data) => ({ ...data, description: e.target.value, keterangan_kebutuhan: e.target.value }))}
+                                            rows={4}
+                                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                            placeholder="Jelaskan detail kebutuhan modul atau program yang diminta..."
+                                            required
+                                            disabled={isProcessor}
+                                        />
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Deskripsi Kebutuhan *</label>
-                                    <textarea value={editForm.data.description} onChange={(e) => editForm.setData('description', e.target.value)} rows={4} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required />
-                                </div>
+                                {/* Processing panel by Admin or Staf PD */}
+                                {isProcessor && (
+                                    <div className="space-y-3 p-3.5 border border-purple-200 dark:border-purple-900/40 rounded-xl bg-purple-50/20 dark:bg-purple-950/5">
+                                        <div className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1">Penyelesaian Pengajuan (Admin / Staf PD)</div>
+                                        
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold text-purple-600 dark:text-purple-400">Status Proses *</label>
+                                                <select
+                                                    value={editForm.data.status}
+                                                    onChange={(e) => editForm.setData('status', e.target.value)}
+                                                    className="w-full rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-purple-500 dark:border-purple-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                    required
+                                                >
+                                                    <option value="Baru">Baru</option>
+                                                    <option value="Drafting">Drafting</option>
+                                                    <option value="Menunggu Approval">Menunggu Approval</option>
+                                                    <option value="Selesai">Selesai (Done)</option>
+                                                    <option value="Batal">Batal (Cancel)</option>
+                                                    <option value="Hold">Hold</option>
+                                                </select>
+                                                {editForm.errors.status && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.status}</p>}
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Tanggal Realisasi {editForm.data.status === 'Selesai' && <span className="text-rose-500">*</span>}</label>
+                                                <input
+                                                    type="date"
+                                                    value={editForm.data.tanggal_realisasi}
+                                                    onChange={(e) => editForm.setData('tanggal_realisasi', e.target.value)}
+                                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                    required={editForm.data.status === 'Selesai'}
+                                                />
+                                                {editForm.errors.tanggal_realisasi && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.tanggal_realisasi}</p>}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Link Modul / Dokumen {editForm.data.status === 'Selesai' && <span className="text-rose-500">*</span>}</label>
+                                                <input
+                                                    type="url"
+                                                    value={editForm.data.link_modul}
+                                                    onChange={(e) => editForm.setData('link_modul', e.target.value)}
+                                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                    placeholder="https://drive.google.com/..."
+                                                    required={editForm.data.status === 'Selesai'}
+                                                />
+                                                {editForm.errors.link_modul && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.link_modul}</p>}
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Tanggal Kebutuhan Baru {editForm.data.status === 'Hold' && <span className="text-rose-500">*</span>}</label>
+                                                <input
+                                                    type="date"
+                                                    value={editForm.data.tanggal_kebutuhan_baru}
+                                                    onChange={(e) => editForm.setData('tanggal_kebutuhan_baru', e.target.value)}
+                                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                    required={editForm.data.status === 'Hold'}
+                                                />
+                                                {editForm.errors.tanggal_kebutuhan_baru && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.tanggal_kebutuhan_baru}</p>}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Keterangan Proses / Alasan Hold/Cancel <span className="text-rose-500">*</span></label>
+                                            <textarea
+                                                value={editForm.data.reject_reason}
+                                                onChange={(e) => editForm.setData('reject_reason', e.target.value)}
+                                                rows={2}
+                                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                placeholder="Keterangan tambahan dari admin mengenai hasil pemrosesan..."
+                                                required
+                                            />
+                                            {editForm.errors.reject_reason && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.reject_reason}</p>}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -1196,10 +1656,6 @@ export default function Pengajuan() {
                                     <p className="font-semibold text-neutral-900 dark:text-neutral-100">{detailItem.applicant}</p>
                                 </div>
                                 <div>
-                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Unit Kerja</p>
-                                    <p className="font-semibold text-neutral-900 dark:text-neutral-100">{detailItem.unit}</p>
-                                </div>
-                                <div>
                                     <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Tanggal Pengajuan</p>
                                     <p className="font-semibold text-neutral-900 dark:text-neutral-100">{detailItem.submissionDate}</p>
                                 </div>
@@ -1264,10 +1720,83 @@ export default function Pengajuan() {
                             )}
 
                             {/* ── DETAILS FOR KEBUTUHAN KHUSUS ── */}
-                            {detailItem.type === 'Kebutuhan Khusus' && detailItem.description && (
-                                <div className="space-y-2 p-3.5 border border-teal-100 dark:border-teal-900/40 rounded-xl bg-teal-50/10 dark:bg-teal-950/5">
-                                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Deskripsi Kebutuhan Khusus</p>
-                                    <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal whitespace-pre-line">{detailItem.description}</p>
+                            {detailItem.type === 'Kebutuhan Khusus' && (
+                                <div className="space-y-4">
+                                    <div className="space-y-3 p-3.5 border border-teal-100 dark:border-teal-900/40 rounded-xl bg-teal-50/10 dark:bg-teal-950/5">
+                                        <div className="grid grid-cols-2 gap-3 text-xs">
+                                            <div>
+                                                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Jenis Kebutuhan</p>
+                                                <p className="font-semibold text-neutral-800 dark:text-neutral-200">{detailItem.jenis_kebutuhan ?? '-'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Bahasa Pengantar</p>
+                                                <p className="font-semibold text-neutral-800 dark:text-neutral-200">{detailItem.language ?? 'Indonesia'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Jam Khusus / Jumlah Jam</p>
+                                                <p className="font-semibold text-neutral-800 dark:text-neutral-200">{detailItem.jam_khusus ?? '-'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Pre & Post Test</p>
+                                                <p className="font-semibold text-neutral-800 dark:text-neutral-200">{detailItem.pre_post_test ?? 'Tidak'}</p>
+                                            </div>
+                                            {detailItem.jenis_kebutuhan === 'Pelatihan Inhouse' && detailItem.nama_instansi && (
+                                                <div className="col-span-2">
+                                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Nama Instansi</p>
+                                                    <p className="font-semibold text-neutral-800 dark:text-neutral-200">{detailItem.nama_instansi}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {detailItem.description && (
+                                            <div className="pt-2 border-t border-teal-100 dark:border-teal-900/20">
+                                                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Deskripsi / Detail Kebutuhan</p>
+                                                <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal whitespace-pre-line">{detailItem.description}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Admin processing results */}
+                                    {(detailItem.link_modul || detailItem.tanggal_realisasi || detailItem.tanggal_kebutuhan_baru || ['Selesai', 'Batal', 'Hold'].includes(detailItem.status)) && (
+                                        <div className="space-y-3 p-3.5 border border-purple-100 dark:border-purple-900/40 rounded-xl bg-purple-50/10 dark:bg-purple-950/5">
+                                            <div className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1 font-semibold">Penyelesaian Pengajuan (Admin/Staf PD)</div>
+                                            
+                                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                                {detailItem.tanggal_realisasi && (
+                                                    <div>
+                                                        <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-500 dark:text-purple-400 font-sans">Tanggal Realisasi</p>
+                                                        <p className="font-semibold text-neutral-800 dark:text-neutral-200">{detailItem.tanggal_realisasi_formatted}</p>
+                                                    </div>
+                                                )}
+                                                {detailItem.tanggal_kebutuhan_baru && (
+                                                    <div>
+                                                        <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-500 dark:text-purple-400 font-sans font-semibold">Tanggal Kebutuhan Baru</p>
+                                                        <p className="font-semibold text-neutral-800 dark:text-neutral-200 text-purple-600 dark:text-purple-400">{detailItem.tanggal_kebutuhan_baru_formatted}</p>
+                                                    </div>
+                                                )}
+                                                {detailItem.link_modul && (
+                                                    <div className="col-span-2">
+                                                        <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-500 dark:text-purple-400 font-sans">Link Modul / Dokumen</p>
+                                                        <a
+                                                            href={detailItem.link_modul}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400 flex items-center gap-1 mt-0.5"
+                                                        >
+                                                            <ArrowUpRight className="size-3.5" />
+                                                            Buka Dokumen Modul
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {detailItem.rejectReason && (
+                                                <div className="pt-2 border-t border-purple-100 dark:border-purple-900/20">
+                                                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-purple-500 dark:text-purple-400 font-sans">Keterangan Proses / Alasan</p>
+                                                    <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal whitespace-pre-line">{detailItem.rejectReason}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -1301,7 +1830,7 @@ export default function Pengajuan() {
                                 </div>
                             )}
 
-                            {detailItem.rejectReason && (
+                            {detailItem.rejectReason && detailItem.type !== 'Kebutuhan Khusus' && (
                                 <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-3.5 dark:border-rose-900/40 dark:bg-rose-950/20">
                                     <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 font-sans">Alasan Penolakan dari Manager</p>
                                     <p className="text-xs leading-relaxed text-rose-600 dark:text-rose-300 font-medium whitespace-pre-line">{detailItem.rejectReason}</p>

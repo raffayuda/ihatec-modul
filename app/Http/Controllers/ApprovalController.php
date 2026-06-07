@@ -88,6 +88,54 @@ class ApprovalController extends Controller
                 ->with('error', 'Pengajuan ini tidak sedang menunggu approval.');
         }
 
+        // ── 8.3: Kebutuhan Khusus ───────────────────────────────────────────
+        if ($moduleRequest->type === 'Kebutuhan Khusus') {
+            $validated = $request->validate([
+                'status' => 'required|in:Selesai,Batal,Hold',
+                'link_modul' => 'required_if:status,Selesai|nullable|url|max:255',
+                'tanggal_realisasi' => 'required_if:status,Selesai|nullable|date',
+                'reject_reason' => 'required|string|max:1000', // Keterangan
+                'tanggal_kebutuhan_baru' => 'required_if:status,Hold|nullable|date',
+            ], [
+                'status.required' => 'Status proses wajib dipilih.',
+                'link_modul.required_if' => 'Link Modul wajib diisi jika status Selesai.',
+                'link_modul.url' => 'Link Modul harus berupa URL yang valid.',
+                'tanggal_realisasi.required_if' => 'Tanggal Realisasi wajib diisi jika status Selesai.',
+                'reject_reason.required' => 'Keterangan wajib diisi.',
+                'tanggal_kebutuhan_baru.required_if' => 'Tanggal Kebutuhan Baru wajib diisi jika status Hold.',
+            ]);
+
+            $moduleRequest->update([
+                'status' => $validated['status'],
+                'link_modul' => $validated['link_modul'] ?? null,
+                'tanggal_realisasi' => $validated['tanggal_realisasi'] ?? null,
+                'reject_reason' => $validated['reject_reason'],
+                'tanggal_kebutuhan_baru' => $validated['tanggal_kebutuhan_baru'] ?? null,
+                'processed_by' => $user->id,
+                'processed_at' => now(),
+            ]);
+
+            try {
+                $emailsToNotify = collect();
+                if ($moduleRequest->applicant && $moduleRequest->applicant->email) {
+                    $emailsToNotify->push($moduleRequest->applicant->email);
+                }
+                $managerEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['manager pd'])
+                    ->where('status', 'Aktif')
+                    ->pluck('email');
+                $emailsToNotify = $emailsToNotify->merge($managerEmails)->unique()->filter();
+
+                if ($emailsToNotify->isNotEmpty()) {
+                    \Illuminate\Support\Facades\Mail::to($emailsToNotify)
+                        ->send(new \App\Mail\ModuleRequestProcessedMail($moduleRequest));
+                }
+            } catch (\Exception $e) {
+                Log::error('Gagal mengirim email notifikasi approval Kebutuhan Khusus: ' . $e->getMessage());
+            }
+
+            return redirect()->route('approval')->with('message', "Pengajuan {$moduleRequest->request_number} berhasil diproses dengan status {$validated['status']}.");
+        }
+
         // ── 8.1: Modul Baru → create entry in modules ───────────────────────
         if ($moduleRequest->type === 'Modul Baru') {
             $moduleCode = Module::generateCode();

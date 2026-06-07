@@ -39,13 +39,95 @@ class MasterDataController extends Controller
         $validated = $request->validate([
             'category' => 'required|string',
             'name' => 'required|string',
-            'code' => 'required|string',
+            'code' => 'nullable|string',
             'status' => 'required|string|in:Aktif,Nonaktif',
         ]);
 
         MasterData::create($validated);
 
         return back()->with('message', 'Data berhasil ditambahkan.');
+    }
+
+    /**
+     * Update master data.
+     */
+    public function update(Request $request, int $id): RedirectResponse
+    {
+        $item = MasterData::findOrFail($id);
+        $validated = $request->validate([
+            'category' => 'required|string',
+            'name' => 'required|string',
+            'code' => 'nullable|string',
+            'status' => 'required|string|in:Aktif,Nonaktif',
+        ]);
+
+        $item->update($validated);
+
+        return back()->with('message', 'Data berhasil diperbarui.');
+    }
+
+    /**
+     * Download CSV template for Kode Pelatihan.
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="template_kode_pelatihan.csv"',
+        ];
+
+        $callback = function() {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Nama Pelatihan', 'Kode Pelatihan']);
+            fputcsv($file, ['Interpretasi Sistem dan Implementasi ISO 17025', 'ILN.1.8']);
+            fputcsv($file, ['Sistem Jaminan Produk Halal (SJPH)', 'SJPH']);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Import Kode Pelatihan data from CSV.
+     */
+    public function import(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt|max:2048',
+        ]);
+
+        $file = $request->file('file');
+        $filePath = $file->getRealPath();
+
+        $fileHandle = fopen($filePath, 'r');
+        
+        // Skip header
+        fgetcsv($fileHandle);
+
+        $importedCount = 0;
+        while (($row = fgetcsv($fileHandle)) !== false) {
+            if (count($row) >= 2) {
+                $name = trim($row[0]);
+                $code = trim($row[1]);
+
+                if (!empty($name) && !empty($code)) {
+                    MasterData::updateOrCreate(
+                        [
+                            'category' => 'Kode Pelatihan',
+                            'code' => $code,
+                        ],
+                        [
+                            'name' => $name,
+                            'status' => 'Aktif',
+                        ]
+                    );
+                    $importedCount++;
+                }
+            }
+        }
+        fclose($fileHandle);
+
+        return back()->with('message', "Berhasil mengimpor {$importedCount} data kode pelatihan.");
     }
 
     /**

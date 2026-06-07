@@ -114,9 +114,19 @@ export default function Approval() {
     // Detail + action state
     const [selectedItem, setSelectedItem] = useState<ApprovalItem | null>(null);
     const [rejectItem, setRejectItem] = useState<ApprovalItem | null>(null);
+    const [processKhususItem, setProcessKhususItem] = useState<ApprovalItem | null>(null);
 
     // Reject form
     const rejectForm = useForm({ reject_reason: '' });
+
+    // Process form for Kebutuhan Khusus approval
+    const processForm = useForm({
+        status: 'Selesai',
+        link_modul: '',
+        tanggal_realisasi: '',
+        reject_reason: '', // keterangan
+        tanggal_kebutuhan_baru: '',
+    });
 
     const activeList = activeTab === 'queue' ? queue : history;
 
@@ -145,9 +155,22 @@ export default function Approval() {
     };
 
     const handleApprove = (item: ApprovalItem) => {
-        router.post(route('approval.approve', item.dbId), {}, {
-            onSuccess: () => setSelectedItem(null),
-        });
+        if (item.type === 'Kebutuhan Khusus') {
+            processForm.setData({
+                status: 'Selesai',
+                link_modul: '',
+                tanggal_realisasi: '',
+                reject_reason: '',
+                tanggal_kebutuhan_baru: '',
+            });
+            processForm.clearErrors();
+            setProcessKhususItem(item);
+            setSelectedItem(null);
+        } else {
+            router.post(route('approval.approve', item.dbId), {}, {
+                onSuccess: () => setSelectedItem(null),
+            });
+        }
     };
 
     const handleReject = (e: React.FormEvent) => {
@@ -157,6 +180,49 @@ export default function Approval() {
             onSuccess: () => {
                 setRejectItem(null);
                 setSelectedItem(null);
+            },
+        });
+    };
+
+    const handleProcessSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!processKhususItem) return;
+
+        processForm.clearErrors();
+        let hasError = false;
+        if (processForm.data.status === 'Selesai') {
+            if (!processForm.data.link_modul) {
+                processForm.setError('link_modul', 'Link Modul wajib diisi jika status Selesai.');
+                hasError = true;
+            }
+            if (!processForm.data.tanggal_realisasi) {
+                processForm.setError('tanggal_realisasi', 'Tanggal Realisasi wajib diisi jika status Selesai.');
+                hasError = true;
+            }
+            if (!processForm.data.reject_reason) {
+                processForm.setError('reject_reason', 'Keterangan wajib diisi.');
+                hasError = true;
+            }
+        } else if (processForm.data.status === 'Hold') {
+            if (!processForm.data.tanggal_kebutuhan_baru) {
+                processForm.setError('tanggal_kebutuhan_baru', 'Tanggal Kebutuhan Baru wajib diisi jika status Hold.');
+                hasError = true;
+            }
+            if (!processForm.data.reject_reason) {
+                processForm.setError('reject_reason', 'Keterangan wajib diisi.');
+                hasError = true;
+            }
+        } else if (processForm.data.status === 'Batal') {
+            if (!processForm.data.reject_reason) {
+                processForm.setError('reject_reason', 'Keterangan wajib diisi.');
+                hasError = true;
+            }
+        }
+        if (hasError) return;
+
+        processForm.post(route('approval.approve', processKhususItem.dbId), {
+            onSuccess: () => {
+                setProcessKhususItem(null);
             },
         });
     };
@@ -680,6 +746,96 @@ export default function Approval() {
                             <Button type="button" variant="outline" onClick={() => setRejectItem(null)}>Batal</Button>
                             <Button type="submit" disabled={rejectForm.processing || !rejectForm.data.reject_reason} className="bg-rose-600 text-white hover:bg-rose-700">
                                 {rejectForm.processing ? 'Memproses...' : 'Konfirmasi Tolak'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── PROCESS KEBUTUHAN KHUSUS DIALOG ── */}
+            <Dialog open={!!processKhususItem} onOpenChange={(open) => { if (!open) setProcessKhususItem(null); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Proses Pengajuan Kebutuhan Khusus</DialogTitle>
+                        <DialogDescription>
+                            Lengkapi data penyelesaian untuk pengajuan <span className="font-bold">{processKhususItem?.id}</span>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleProcessSubmit} className="mt-2 space-y-4">
+                        <div className="space-y-3 p-3.5 border border-purple-200 dark:border-purple-900/40 rounded-xl bg-purple-50/20 dark:bg-purple-950/5">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold text-purple-600 dark:text-purple-400 font-sans">Status Proses *</label>
+                                    <select
+                                        value={processForm.data.status}
+                                        onChange={(e) => processForm.setData('status', e.target.value)}
+                                        className="w-full rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-purple-500 dark:border-purple-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        required
+                                    >
+                                        <option value="Selesai">Selesai (Done)</option>
+                                        <option value="Batal">Batal (Cancel)</option>
+                                        <option value="Hold">Hold</option>
+                                    </select>
+                                    {processForm.errors.status && <p className="mt-1 text-[10px] text-rose-500 font-sans">{processForm.errors.status}</p>}
+                                </div>
+                                
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold font-sans">Tanggal Realisasi {processForm.data.status === 'Selesai' && <span className="text-rose-500">*</span>}</label>
+                                    <input
+                                        type="date"
+                                        value={processForm.data.tanggal_realisasi}
+                                        onChange={(e) => processForm.setData('tanggal_realisasi', e.target.value)}
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        required={processForm.data.status === 'Selesai'}
+                                    />
+                                    {processForm.errors.tanggal_realisasi && <p className="mt-1 text-[10px] text-rose-500 font-sans">{processForm.errors.tanggal_realisasi}</p>}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold font-sans">Link Modul / Dokumen {processForm.data.status === 'Selesai' && <span className="text-rose-500">*</span>}</label>
+                                    <input
+                                        type="url"
+                                        value={processForm.data.link_modul}
+                                        onChange={(e) => processForm.setData('link_modul', e.target.value)}
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        placeholder="https://drive.google.com/..."
+                                        required={processForm.data.status === 'Selesai'}
+                                    />
+                                    {processForm.errors.link_modul && <p className="mt-1 text-[10px] text-rose-500 font-sans">{processForm.errors.link_modul}</p>}
+                                </div>
+                                
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold font-sans">Tanggal Kebutuhan Baru {processForm.data.status === 'Hold' && <span className="text-rose-500">*</span>}</label>
+                                    <input
+                                        type="date"
+                                        value={processForm.data.tanggal_kebutuhan_baru}
+                                        onChange={(e) => processForm.setData('tanggal_kebutuhan_baru', e.target.value)}
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        required={processForm.data.status === 'Hold'}
+                                    />
+                                    {processForm.errors.tanggal_kebutuhan_baru && <p className="mt-1 text-[10px] text-rose-500 font-sans">{processForm.errors.tanggal_kebutuhan_baru}</p>}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold font-sans">Keterangan Proses / Alasan Hold/Cancel <span className="text-rose-500">*</span></label>
+                                <textarea
+                                    value={processForm.data.reject_reason}
+                                    onChange={(e) => processForm.setData('reject_reason', e.target.value)}
+                                    rows={3}
+                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                    placeholder="Keterangan tambahan mengenai hasil pemrosesan..."
+                                    required
+                                />
+                                {processForm.errors.reject_reason && <p className="mt-1 text-[10px] text-rose-500 font-sans">{processForm.errors.reject_reason}</p>}
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setProcessKhususItem(null)}>Batal</Button>
+                            <Button type="submit" disabled={processForm.processing} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
+                                {processForm.processing ? 'Memproses...' : 'Proses Pengajuan'}
                             </Button>
                         </DialogFooter>
                     </form>

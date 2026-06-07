@@ -29,9 +29,19 @@ class ModuleRequestProcessedMail extends Mailable
      */
     public function envelope(): Envelope
     {
-        $status = $this->moduleRequest->status === 'Selesai' ? 'Disetujui' : 'Ditolak';
+        $status = $this->moduleRequest->status;
+        if ($status === 'Selesai') {
+            $statusStr = 'Disetujui/Selesai';
+        } elseif ($status === 'Batal') {
+            $statusStr = 'Dibatalkan';
+        } elseif ($status === 'Hold') {
+            $statusStr = 'Dihold';
+        } else {
+            $statusStr = 'Ditolak';
+        }
+        
         return new Envelope(
-            subject: "Pengajuan Modul {$status}: " . $this->moduleRequest->title,
+            subject: "Pengajuan Modul [{$this->moduleRequest->type}] {$statusStr}: " . $this->moduleRequest->title,
         );
     }
 

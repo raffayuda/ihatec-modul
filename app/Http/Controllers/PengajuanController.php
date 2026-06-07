@@ -59,6 +59,21 @@ class PengajuanController extends Controller
             'relatedModuleCode' => $req->relatedModule?->code,
             'relatedModuleTitle' => $req->relatedModule?->title,
             'relatedModuleRevision' => $req->relatedModule?->current_revision,
+            
+            // Kebutuhan Khusus fields
+            'jenis_kebutuhan' => $req->jenis_kebutuhan,
+            'nama_instansi' => $req->nama_instansi,
+            'judul_program' => $req->judul_program,
+            'jam_khusus' => $req->jam_khusus,
+            'pre_post_test' => $req->pre_post_test,
+            'keterangan_kebutuhan' => $req->keterangan_kebutuhan,
+            
+            // Processing fields
+            'link_modul' => $req->link_modul,
+            'tanggal_realisasi' => $req->tanggal_realisasi?->format('Y-m-d') ?? '',
+            'tanggal_realisasi_formatted' => $req->tanggal_realisasi?->format('d M Y') ?? '-',
+            'tanggal_kebutuhan_baru' => $req->tanggal_kebutuhan_baru?->format('Y-m-d') ?? '',
+            'tanggal_kebutuhan_baru_formatted' => $req->tanggal_kebutuhan_baru?->format('d M Y') ?? '-',
         ]);
 
         // Stats
@@ -103,7 +118,20 @@ class PengajuanController extends Controller
             }
         }
 
-        $trainingTypes = MasterData::where('category', 'Jenis Pelatihan')
+        // Retrieve lists from MasterData
+        $trainingTypes = MasterData::whereIn('category', ['Jenis Pelatihan', 'Kode Pelatihan'])
+            ->where('status', 'Aktif')
+            ->orderBy('name')
+            ->pluck('name')
+            ->toArray();
+
+        $jenisKebutuhanOptions = MasterData::where('category', 'Jenis Kebutuhan Modul')
+            ->where('status', 'Aktif')
+            ->orderBy('name')
+            ->pluck('name')
+            ->toArray();
+
+        $bahasaPengantarOptions = MasterData::where('category', 'Bahasa Pengantar')
             ->where('status', 'Aktif')
             ->orderBy('name')
             ->pluck('name')
@@ -115,6 +143,8 @@ class PengajuanController extends Controller
             'chartData' => $chartData,
             'availableModules' => $availableModules,
             'trainingTypes' => $trainingTypes,
+            'jenisKebutuhanOptions' => $jenisKebutuhanOptions,
+            'bahasaPengantarOptions' => $bahasaPengantarOptions,
         ]);
     }
 
@@ -123,10 +153,22 @@ class PengajuanController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $user = Auth::user();
+        if ($user->role === 'User' && $request->input('type') !== 'Kebutuhan Khusus') {
+            abort(403, 'Akses ditolak. User hanya diperbolehkan mengajukan Modul Kebutuhan Khusus.');
+        }
+
+        if ($request->input('type') === 'Kebutuhan Khusus') {
+            $minDate = now()->addDays(14)->startOfDay();
+            $deadline = Carbon::parse($request->input('deadline'));
+            if ($deadline->lt($minDate)) {
+                return back()->withErrors(['deadline' => 'Tanggal kebutuhan khusus minimal harus 14 hari dari hari ini.'])->withInput();
+            }
+        }
+
         $validated = $request->validate([
             'type' => 'required|in:Modul Baru,Revisi Modul,Kebutuhan Khusus',
-            'title' => 'required|string|max:255',
-            'unit' => 'nullable|string|max:255',
+            'title' => $request->input('type') === 'Kebutuhan Khusus' ? 'nullable|string|max:255' : 'required|string|max:255',
             'description' => 'nullable|string',
             'deadline' => 'nullable|date',
             'priority' => 'required|in:High,Medium,Low',
@@ -136,9 +178,21 @@ class PengajuanController extends Controller
             'training_days' => 'nullable|integer',
             'revision_reason' => 'nullable|string',
             'file' => $request->input('type') === 'Revisi Modul' ? 'required|file|mimes:pdf|max:20480' : 'nullable|file|mimes:pdf|max:20480',
+            
+            // Kebutuhan Khusus fields
+            'jenis_kebutuhan' => 'required_if:type,Kebutuhan Khusus|string|nullable',
+            'nama_instansi' => 'nullable|string|max:255',
+            'judul_program' => 'required_if:type,Kebutuhan Khusus|string|nullable',
+            'jam_khusus' => 'required_if:type,Kebutuhan Khusus|string|nullable',
+            'pre_post_test' => 'required_if:type,Kebutuhan Khusus|string|nullable',
+            'keterangan_kebutuhan' => 'nullable|string',
         ]);
 
-        $requestNumber = ModuleRequest::generateRequestNumber();
+        if ($validated['type'] === 'Kebutuhan Khusus') {
+            $validated['title'] = $validated['judul_program'];
+        }
+
+        $requestNumber = ModuleRequest::generateRequestNumber($validated['type']);
 
         $fileData = [];
         if ($request->hasFile('file') && $request->file('file')->isValid()) {
@@ -160,7 +214,7 @@ class PengajuanController extends Controller
             'type' => $validated['type'],
             'title' => $validated['title'],
             'applicant_id' => Auth::id(),
-            'unit' => $validated['unit'] ?? Auth::user()->unit,
+            'unit' => null, // Hapus unit kerja dari pengajuan
             'description' => $validated['description'] ?? null,
             'deadline' => $validated['deadline'] ?? null,
             'status' => 'Baru',
@@ -170,6 +224,14 @@ class PengajuanController extends Controller
             'language' => $validated['language'] ?? 'Indonesia',
             'training_days' => $validated['training_days'] ?? null,
             'revision_reason' => $validated['revision_reason'] ?? null,
+            
+            // Kebutuhan Khusus fields
+            'jenis_kebutuhan' => $validated['jenis_kebutuhan'] ?? null,
+            'nama_instansi' => $validated['nama_instansi'] ?? null,
+            'judul_program' => $validated['judul_program'] ?? null,
+            'jam_khusus' => $validated['jam_khusus'] ?? null,
+            'pre_post_test' => $validated['pre_post_test'] ?? null,
+            'keterangan_kebutuhan' => $validated['keterangan_kebutuhan'] ?? null,
             ...$fileData,
         ]);
 
@@ -215,21 +277,80 @@ class PengajuanController extends Controller
     }
 
     /**
-     * Update a module request (only if status is Baru or Drafting).
+     * Update a module request (only if status is Baru or Drafting for applicants, or anytime for Admin/Staf PD processing).
      */
     public function update(Request $request, int $id): RedirectResponse
     {
         $moduleRequest = ModuleRequest::findOrFail($id);
         $user = Auth::user();
 
-        // Only applicant or admin can edit
-        if ($moduleRequest->applicant_id !== $user->id && $user->role !== 'admin') {
+        $isProcessor = in_array(strtolower($user->role), ['admin', 'staf pd']);
+
+        // Only applicant or admin/staf pd can edit
+        if ($moduleRequest->applicant_id !== $user->id && !$isProcessor) {
             abort(403, 'Akses ditolak.');
         }
 
-        if (! in_array($moduleRequest->status, ['Baru', 'Drafting'])) {
+        // Processing by Admin or Staf PD (setting link, realisasi date, status, etc.)
+        if ($isProcessor && ($request->has('link_modul') || $request->has('tanggal_realisasi') || in_array($request->input('status'), ['Selesai', 'Batal', 'Hold']))) {
+            $validated = $request->validate([
+                'status' => 'required|in:Baru,Drafting,Menunggu Approval,Selesai,Batal,Hold',
+                'link_modul' => 'required_if:status,Selesai|nullable|url|max:255',
+                'tanggal_realisasi' => 'required_if:status,Selesai|nullable|date',
+                'tanggal_kebutuhan_baru' => 'required_if:status,Hold|nullable|date',
+                'reject_reason' => 'required|string|max:1000',
+            ], [
+                'link_modul.required_if' => 'Link Modul wajib diisi jika status Selesai.',
+                'link_modul.url' => 'Link Modul harus berupa URL yang valid.',
+                'tanggal_realisasi.required_if' => 'Tanggal Realisasi wajib diisi jika status Selesai.',
+                'tanggal_kebutuhan_baru.required_if' => 'Tanggal Kebutuhan Baru wajib diisi jika status Hold.',
+                'reject_reason.required' => 'Keterangan wajib diisi.',
+            ]);
+
+            $oldStatus = $moduleRequest->status;
+
+            $validated['processed_by'] = $user->id;
+            $validated['processed_at'] = now();
+
+            $moduleRequest->update($validated);
+
+            // Send email if status changed to Selesai, Batal, or Hold
+            if ($oldStatus !== $moduleRequest->status && in_array($moduleRequest->status, ['Selesai', 'Batal', 'Hold'])) {
+                try {
+                    $emailsToNotify = collect();
+                    if ($moduleRequest->applicant && $moduleRequest->applicant->email) {
+                        $emailsToNotify->push($moduleRequest->applicant->email);
+                    }
+                    $managerEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['manager pd'])
+                        ->where('status', 'Aktif')
+                        ->pluck('email');
+                    $emailsToNotify = $emailsToNotify->merge($managerEmails)->unique()->filter();
+
+                    if ($emailsToNotify->isNotEmpty()) {
+                        \Illuminate\Support\Facades\Mail::to($emailsToNotify)
+                            ->send(new \App\Mail\ModuleRequestProcessedMail($moduleRequest));
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Gagal mengirim email notifikasi processing Kebutuhan Khusus: ' . $e->getMessage());
+                }
+            }
+
+            return redirect()->route('pengajuan')
+                ->with('message', "Pengajuan {$moduleRequest->request_number} berhasil diproses.");
+        }
+
+        // Regular applicant editing the request
+        if ($moduleRequest->applicant_id === $user->id && ! in_array($moduleRequest->status, ['Baru', 'Drafting'])) {
             return redirect()->route('pengajuan')
                 ->with('error', 'Pengajuan tidak dapat diedit karena sudah melewati tahap Baru/Drafting.');
+        }
+
+        if ($request->input('type') === 'Kebutuhan Khusus') {
+            $minDate = now()->addDays(14)->startOfDay();
+            $deadline = Carbon::parse($request->input('deadline'));
+            if ($deadline->lt($minDate)) {
+                return back()->withErrors(['deadline' => 'Tanggal kebutuhan khusus minimal harus 14 hari dari hari ini.'])->withInput();
+            }
         }
 
         $fileRule = 'nullable|file|mimes:pdf|max:20480';
@@ -239,8 +360,7 @@ class PengajuanController extends Controller
 
         $validated = $request->validate([
             'type' => 'required|in:Modul Baru,Revisi Modul,Kebutuhan Khusus',
-            'title' => 'required|string|max:255',
-            'unit' => 'nullable|string|max:255',
+            'title' => $request->input('type') === 'Kebutuhan Khusus' ? 'nullable|string|max:255' : 'required|string|max:255',
             'description' => 'nullable|string',
             'deadline' => 'nullable|date',
             'priority' => 'required|in:High,Medium,Low',
@@ -251,7 +371,21 @@ class PengajuanController extends Controller
             'training_days' => 'nullable|integer',
             'revision_reason' => 'nullable|string',
             'file' => $fileRule,
+
+            // Kebutuhan Khusus fields
+            'jenis_kebutuhan' => 'required_if:type,Kebutuhan Khusus|string|nullable',
+            'nama_instansi' => 'nullable|string|max:255',
+            'judul_program' => 'required_if:type,Kebutuhan Khusus|string|nullable',
+            'jam_khusus' => 'required_if:type,Kebutuhan Khusus|string|nullable',
+            'pre_post_test' => 'required_if:type,Kebutuhan Khusus|string|nullable',
+            'keterangan_kebutuhan' => 'nullable|string',
         ]);
+
+        if ($validated['type'] === 'Kebutuhan Khusus') {
+            $validated['title'] = $validated['judul_program'];
+        }
+
+        $validated['unit'] = null; // Hapus unit kerja dari pengajuan
 
         // Handle file replacement
         if ($request->hasFile('file') && $request->file('file')->isValid()) {

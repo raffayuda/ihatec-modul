@@ -181,19 +181,19 @@ class UserController extends Controller
      */
     private function humanDiff(Carbon $date): string
     {
-        $diffSeconds = $date->diffInSeconds(now());
+        $diffSeconds = (int) $date->diffInSeconds(now());
 
         if ($diffSeconds < 60) {
             return 'Baru saja';
         }
         if ($diffSeconds < 3600) {
-            return $date->diffInMinutes(now()).' menit lalu';
+            return ((int) $date->diffInMinutes(now())) . ' menit lalu';
         }
         if ($diffSeconds < 86400) {
-            return $date->diffInHours(now()).' jam lalu';
+            return ((int) $date->diffInHours(now())) . ' jam lalu';
         }
         if ($diffSeconds < 604800) {
-            return $date->diffInDays(now()).' hari lalu';
+            return ((int) $date->diffInDays(now())) . ' hari lalu';
         }
 
         return $date->format('d M Y');

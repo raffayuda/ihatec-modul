@@ -37,8 +37,8 @@ export function AppSidebar() {
         { title: 'Approval Modul', url: '/approval', icon: CheckSquare },
         { title: 'Database Modul', url: '/database', icon: Database },
         { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
-        { title: 'Jenis Pelatihan Modul', url: '/master-data', icon: Layers },
-        { title: 'Audit Log', url: '/audit-log', icon: History },
+        { title: 'Manajemen Modul', url: '/master-data', icon: Layers },
+        // { title: 'Audit Log', url: '/audit-log', icon: History },
         { title: 'Report', url: '/report', icon: BarChart3 },
         { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
@@ -96,7 +96,7 @@ export function AppSidebar() {
     }
 
     // Group: "Menu Utama" vs "Master Data" vs "Laporan & Lainnya"
-    const masterDataTitles = ['Manajemen User', 'Jenis Pelatihan Modul'];
+    const masterDataTitles = ['Manajemen User', 'Manajemen Modul'];
     const lainnyaTitles = ['Report', 'Pengaturan'];
     const menuUtamaItems = allItems.filter((item) => !lainnyaTitles.includes(item.title) && !masterDataTitles.includes(item.title));
     const masterDataItems = allItems.filter((item) => masterDataTitles.includes(item.title));

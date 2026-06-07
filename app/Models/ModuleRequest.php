@@ -37,6 +37,19 @@ class ModuleRequest extends Model
         'reject_reason',
         'processed_by',
         'processed_at',
+        
+        // Kebutuhan Khusus fields
+        'jenis_kebutuhan',
+        'nama_instansi',
+        'judul_program',
+        'jam_khusus',
+        'pre_post_test',
+        'keterangan_kebutuhan',
+        
+        // Processing fields
+        'link_modul',
+        'tanggal_realisasi',
+        'tanggal_kebutuhan_baru',
     ];
 
     /**
@@ -49,6 +62,8 @@ class ModuleRequest extends Model
         return [
             'deadline' => 'date',
             'processed_at' => 'datetime',
+            'tanggal_realisasi' => 'date',
+            'tanggal_kebutuhan_baru' => 'date',
         ];
     }
 
@@ -77,10 +92,42 @@ class ModuleRequest extends Model
     }
 
     /**
-     * Generate a new request number.
+     * Convert month to Roman numerals.
      */
-    public static function generateRequestNumber(): string
+    private static function romanMonth(int $month): string
     {
+        $map = [
+            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI',
+            7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
+        ];
+        return $map[$month] ?? '';
+    }
+
+    /**
+     * Generate a new request number based on type.
+     */
+    public static function generateRequestNumber(string $type = 'Modul Baru'): string
+    {
+        if ($type === 'Kebutuhan Khusus') {
+            $year = now()->year;
+            $romanMonth = self::romanMonth(now()->month);
+            
+            $lastRequest = static::where('type', 'Kebutuhan Khusus')
+                ->where('request_number', 'like', "%/Modul Khusus/PD/%/{$year}")
+                ->orderByDesc('id')
+                ->first();
+                
+            if ($lastRequest) {
+                $parts = explode('/', $lastRequest->request_number);
+                $lastNumber = (int) $parts[0];
+                $newNumber = $lastNumber + 1;
+            } else {
+                $newNumber = 1;
+            }
+            
+            return str_pad($newNumber, 3, '0', STR_PAD_LEFT) . "/Modul Khusus/PD/{$romanMonth}/{$year}";
+        }
+
         $year = now()->year;
         $prefix = "PMD-{$year}-";
         $lastRequest = static::where('request_number', 'like', $prefix.'%')

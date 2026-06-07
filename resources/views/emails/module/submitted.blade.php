@@ -10,6 +10,22 @@ Halo, pengajuan modul baru dengan rincian sebagai berikut telah disubmit ke dala
 **Prioritas:** {{ $moduleRequest->priority }}  
 **Tanggal Pengajuan:** {{ \Illuminate\Support\Carbon::parse($moduleRequest->created_at)->format('d M Y') }}
 
+@if($moduleRequest->type === 'Kebutuhan Khusus')
+### Rincian Kebutuhan Khusus
+- **Jenis Kebutuhan:** {{ $moduleRequest->jenis_kebutuhan }}
+@if($moduleRequest->nama_instansi)
+- **Nama Instansi:** {{ $moduleRequest->nama_instansi }}
+@endif
+- **Judul Program / Modul:** {{ $moduleRequest->judul_program }}
+- **Bahasa Pengantar:** {{ $moduleRequest->language }}
+- **Jam Khusus:** {{ $moduleRequest->jam_khusus }}
+- **Pre & Post Test:** {{ $moduleRequest->pre_post_test }}
+- **Tanggal Kebutuhan:** {{ \Illuminate\Support\Carbon::parse($moduleRequest->deadline)->format('d M Y') }}
+@if($moduleRequest->keterangan_kebutuhan)
+- **Keterangan:** {{ $moduleRequest->keterangan_kebutuhan }}
+@endif
+@endif
+
 <x-mail::button :url="url('/pengajuan')">
 Lihat Pengajuan
 </x-mail::button>

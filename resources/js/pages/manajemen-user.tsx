@@ -5,24 +5,23 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    Users,
-    ShieldCheck,
-    Clock,
-    UserMinus,
+    Plus,
     Search,
     RefreshCw,
-    Plus,
-    Eye,
-    Edit3,
     MoreVertical,
     ChevronLeft,
     ChevronRight,
-    UserCheck,
+    Users,
+    Clock,
     AlertTriangle,
     ArrowLeft,
+    ShieldCheck,
+    UserMinus,
+    UserCheck,
+    Trash2,
+    Edit3,
     Check,
     X,
-    Trash2,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -39,8 +38,7 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import React, { useState, useMemo } from 'react';
-import { PieChart, Pie, Cell, Label } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { ResponsiveContainer, PieChart, Pie, Cell, Label, Tooltip } from 'recharts';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -54,7 +52,6 @@ interface UserItem {
     name: string;
     email: string;
     role: string;
-    unit: string;
     status: 'Aktif' | 'Pending' | 'Nonaktif';
     lastLogin: string;
     createdAt: string;
@@ -86,13 +83,12 @@ export default function ManajemenUser() {
     const { auth, users, metrics, roleDistribution, flash } = usePage<ManajemenUserProps>().props;
     const currentUser = auth?.user;
     const currentRole = currentUser?.role || 'User';
-    const hasAccess = currentRole === 'admin';
+    const hasAccess = currentRole.toLowerCase() === 'admin';
 
     // Filter state
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('Semua Role');
     const [statusFilter, setStatusFilter] = useState('Semua Status');
-    const [unitFilter, setUnitFilter] = useState('Semua Unit');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
@@ -107,7 +103,6 @@ export default function ManajemenUser() {
         email: '',
         password: '',
         role: 'User' as string,
-        unit: 'IT & Digital',
         status: 'Aktif' as string,
     });
 
@@ -117,7 +112,6 @@ export default function ManajemenUser() {
         email: '',
         password: '',
         role: 'User' as string,
-        unit: '',
         status: 'Aktif' as string,
     });
 
@@ -129,16 +123,9 @@ export default function ManajemenUser() {
                 user.email.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesRole = roleFilter === 'Semua Role' || user.role === roleFilter;
             const matchesStatus = statusFilter === 'Semua Status' || user.status === statusFilter;
-            const matchesUnit = unitFilter === 'Semua Unit' || user.unit === unitFilter;
-            return matchesSearch && matchesRole && matchesStatus && matchesUnit;
+            return matchesSearch && matchesRole && matchesStatus;
         });
-    }, [users, searchQuery, roleFilter, statusFilter, unitFilter]);
-
-    // Unique units for filter
-    const availableUnits = useMemo(() => {
-        const units = new Set(users.map((u) => u.unit).filter(Boolean));
-        return Array.from(units).sort();
-    }, [users]);
+    }, [users, searchQuery, roleFilter, statusFilter]);
 
     // Pagination
     const indexOfLast = currentPage * itemsPerPage;
@@ -150,7 +137,6 @@ export default function ManajemenUser() {
         setSearchQuery('');
         setRoleFilter('Semua Role');
         setStatusFilter('Semua Status');
-        setUnitFilter('Semua Unit');
         setCurrentPage(1);
     };
 
@@ -191,16 +177,10 @@ export default function ManajemenUser() {
             email: user.email,
             password: '',
             role: user.role,
-            unit: user.unit,
             status: user.status,
         });
         setEditUser(user);
     };
-
-    // Chart
-    const chartConfig = {
-        value: { label: 'Pengguna' },
-    } satisfies ChartConfig;
 
     const chartColors: Record<string, string> = {
         admin: '#3b82f6',
@@ -262,7 +242,7 @@ export default function ManajemenUser() {
                 <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">Manajemen User</h1>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                        Kelola akun pengguna, status akses, unit kerja, dan aktivitas login.
+                        Kelola akun pengguna, status akses, dan aktivitas login.
                     </p>
                 </div>
 
@@ -361,12 +341,6 @@ export default function ManajemenUser() {
                                         <option value="Pending">Pending</option>
                                         <option value="Nonaktif">Nonaktif</option>
                                     </select>
-                                    <select value={unitFilter} onChange={(e) => { setUnitFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none">
-                                        <option value="Semua Unit">Semua Unit</option>
-                                        {availableUnits.map((u) => (
-                                            <option key={u} value={u}>{u}</option>
-                                        ))}
-                                    </select>
                                     <Button onClick={handleResetFilters} variant="outline" size="sm" className="h-9 px-3 rounded-lg border-neutral-200 text-xs text-neutral-600 font-semibold dark:border-neutral-800 dark:text-neutral-300">
                                         <RefreshCw className="mr-1.5 size-3.5" /> Reset
                                     </Button>
@@ -378,13 +352,12 @@ export default function ManajemenUser() {
 
                             {/* Table */}
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[900px] text-left border-collapse text-xs">
+                                <table className="w-full min-w-[800px] text-left border-collapse text-xs">
                                     <thead>
                                         <tr className="border-b border-neutral-100 bg-neutral-50/50 font-semibold text-neutral-400 dark:border-neutral-800 dark:bg-neutral-900/30">
                                             <th className="px-6 py-3.5">Nama</th>
                                             <th className="px-6 py-3.5">Email</th>
                                             <th className="px-6 py-3.5">Role</th>
-                                            <th className="px-6 py-3.5">Unit</th>
                                             <th className="px-6 py-3.5">Status</th>
                                             <th className="px-6 py-3.5">Last Login</th>
                                             <th className="px-6 py-3.5">Dibuat</th>
@@ -394,7 +367,7 @@ export default function ManajemenUser() {
                                     <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                                         {currentUsers.length === 0 ? (
                                             <tr>
-                                                <td colSpan={8} className="text-center py-10 text-neutral-400 font-medium dark:text-neutral-500">
+                                                <td colSpan={7} className="text-center py-10 text-neutral-400 font-medium dark:text-neutral-500">
                                                     Tidak ada user yang cocok dengan filter.
                                                 </td>
                                             </tr>
@@ -408,7 +381,6 @@ export default function ManajemenUser() {
                                                             {user.role}
                                                         </Badge>
                                                     </td>
-                                                    <td className="px-6 py-4 text-neutral-600 dark:text-neutral-300 font-medium">{user.unit}</td>
                                                     <td className="px-6 py-4">
                                                         <Badge className={`font-semibold rounded-md border-0 px-2 py-0.5 text-[10px] ${
                                                             user.status === 'Aktif' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'
@@ -418,20 +390,20 @@ export default function ManajemenUser() {
                                                             {user.status}
                                                         </Badge>
                                                     </td>
-                                                    <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400 font-medium">{user.lastLogin}</td>
-                                                    <td className="px-6 py-4 text-neutral-400 dark:text-neutral-500 font-medium">{user.createdAt}</td>
+                                                    <td className="px-6 py-4 text-neutral-550 dark:text-neutral-500 font-medium">{user.lastLogin}</td>
+                                                    <td className="px-6 py-4 text-neutral-450 dark:text-neutral-500 font-medium">{user.createdAt}</td>
                                                     <td className="px-6 py-4 text-center">
                                                         <div className="flex items-center justify-center gap-1.5">
                                                             <button
                                                                 onClick={() => openEditDialog(user)}
-                                                                className="flex size-7 items-center justify-center rounded hover:bg-neutral-100 text-neutral-500 dark:hover:bg-neutral-800 dark:text-neutral-400"
+                                                                className="flex size-7 items-center justify-center rounded hover:bg-neutral-100 text-neutral-500 dark:hover:bg-neutral-800 dark:text-neutral-400 cursor-pointer"
                                                                 title="Edit"
                                                             >
                                                                 <Edit3 className="size-3.5" />
                                                             </button>
                                                             <DropdownMenu>
                                                                 <DropdownMenuTrigger asChild>
-                                                                    <button className="flex size-7 items-center justify-center rounded hover:bg-neutral-100 text-neutral-500 dark:hover:bg-neutral-800 dark:text-neutral-400">
+                                                                    <button className="flex size-7 items-center justify-center rounded hover:bg-neutral-100 text-neutral-500 dark:hover:bg-neutral-800 dark:text-neutral-400 cursor-pointer">
                                                                         <MoreVertical className="size-3.5" />
                                                                     </button>
                                                                 </DropdownMenuTrigger>
@@ -492,28 +464,30 @@ export default function ManajemenUser() {
                                 <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Distribusi Role</h3>
                             </div>
                             <CardContent className="p-5 flex flex-col items-center gap-6">
-                                <ChartContainer config={chartConfig} className="h-36 w-36 flex-shrink-0">
-                                    <PieChart>
-                                        <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                                        <Pie data={userChartData} dataKey="value" nameKey="name" innerRadius={34} outerRadius={50} strokeWidth={0}>
-                                            {userChartData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.fill} />
-                                            ))}
-                                            <Label
-                                                content={({ viewBox }) => {
-                                                    if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
-                                                        return (
-                                                            <g>
-                                                                <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-xl font-extrabold">{totalUsers}</text>
-                                                                <text x={viewBox.cx} y={(viewBox.cy || 0) + 14} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[8px] font-bold uppercase tracking-wider">Total</text>
-                                                            </g>
-                                                        );
-                                                    }
-                                                }}
-                                            />
-                                        </Pie>
-                                    </PieChart>
-                                </ChartContainer>
+                                <div className="h-36 w-36 flex-shrink-0">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Tooltip />
+                                            <Pie data={userChartData} dataKey="value" nameKey="name" innerRadius={34} outerRadius={50} strokeWidth={0}>
+                                                {userChartData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                ))}
+                                                <Label
+                                                    content={({ viewBox }) => {
+                                                        if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                                                            return (
+                                                                <g>
+                                                                    <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-xl font-extrabold">{totalUsers}</text>
+                                                                    <text x={viewBox.cx} y={(viewBox.cy || 0) + 14} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[8px] font-bold uppercase tracking-wider">Total</text>
+                                                                </g>
+                                                            );
+                                                        }
+                                                    }}
+                                                />
+                                            </Pie>
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
                                 <div className="w-full space-y-2 text-xs">
                                     {userChartData.map((item) => (
                                         <div key={item.name} className="flex items-center justify-between">
@@ -576,13 +550,9 @@ export default function ManajemenUser() {
                                 </select>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1">Unit Kerja</label>
-                            <input type="text" value={data.unit} onChange={(e) => setData('unit', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="Nama unit kerja" />
-                        </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => { reset(); setIsAddOpen(false); }}>Batal</Button>
-                            <Button type="submit" disabled={processing} className="bg-blue-600 hover:bg-blue-700 text-white">
+                            <Button type="submit" disabled={processing} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">
                                 {processing ? 'Menyimpan...' : 'Simpan Pengguna'}
                             </Button>
                         </DialogFooter>
@@ -632,13 +602,9 @@ export default function ManajemenUser() {
                                 </select>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1">Unit Kerja</label>
-                            <input type="text" value={editForm.data.unit} onChange={(e) => editForm.setData('unit', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" />
-                        </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setEditUser(null)}>Batal</Button>
-                            <Button type="submit" disabled={editForm.processing} className="bg-blue-600 hover:bg-blue-700 text-white">
+                            <Button type="submit" disabled={editForm.processing} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">
                                 {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
                             </Button>
                         </DialogFooter>
@@ -657,7 +623,7 @@ export default function ManajemenUser() {
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDeleteUser(null)}>Batal</Button>
-                        <Button onClick={handleDeleteUser} className="bg-rose-600 hover:bg-rose-700 text-white">
+                        <Button onClick={handleDeleteUser} className="bg-rose-600 hover:bg-rose-700 text-white font-semibold">
                             Hapus Permanen
                         </Button>
                     </DialogFooter>

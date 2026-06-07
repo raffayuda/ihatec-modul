@@ -64,6 +64,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('master-data', [MasterDataController::class, 'index'])->name('master-data');
     Route::post('master-data', [MasterDataController::class, 'store'])->name('master-data.store');
+    Route::put('master-data/{id}', [MasterDataController::class, 'update'])->name('master-data.update');
+    Route::get('master-data/template', [MasterDataController::class, 'downloadTemplate'])->name('master-data.template');
+    Route::post('master-data/import', [MasterDataController::class, 'import'])->name('master-data.import');
     Route::delete('master-data/{id}', [MasterDataController::class, 'destroy'])->name('master-data.destroy');
 
     Route::get('audit-log', function () {

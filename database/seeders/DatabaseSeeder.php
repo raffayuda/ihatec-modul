@@ -37,6 +37,28 @@ class DatabaseSeeder extends Seeder
 
             ['category' => 'Penyelenggara', 'name' => 'Badan Pengembangan SDM', 'code' => 'PY-001', 'status' => 'Aktif'],
             ['category' => 'Penyelenggara', 'name' => 'Lembaga Sertifikasi Nasional', 'code' => 'PY-002', 'status' => 'Nonaktif'],
+
+            // Jenis Kebutuhan Modul
+            ['category' => 'Jenis Kebutuhan Modul', 'name' => 'Pelatihan Inhouse', 'code' => 'JK-001', 'status' => 'Aktif'],
+            ['category' => 'Jenis Kebutuhan Modul', 'name' => 'Pelatihan Internal', 'code' => 'JK-002', 'status' => 'Aktif'],
+            ['category' => 'Jenis Kebutuhan Modul', 'name' => 'Seminar', 'code' => 'JK-003', 'status' => 'Aktif'],
+
+            // Jenis Modul
+            ['category' => 'Jenis Modul', 'name' => 'Modul', 'code' => 'JM-001', 'status' => 'Aktif'],
+            ['category' => 'Jenis Modul', 'name' => 'Lembar Kerja', 'code' => 'JM-002', 'status' => 'Aktif'],
+            ['category' => 'Jenis Modul', 'name' => 'Post Test', 'code' => 'JM-003', 'status' => 'Aktif'],
+
+            // Bahasa Pengantar
+            ['category' => 'Bahasa Pengantar', 'name' => 'Indonesia', 'code' => 'BP-001', 'status' => 'Aktif'],
+            ['category' => 'Bahasa Pengantar', 'name' => 'English', 'code' => 'BP-002', 'status' => 'Aktif'],
+            ['category' => 'Bahasa Pengantar', 'name' => 'Arab', 'code' => 'BP-003', 'status' => 'Aktif'],
+            ['category' => 'Bahasa Pengantar', 'name' => 'Mandarin', 'code' => 'BP-004', 'status' => 'Aktif'],
+
+            // Kode Pelatihan
+            ['category' => 'Kode Pelatihan', 'name' => 'Interpretasi Sistem dan Implementasi ISO 17025', 'code' => 'ILN.1.8', 'status' => 'Aktif'],
+            ['category' => 'Kode Pelatihan', 'name' => 'Sistem Jaminan Produk Halal (SJPH)', 'code' => 'SJPH', 'status' => 'Aktif'],
+            ['category' => 'Kode Pelatihan', 'name' => 'Auditor Halal', 'code' => 'AUD.HALAL', 'status' => 'Aktif'],
+            ['category' => 'Kode Pelatihan', 'name' => 'Cara Produksi Pangan Olahan yang Baik', 'code' => 'CPPOB.02', 'status' => 'Aktif'],
         ];
 
         foreach ($masterData as $md) {
