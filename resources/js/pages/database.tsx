@@ -568,14 +568,16 @@ export default function DatabaseModul({
                                         <span>{showArchivedOnly ? "Tampilkan Aktif" : "Lihat Arsip"}</span>
                                     </Button>
 
-                                    <Button
-                                        onClick={() => setIsAddModalOpen(true)}
-                                        size="sm"
-                                        className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
-                                    >
-                                        <Plus className="size-4" />
-                                        <span>Tambah Modul</span>
-                                    </Button>
+                                    {(role === 'admin' || role === 'Staf PD') && (
+                                        <Button
+                                            onClick={() => setIsAddModalOpen(true)}
+                                            size="sm"
+                                            className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
+                                        >
+                                            <Plus className="size-4" />
+                                            <span>Tambah Modul</span>
+                                        </Button>
+                                    )}
 
                                     <Button
                                         variant="outline"
@@ -686,61 +688,67 @@ export default function DatabaseModul({
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end" className="w-40 text-xs">
                                                                     <DropdownMenuItem className="cursor-pointer font-medium" onClick={() => window.location.href = `/database/${item.id}/download`}>Unduh PDF</DropdownMenuItem>
-                                                                    <DropdownMenuItem 
-                                                                        className="cursor-pointer font-medium"
-                                                                        onClick={() => {
-                                                                            let nextRevision = '1.1';
-                                                                            if (item.revision) {
-                                                                                const parsed = parseFloat(item.revision);
-                                                                                if (!isNaN(parsed)) {
-                                                                                    nextRevision = (parsed + 0.1).toFixed(1);
-                                                                                }
-                                                                            }
-                                                                            setReviseData({
-                                                                                code: item.id,
-                                                                                revision: nextRevision,
-                                                                                note: '',
-                                                                                file: null,
-                                                                            });
-                                                                            setIsReviseModalOpen(true);
-                                                                        }}
-                                                                    >
-                                                                        Buat Revisi
-                                                                    </DropdownMenuItem>
-                                                                    {item.status === 'Arsip' ? (
-                                                                        <DropdownMenuItem 
-                                                                            className="cursor-pointer font-medium text-emerald-600 dark:text-emerald-400"
-                                                                            onClick={() => {
-                                                                                if (confirm(`Apakah Anda yakin ingin mengaktifkan kembali (batal arsip) modul ${item.id}?`)) {
-                                                                                    router.post(`/database/${item.id}/unarchive`, {}, {
-                                                                                        onSuccess: () => {
-                                                                                            setToastMessage(`Modul ${item.id} berhasil diaktifkan kembali.`);
-                                                                                            setTimeout(() => setToastMessage(null), 4000);
-                                                                                        }
-                                                                                    });
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            Batal Arsipkan
-                                                                        </DropdownMenuItem>
-                                                                    ) : (
+                                                                    {(role === 'admin' || role === 'Staf PD') && (
                                                                         <DropdownMenuItem 
                                                                             className="cursor-pointer font-medium"
                                                                             onClick={() => {
-                                                                                if (confirm(`Apakah Anda yakin ingin mengarsipkan modul ${item.id}?`)) {
-                                                                                    router.post(`/database/${item.id}/archive`, {}, {
-                                                                                        onSuccess: () => {
-                                                                                            setToastMessage(`Modul ${item.id} berhasil diarsipkan.`);
-                                                                                            setTimeout(() => setToastMessage(null), 4000);
-                                                                                        }
-                                                                                    });
+                                                                                let nextRevision = '1.1';
+                                                                                if (item.revision) {
+                                                                                    const parsed = parseFloat(item.revision);
+                                                                                    if (!isNaN(parsed)) {
+                                                                                        nextRevision = (parsed + 0.1).toFixed(1);
+                                                                                    }
                                                                                 }
+                                                                                setReviseData({
+                                                                                    code: item.id,
+                                                                                    revision: nextRevision,
+                                                                                    note: '',
+                                                                                    file: null,
+                                                                                });
+                                                                                setIsReviseModalOpen(true);
                                                                             }}
                                                                         >
-                                                                            Arsipkan Modul
+                                                                            Buat Revisi
                                                                         </DropdownMenuItem>
                                                                     )}
-                                                                    <DropdownMenuItem className="cursor-pointer font-medium text-rose-600" onClick={() => { if (confirm(`Apakah Anda yakin ingin menghapus modul ${item.id}?`)) { router.delete(`/database/${item.id}`); } }}>Hapus Modul</DropdownMenuItem>
+                                                                    {(role === 'admin' || role === 'Staf PD') && (
+                                                                        item.status === 'Arsip' ? (
+                                                                            <DropdownMenuItem 
+                                                                                className="cursor-pointer font-medium text-emerald-600 dark:text-emerald-400"
+                                                                                onClick={() => {
+                                                                                    if (confirm(`Apakah Anda yakin ingin mengaktifkan kembali (batal arsip) modul ${item.id}?`)) {
+                                                                                        router.post(`/database/${item.id}/unarchive`, {}, {
+                                                                                            onSuccess: () => {
+                                                                                                setToastMessage(`Modul ${item.id} berhasil diaktifkan kembali.`);
+                                                                                                setTimeout(() => setToastMessage(null), 4000);
+                                                                                            }
+                                                                                        });
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                Batal Arsipkan
+                                                                            </DropdownMenuItem>
+                                                                        ) : (
+                                                                            <DropdownMenuItem 
+                                                                                className="cursor-pointer font-medium"
+                                                                                onClick={() => {
+                                                                                    if (confirm(`Apakah Anda yakin ingin mengarsipkan modul ${item.id}?`)) {
+                                                                                        router.post(`/database/${item.id}/archive`, {}, {
+                                                                                            onSuccess: () => {
+                                                                                                setToastMessage(`Modul ${item.id} berhasil diarsipkan.`);
+                                                                                                setTimeout(() => setToastMessage(null), 4000);
+                                                                                            }
+                                                                                        });
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                Arsipkan Modul
+                                                                            </DropdownMenuItem>
+                                                                        )
+                                                                    )}
+                                                                    {role === 'admin' && (
+                                                                        <DropdownMenuItem className="cursor-pointer font-medium text-rose-600" onClick={() => { if (confirm(`Apakah Anda yakin ingin menghapus modul ${item.id}?`)) { router.delete(`/database/${item.id}`); } }}>Hapus Modul</DropdownMenuItem>
+                                                                    )}
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
                                                         </div>

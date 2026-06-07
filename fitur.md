@@ -26,11 +26,8 @@ Admin adalah role dengan akses penuh ke seluruh sistem.
 - Mengakses database modul.
 - Mengakses matriks pelatihan.
 - Mengelola master data.
-- Melihat audit log.
 - Melihat report.
-- Mengelola storage.
 - Mengelola integrasi storage/email.
-- Mengatur konfigurasi sistem.
 
 ### Menu Admin
 
@@ -42,9 +39,7 @@ Admin adalah role dengan akses penuh ke seluruh sistem.
 - Database Modul
 - Matriks Pelatihan
 - Master Data
-- Audit Log
 - Report
-- Storage
 - Integrasi
 - Pengaturan
 

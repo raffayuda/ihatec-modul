@@ -1,7 +1,13 @@
 <?php
 
+use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GoogleDriveOAuthController;
 use App\Http\Controllers\ModuleController;
+use App\Http\Controllers\PengajuanController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\MasterDataController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -10,22 +16,30 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    // Dashboard — dynamic per role
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('approval', function () {
-        return Inertia::render('approval');
-    })->name('approval');
+    // Approval (admin + manager PD)
+    Route::get('approval', [ApprovalController::class, 'index'])->name('approval');
+    Route::post('approval/{id}/approve', [ApprovalController::class, 'approve'])->name('approval.approve');
+    Route::post('approval/{id}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
 
-    Route::get('manajemen-user', function () {
-        return Inertia::render('manajemen-user');
-    })->name('manajemen-user');
+    // Manajemen User (admin only — enforced in controller)
+    Route::get('manajemen-user', [UserController::class, 'index'])->name('manajemen-user');
+    Route::post('manajemen-user', [UserController::class, 'store'])->name('manajemen-user.store');
+    Route::put('manajemen-user/{id}', [UserController::class, 'update'])->name('manajemen-user.update');
+    Route::post('manajemen-user/{id}/status', [UserController::class, 'updateStatus'])->name('manajemen-user.status');
+    Route::delete('manajemen-user/{id}', [UserController::class, 'destroy'])->name('manajemen-user.destroy');
 
-    Route::get('pengajuan', function () {
-        return Inertia::render('pengajuan');
-    })->name('pengajuan');
+    // Pengajuan Modul
+    Route::get('pengajuan', [PengajuanController::class, 'index'])->name('pengajuan');
+    Route::post('pengajuan', [PengajuanController::class, 'store'])->name('pengajuan.store');
+    Route::put('pengajuan/{id}', [PengajuanController::class, 'update'])->name('pengajuan.update');
+    Route::delete('pengajuan/{id}', [PengajuanController::class, 'destroy'])->name('pengajuan.destroy');
+    Route::post('pengajuan/{id}/submit', [PengajuanController::class, 'submit'])->name('pengajuan.submit');
+    Route::post('pengajuan/{id}/upload', [PengajuanController::class, 'uploadFile'])->name('pengajuan.upload');
 
+    // Database Modul
     Route::get('database', [ModuleController::class, 'index'])->name('database');
     Route::post('database', [ModuleController::class, 'store'])->name('database.store');
     Route::get('database/{code}/download', [ModuleController::class, 'download'])->name('database.download');
@@ -35,24 +49,29 @@ Route::middleware(['auth'])->group(function () {
     Route::post('database/{code}/revision', [ModuleController::class, 'revision'])->name('database.revision');
     Route::delete('database/{code}', [ModuleController::class, 'destroy'])->name('database.destroy');
 
+    // Google Drive OAuth
     Route::get('google-drive/connect', [GoogleDriveOAuthController::class, 'connect'])->name('google-drive.connect');
     Route::get('google-drive/callback', [GoogleDriveOAuthController::class, 'callback'])->name('google-drive.callback');
 
+    // Static pages (data still being migrated)
     Route::get('matriks', function () {
         return Inertia::render('matriks');
     })->name('matriks');
 
-    Route::get('master-data', function () {
-        return Inertia::render('master-data');
-    })->name('master-data');
+    Route::get('formula', function () {
+        return Inertia::render('formula');
+    })->name('formula');
+
+    Route::get('master-data', [MasterDataController::class, 'index'])->name('master-data');
+    Route::post('master-data', [MasterDataController::class, 'store'])->name('master-data.store');
+    Route::delete('master-data/{id}', [MasterDataController::class, 'destroy'])->name('master-data.destroy');
 
     Route::get('audit-log', function () {
         return Inertia::render('audit-log');
     })->name('audit-log');
 
-    Route::get('report', function () {
-        return Inertia::render('report');
-    })->name('report');
+    Route::get('report', [ReportController::class, 'index'])->name('report');
+    Route::get('report/export', [ReportController::class, 'export'])->name('report.export');
 });
 
 require __DIR__.'/settings.php';

@@ -13,10 +13,12 @@ import {
     LayoutGrid, 
     Settings, 
     Users, 
-    Shield, 
     History, 
-    HardDrive, 
-    Link2 
+    FlaskConical,
+    FilePlus,
+    RotateCcw,
+    ClipboardList,
+    Bell,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
@@ -24,99 +26,81 @@ export function AppSidebar() {
     const page = usePage<SharedData>();
     const role = page.props.auth?.user?.role || 'User';
 
-    // Build the dynamic sidebar items list
-    const items: NavItem[] = [
-        {
-            title: role === 'admin' ? 'Dashboard Admin' : 'Dashboard',
-            url: '/dashboard',
-            icon: LayoutGrid,
-        }
+    // Normalize role to lowercase for consistent comparisons
+    const roleLower = role.toLowerCase();
+
+    // ── Admin Menu ──────────────────────────────────────────────────────────
+    const adminItems: NavItem[] = [
+        { title: 'Dashboard Admin', url: '/dashboard', icon: LayoutGrid },
+        { title: 'Manajemen User', url: '/manajemen-user', icon: Users },
+        { title: 'Pengajuan Modul', url: '/pengajuan', icon: FileText },
+        { title: 'Approval Modul', url: '/approval', icon: CheckSquare },
+        { title: 'Database Modul', url: '/database', icon: Database },
+        { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
+        { title: 'Jenis Pelatihan Modul', url: '/master-data', icon: Layers },
+        { title: 'Audit Log', url: '/audit-log', icon: History },
+        { title: 'Report', url: '/report', icon: BarChart3 },
+        { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
-    if (role === 'admin') {
-        items.push(
-            {
-                title: 'Manajemen User',
-                url: '/manajemen-user',
-                icon: Users,
-            },
-        );
-    }
-
-    items.push({
-        title: 'Pengajuan Modul',
-        url: '/pengajuan',
-        icon: FileText,
-    });
-
-    if (role === 'admin' || role === 'manager PD') {
-        items.push({
-            title: role === 'admin' ? 'Approval Modul' : 'Approval',
-            url: '/approval',
-            icon: CheckSquare,
-        });
-    }
-
-    items.push(
-        {
-            title: 'Database Modul',
-            url: '/database',
-            icon: Database,
-        },
-        {
-            title: 'Matriks Pelatihan',
-            url: '/matriks',
-            icon: Grid,
-        }
-    );
-
-    if (role === 'admin') {
-        items.push(
-            {
-                title: 'Master Data',
-                url: '/master-data',
-                icon: Layers,
-            },
-            {
-                title: 'Audit Log',
-                url: '/audit-log',
-                icon: History,
-            }
-        );
-    }
-
-    items.push({
-        title: 'Report',
-        url: '/report',
-        icon: BarChart3,
-    });
-    items.push({
-        title: 'Pengaturan',
-        url: '/settings',
-        icon: Settings,
-    });
-
-    // If role is User, restrict to only basic options
-    const filteredNavItems = role === 'User'
-        ? items.filter(item => ['Dashboard', 'Pengajuan Modul', 'Pengaturan'].includes(item.title))
-        : items;
-
-    // Split filtered items into groups
-    const menuUtamaGroup = [
-        'Dashboard', 
-        'Dashboard Admin', 
-        'Manajemen User', 
-        'Role & Permission', 
-        'Pengajuan Modul', 
-        'Approval', 
-        'Approval Modul', 
-        'Database Modul', 
-        'Matriks Pelatihan', 
-        'Master Data', 
-        'Audit Log'
+    // ── Manager PD Menu ─────────────────────────────────────────────────────
+    const managerItems: NavItem[] = [
+        { title: 'Dashboard Manager PD', url: '/dashboard', icon: LayoutGrid },
+        { title: 'Approval Modul', url: '/approval', icon: CheckSquare },
+        { title: 'Database Modul', url: '/database', icon: Database },
+        { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
+        { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
+        { title: 'Report', url: '/report', icon: BarChart3 },
+        { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
-    const menuUtamaItems = filteredNavItems.filter((item) => menuUtamaGroup.includes(item.title));
-    const lainnyaItems = filteredNavItems.filter((item) => !menuUtamaGroup.includes(item.title));
+
+    // ── Staf PD Menu ────────────────────────────────────────────────────────
+    const stafPdItems: NavItem[] = [
+        { title: 'Dashboard Staf PD', url: '/dashboard', icon: LayoutGrid },
+        { title: 'Pengajuan Modul', url: '/pengajuan', icon: FilePlus },
+        { title: 'Database Modul', url: '/database', icon: Database },
+        { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
+        { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
+        { title: 'Pengaturan', url: '/settings', icon: Settings },
+    ];
+
+    // ── Tim Training Menu ───────────────────────────────────────────────────
+    const timTrainingItems: NavItem[] = [
+        { title: 'Dashboard Tim Training', url: '/dashboard', icon: LayoutGrid },
+        { title: 'Database Modul', url: '/database', icon: Database },
+        { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
+        { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
+        { title: 'Report', url: '/report', icon: BarChart3 },
+        { title: 'Pengaturan', url: '/settings', icon: Settings },
+    ];
+
+    // ── User (Pengaju) Menu ─────────────────────────────────────────────────
+    const userItems: NavItem[] = [
+        { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
+        { title: 'Pengajuan Modul', url: '/pengajuan', icon: ClipboardList },
+        { title: 'Pengaturan', url: '/settings', icon: Settings },
+    ];
+
+    // Select menu based on role
+    let allItems: NavItem[];
+    if (roleLower === 'admin') {
+        allItems = adminItems;
+    } else if (roleLower === 'manager pd') {
+        allItems = managerItems;
+    } else if (roleLower === 'staf pd') {
+        allItems = stafPdItems;
+    } else if (roleLower === 'tim training') {
+        allItems = timTrainingItems;
+    } else {
+        allItems = userItems;
+    }
+
+    // Group: "Menu Utama" vs "Master Data" vs "Laporan & Lainnya"
+    const masterDataTitles = ['Manajemen User', 'Jenis Pelatihan Modul'];
+    const lainnyaTitles = ['Report', 'Pengaturan'];
+    const menuUtamaItems = allItems.filter((item) => !lainnyaTitles.includes(item.title) && !masterDataTitles.includes(item.title));
+    const masterDataItems = allItems.filter((item) => masterDataTitles.includes(item.title));
+    const lainnyaItems = allItems.filter((item) => lainnyaTitles.includes(item.title));
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -134,6 +118,9 @@ export function AppSidebar() {
 
             <SidebarContent className="gap-0 py-2">
                 <NavMain label="Menu Utama" items={menuUtamaItems} />
+                {masterDataItems.length > 0 && (
+                    <NavMain label="Master Data" items={masterDataItems} />
+                )}
                 <NavMain label="Laporan & Lainnya" items={lainnyaItems} />
             </SidebarContent>
 

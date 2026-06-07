@@ -1,31 +1,31 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, usePage, Link } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    FileText,
-    Clock,
-    Edit3,
-    CheckCircle2,
-    XCircle,
+    Plus,
     Search,
     RefreshCw,
-    Plus,
-    Eye,
     MoreVertical,
     ChevronLeft,
     ChevronRight,
-    ArrowLeft,
+    FileText,
+    Clock,
+    CheckCircle2,
+    XCircle,
+    Send,
+    Trash2,
+    Edit3,
+    AlertTriangle,
+    ArrowUpRight,
     Upload,
+    Paperclip,
+    Eye,
     Download,
-    Calendar,
-    Check,
-    ClipboardList,
-    AlertCircle,
-    User,
-    CheckCircle
+    X as XIcon,
+    FileCheck,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -41,9 +41,8 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import React, { useState, useMemo } from 'react';
-import { PieChart, Pie, Cell, Label } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -54,263 +53,461 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 interface SubmissionItem {
     id: string;
-    type: 'Modul Baru' | 'Revisi Modul';
+    dbId: number;
+    type: string;
     title: string;
     applicant: string;
     unit: string;
     submissionDate: string;
     deadline: string;
-    status: 'Baru' | 'Drafting' | 'Menunggu Approval' | 'Selesai' | 'Ditolak';
+    deadlineFormatted: string;
+    status: string;
     description: string;
+    priority: string;
+    rejectReason?: string | null;
+    // File
+    fileName?: string | null;
+    fileSize?: string | null;
+    fileMime?: string | null;
+    fileUrl?: string | null;
+    // New fields from diagram
+    program?: string | null;
+    language?: string | null;
+    training_days?: number | string | null;
+    revision_reason?: string | null;
+    related_module_id?: number | string | null;
+    relatedModuleCode?: string | null;
+    relatedModuleTitle?: string | null;
+    relatedModuleRevision?: string | null;
 }
 
+interface Stats {
+    total: number;
+    waiting: number;
+    drafting: number;
+    finished: number;
+    baru: number;
+    ditolak: number;
+}
+
+interface ChartDataItem {
+    name: string;
+    value: number;
+    fill: string;
+}
+
+interface AvailableModule {
+    id: number;
+    code: string;
+    title: string;
+    revision: string;
+}
+
+interface PengajuanProps extends SharedData {
+    submissions: SubmissionItem[];
+    stats: Stats;
+    chartData: ChartDataItem[];
+    availableModules: AvailableModule[];
+    trainingTypes?: string[];
+    flash?: {
+        message?: string;
+        error?: string;
+    };
+}
+
+const STATUS_COLORS: Record<string, string> = {
+    Baru: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300',
+    Drafting: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
+    'Menunggu Approval': 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+    Selesai: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+    Ditolak: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
+};
+
+const PRIORITY_COLORS: Record<string, string> = {
+    High: 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300',
+    Medium: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300',
+    Low: 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400',
+};
+
+// ── File Upload Zone Component ──────────────────────────────────────────────
+interface FileDropZoneProps {
+    onFileSelect: (file: File | null) => void;
+    selectedFile: File | null;
+    existingFileName?: string | null;
+    existingFileSize?: string | null;
+    existingFileUrl?: string | null;
+}
+
+function FileDropZone({ onFileSelect, selectedFile, existingFileName, existingFileSize, existingFileUrl }: FileDropZoneProps) {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [isDragOver, setIsDragOver] = useState(false);
+
+    const handleDrop = useCallback(
+        (e: React.DragEvent) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'application/pdf') {
+                onFileSelect(file);
+            }
+        },
+        [onFileSelect],
+    );
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] ?? null;
+        onFileSelect(file);
+    };
+
+    const formatSize = (bytes: number) => {
+        if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1048576).toFixed(1)} MB`;
+    };
+
+    // Showing newly selected file
+    if (selectedFile) {
+        return (
+            <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                <div className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40">
+                    <FileCheck className="size-4.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-neutral-800 dark:text-neutral-200">{selectedFile.name}</p>
+                    <p className="text-[10px] text-neutral-400">{formatSize(selectedFile.size)}</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => { onFileSelect(null); if (inputRef.current) inputRef.current.value = ''; }}
+                    className="flex size-6 items-center justify-center rounded hover:bg-neutral-200 text-neutral-400 dark:hover:bg-neutral-700"
+                >
+                    <XIcon className="size-3.5" />
+                </button>
+            </div>
+        );
+    }
+
+    // Showing existing uploaded file
+    if (existingFileName && !selectedFile) {
+        return (
+            <div className="space-y-2">
+                <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/50 p-3.5 dark:border-blue-900/40 dark:bg-blue-950/20">
+                    <div className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/40">
+                        <Paperclip className="size-4.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold text-neutral-800 dark:text-neutral-200">{existingFileName}</p>
+                        {existingFileSize && <p className="text-[10px] text-neutral-400">{existingFileSize}</p>}
+                    </div>
+                    <div className="flex items-center gap-1">
+                        {existingFileUrl && (
+                            <a
+                                href={existingFileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex size-7 items-center justify-center rounded hover:bg-blue-100 text-blue-600 dark:hover:bg-blue-900/40"
+                                title="Preview"
+                            >
+                                <Eye className="size-3.5" />
+                            </a>
+                        )}
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => inputRef.current?.click()}
+                    className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                >
+                    Ganti file PDF
+                </button>
+                <input ref={inputRef} type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
+            </div>
+        );
+    }
+
+    // Empty drop zone
+    return (
+        <div>
+            <div
+                onClick={() => inputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={handleDrop}
+                className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed py-6 px-4 text-center transition-colors ${
+                    isDragOver
+                        ? 'border-blue-500 bg-blue-50/60 dark:border-blue-400 dark:bg-blue-950/30'
+                        : 'border-neutral-200 bg-neutral-50/30 hover:border-blue-400 hover:bg-blue-50/30 dark:border-neutral-700 dark:bg-neutral-900/20'
+                }`}
+            >
+                <div className={`flex size-10 items-center justify-center rounded-xl ${isDragOver ? 'bg-blue-100 text-blue-600' : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-800'}`}>
+                    <Upload className="size-5" />
+                </div>
+                <div>
+                    <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                        Drop file PDF di sini atau <span className="text-blue-600 dark:text-blue-400">klik untuk browse</span>
+                    </p>
+                    <p className="text-[10px] text-neutral-400 mt-0.5">Hanya format PDF, maks. 20 MB</p>
+                </div>
+            </div>
+            <input ref={inputRef} type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
+        </div>
+    );
+}
+
+// ── Main Component ──────────────────────────────────────────────────────────
 export default function Pengajuan() {
-    const page = usePage<SharedData>();
-    const user = page.props.auth?.user;
-    const role = user?.role || 'User';
+    const { auth, submissions, stats, chartData, availableModules, flash, trainingTypes } = usePage<PengajuanProps>().props;
+    const role = auth?.user?.role ?? 'User';
 
-    // Dummy initial submissions dataset matching the user's screenshot
-    const [submissions, setSubmissions] = useState<SubmissionItem[]>([
-        {
-            id: 'PMD-2024-0064',
-            type: 'Modul Baru',
-            title: 'Manajemen Risiko Operasional',
-            applicant: 'Andi Pratama',
-            unit: 'Operasional',
-            submissionDate: '12 Mei 2024',
-            deadline: '28 Mei 2024',
-            status: 'Baru',
-            description: 'Panduan lengkap mengenai tata cara mitigasi risiko operasional, deteksi dini kerugian, dan kepatuhan prosedur internal.'
-        },
-        {
-            id: 'PMD-2024-0063',
-            type: 'Revisi Modul',
-            title: 'Kepemimpinan Situasional',
-            applicant: 'Dewi Lestari',
-            unit: 'SDM',
-            submissionDate: '10 Mei 2024',
-            deadline: '27 Mei 2024',
-            status: 'Drafting',
-            description: 'Pembaruan modul kepemimpinan dengan pendekatan model situasional Blanchard terbaru untuk level supervisor.'
-        },
-        {
-            id: 'PMD-2024-0062',
-            type: 'Modul Baru',
-            title: 'Analisis Data untuk Non Data Scientist',
-            applicant: 'Budi Santoso',
-            unit: 'IT & Digital',
-            submissionDate: '09 Mei 2024',
-            deadline: '30 Mei 2024',
-            status: 'Menunggu Approval',
-            description: 'Materi dasar interpretasi data, visualisasi menggunakan BI tools, dan penggunaan formula tingkat menengah.'
-        },
-        {
-            id: 'PMD-2024-0061',
-            type: 'Modul Baru',
-            title: 'Customer Experience Excellence',
-            applicant: 'Rina Anjayani',
-            unit: 'Pemasaran',
-            submissionDate: '08 Mei 2024',
-            deadline: '29 Mei 2024',
-            status: 'Selesai',
-            description: 'Modul pelatihan standarisasi layanan pelanggan prima untuk garda depan pelayanan ritel.'
-        },
-        {
-            id: 'PMD-2024-0060',
-            type: 'Revisi Modul',
-            title: 'Microsoft Excel Intermediate',
-            applicant: 'Agus Setiawan',
-            unit: 'Keuangan',
-            submissionDate: '07 Mei 2024',
-            deadline: '24 Mei 2024',
-            status: 'Ditolak',
-            description: 'Revisi modul excel menambahkan bab VLOOKUP/HLOOKUP serta dasar Pivot Table, ditolak karena format tidak sesuai standar.'
-        },
-        {
-            id: 'PMD-2024-0059',
-            type: 'Modul Baru',
-            title: 'Cyber Security Awareness',
-            applicant: 'Mega Kusuma',
-            unit: 'IT & Digital',
-            submissionDate: '06 Mei 2024',
-            deadline: '26 Mei 2024',
-            status: 'Baru',
-            description: 'Edukasi keamanan siber mendasar bagi seluruh karyawan untuk menghindari celah phising dan kebocoran sandi.'
-        },
-        {
-            id: 'PMD-2024-0058',
-            type: 'Revisi Modul',
-            title: 'Komunikasi Efektif',
-            applicant: 'Yusuf Setiawan',
-            unit: 'Operasional',
-            submissionDate: '05 Mei 2024',
-            deadline: '23 Mei 2024',
-            status: 'Drafting',
-            description: 'Revisi materi komunikasi persuasif dengan tambahan studi kasus negosiasi klien luar negeri.'
-        },
-        {
-            id: 'PMD-2024-0057',
-            type: 'Modul Baru',
-            title: 'Design Thinking Fundamentals',
-            applicant: 'Nita Fadilah',
-            unit: 'IT & Digital',
-            submissionDate: '03 Mei 2024',
-            deadline: '20 Mei 2024',
-            status: 'Menunggu Approval',
-            description: 'Pelatihan kerangka kerja inovasi design thinking mencakup tahapan Empathize hingga Prototype.'
-        },
-        {
-            id: 'PMD-2024-0056',
-            type: 'Modul Baru',
-            title: 'Presentasi yang Persuasif',
-            applicant: 'Bambang Hadiyanto',
-            unit: 'Pengembangan SDM',
-            submissionDate: '02 Mei 2024',
-            deadline: '21 Mei 2024',
-            status: 'Selesai',
-            description: 'Pelatihan teknik penyusunan slide presentasi yang memikat audiens dan manajemen intonasi suara.'
-        },
-        {
-            id: 'PMD-2024-0055',
-            type: 'Revisi Modul',
-            title: 'Manajemen Proyek Agil',
-            applicant: 'Siti Lestari',
-            unit: 'IT & Digital',
-            submissionDate: '01 Mei 2024',
-            deadline: '17 Mei 2024',
-            status: 'Ditolak',
-            description: 'Penambahan kerangka kerja Kanban dan Scrum pada modul manajemen proyek IT.'
-        }
-    ]);
+    const trainingTypeList = trainingTypes || [
+        "Regulasi & Kepatuhan",
+        "Teknis Laboratorium",
+        "Sertifikasi & Auditor",
+        "Manajerial & Kepemimpinan",
+        "Teknis Produksi",
+        "Supply Chain & Logistik",
+        "K3 & Keamanan",
+        "Pengembangan SDM",
+        "Lainnya"
+    ];
 
-    // Checkbox and multi-selection state
-    const [selectedItems, setSelectedItems] = useState<string[]>([]);
-    
-    // Filter states
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('Semua Status');
-    const [typeFilter, setTypeFilter] = useState('Semua Jenis');
-    const [unitFilter, setUnitFilter] = useState('Semua Unit');
-    const [dateRangeText, setDateRangeText] = useState('01 Mei 2024 - 31 Mei 2024');
+    const [typeFilter, setTypeFilter] = useState('Semua Tipe');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
 
-    // Modals
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const [selectedItem, setSelectedItem] = useState<SubmissionItem | null>(null);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [editItem, setEditItem] = useState<SubmissionItem | null>(null);
+    const [deleteItem, setDeleteItem] = useState<SubmissionItem | null>(null);
+    const [detailItem, setDetailItem] = useState<SubmissionItem | null>(null);
+    const [uploadItem, setUploadItem] = useState<SubmissionItem | null>(null);
 
-    // Form inputs for new submission
-    const [newTitle, setNewTitle] = useState('');
-    const [newType, setNewType] = useState<'Modul Baru' | 'Revisi Modul'>('Modul Baru');
-    const [newUnit, setNewUnit] = useState('Operasional');
-    const [newDeadline, setNewDeadline] = useState('');
-    const [newDescription, setNewDescription] = useState('');
+    // Create form — using FormData compatible approach via router.post
+    const [createFile, setCreateFile] = useState<File | null>(null);
+    const [createData, setCreateData] = useState({
+        type: 'Modul Baru',
+        title: '',
+        unit: '',
+        description: '',
+        deadline: '',
+        priority: 'Medium',
+        related_module_id: '',
+        program: '',
+        language: 'Indonesia',
+        training_days: '',
+        revision_reason: '',
+    });
+    const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+    const [createProcessing, setCreateProcessing] = useState(false);
 
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
+    // Edit form
+    const [editFile, setEditFile] = useState<File | null>(null);
+    const editForm = useForm({
+        type: 'Modul Baru' as string,
+        title: '',
+        unit: '',
+        description: '',
+        deadline: '',
+        priority: 'Medium' as string,
+        status: 'Baru' as string,
+        related_module_id: '' as string | number,
+        program: '',
+        language: 'Indonesia',
+        training_days: '' as string | number,
+        revision_reason: '',
+    });
 
-    // Dynamic stats computation based on current list state
-    const stats = useMemo(() => {
-        const total = submissions.length;
-        const waiting = submissions.filter(s => s.status === 'Menunggu Approval').length;
-        const drafting = submissions.filter(s => s.status === 'Drafting').length;
-        const finished = submissions.filter(s => s.status === 'Selesai').length;
-        const baru = submissions.filter(s => s.status === 'Baru').length;
-        const ditolak = submissions.filter(s => s.status === 'Ditolak').length;
+    // Standalone file upload
+    const [standaloneFile, setStandaloneFile] = useState<File | null>(null);
+    const [uploadProcessing, setUploadProcessing] = useState(false);
 
-        return { total, waiting, drafting, finished, baru, ditolak };
-    }, [submissions]);
+    // Filter
+    const filteredSubmissions = useMemo(() => {
+        return submissions.filter((s) => {
+            const matchSearch =
+                s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                s.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                s.applicant.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchStatus = statusFilter === 'Semua Status' || s.status === statusFilter;
+            const matchType = typeFilter === 'Semua Tipe' || s.type === typeFilter;
+            return matchSearch && matchStatus && matchType;
+        });
+    }, [submissions, searchQuery, statusFilter, typeFilter]);
 
-    // Reset filters handler
+    const indexOfLast = currentPage * itemsPerPage;
+    const indexOfFirst = indexOfLast - itemsPerPage;
+    const currentItems = filteredSubmissions.slice(indexOfFirst, indexOfLast);
+    const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
+
     const handleResetFilters = () => {
         setSearchQuery('');
         setStatusFilter('Semua Status');
-        setTypeFilter('Semua Jenis');
-        setUnitFilter('Semua Unit');
-        setDateRangeText('01 Mei 2024 - 31 Mei 2024');
+        setTypeFilter('Semua Tipe');
+        setCurrentPage(1);
     };
 
-    // Filtered items logic
-    const filteredSubmissions = useMemo(() => {
-        return submissions.filter((sub) => {
-            const matchesSearch = 
-                sub.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                sub.applicant.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                sub.id.toLowerCase().includes(searchQuery.toLowerCase());
-            
-            const matchesStatus = statusFilter === 'Semua Status' || sub.status === statusFilter;
-            const matchesType = typeFilter === 'Semua Jenis' || sub.type === typeFilter;
-            const matchesUnit = unitFilter === 'Semua Unit' || sub.unit === unitFilter;
-
-            return matchesSearch && matchesStatus && matchesType && matchesUnit;
-        });
-    }, [submissions, searchQuery, statusFilter, typeFilter, unitFilter]);
-
-    // Handle check all
-    const handleSelectAll = (checked: boolean) => {
-        if (checked) {
-            setSelectedItems(filteredSubmissions.map(s => s.id));
-        } else {
-            setSelectedItems([]);
-        }
-    };
-
-    // Handle check single row
-    const handleSelectRow = (id: string, checked: boolean) => {
-        if (checked) {
-            setSelectedItems(prev => [...prev, id]);
-        } else {
-            setSelectedItems(prev => prev.filter(item => item !== id));
-        }
-    };
-
-    // Submit new submission handler
-    const handleAddSubmission = (e: React.FormEvent) => {
+    // Create submission (multipart form)
+    const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newTitle.trim() || !newDeadline) return;
 
-        const newIdNumber = 64 + submissions.length - 9; // simple dynamic increment matching format
-        const nextId = `PMD-2024-00${newIdNumber}`;
+        // Front-end validation for file upload in Revisi Modul
+        if (createData.type === 'Revisi Modul' && !createFile) {
+            setCreateErrors({
+                ...createErrors,
+                file: 'Dokumen PDF wajib dilampirkan untuk revisi modul.',
+            });
+            return;
+        }
 
-        const newSub: SubmissionItem = {
-            id: nextId,
-            type: newType,
-            title: newTitle,
-            applicant: user?.name || 'Raffa Yuda Pratama',
-            unit: newUnit,
-            submissionDate: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-            deadline: new Date(newDeadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-            status: 'Baru',
-            description: newDescription || 'Deskripsi pengajuan modul baru.'
-        };
+        setCreateProcessing(true);
+        const formData = new FormData();
+        formData.append('type', createData.type);
+        formData.append('title', createData.title);
+        formData.append('unit', createData.unit || auth?.user?.unit || '');
+        formData.append('description', createData.description);
+        formData.append('deadline', createData.deadline);
+        formData.append('priority', createData.priority);
+        if (createData.related_module_id) formData.append('related_module_id', createData.related_module_id);
+        formData.append('program', createData.program);
+        formData.append('language', createData.language);
+        formData.append('training_days', createData.training_days);
+        formData.append('revision_reason', createData.revision_reason);
+        if (createFile) formData.append('file', createFile);
 
-        setSubmissions(prev => [newSub, ...prev]);
-        setIsAddModalOpen(false);
-        setNewTitle('');
-        setNewDescription('');
-        setNewDeadline('');
-        
-        setToastMessage(`Pengajuan ${nextId} berhasil diajukan dengan status Baru.`);
-        setTimeout(() => setToastMessage(null), 4000);
+        router.post(route('pengajuan.store'), formData, {
+            forceFormData: true,
+            onSuccess: () => {
+                setIsCreateOpen(false);
+                setCreateData({
+                    type: 'Modul Baru',
+                    title: '',
+                    unit: '',
+                    description: '',
+                    deadline: '',
+                    priority: 'Medium',
+                    related_module_id: '',
+                    program: '',
+                    language: 'Indonesia',
+                    training_days: '',
+                    revision_reason: '',
+                });
+                setCreateFile(null);
+                setCreateErrors({});
+            },
+            onError: (errors) => setCreateErrors(errors),
+            onFinish: () => setCreateProcessing(false),
+        });
     };
 
-    const chartConfig = {
-        baru: { label: 'Baru', color: '#3b82f6' },
-        drafting: { label: 'Drafting', color: '#a3a3a3' },
-        menunggu: { label: 'Menunggu Approval', color: '#a855f7' },
-        selesai: { label: 'Selesai', color: '#10b981' },
-        ditolak: { label: 'Ditolak', color: '#f43f5e' },
-    } satisfies ChartConfig;
+    const handleRelatedModuleChange = (moduleIdStr: string) => {
+        const moduleId = parseInt(moduleIdStr, 10);
+        const selectedModule = availableModules.find(m => m.id === moduleId);
+        if (selectedModule) {
+            setCreateData({
+                ...createData,
+                related_module_id: moduleIdStr,
+                title: selectedModule.title, // Autofill Judul Modul
+            });
+        } else {
+            setCreateData({
+                ...createData,
+                related_module_id: '',
+            });
+        }
+    };
 
-    const statusChartData = useMemo(() => [
-        { name: 'Baru', value: 22, fill: '#3b82f6' },
-        { name: 'Drafting', value: 24, fill: '#a3a3a3' },
-        { name: 'Menunggu Approval', value: 18, fill: '#a855f7' },
-        { name: 'Selesai', value: 54, fill: '#10b981' },
-        { name: 'Ditolak', value: 8, fill: '#f43f5e' },
-    ], []);
+    const handleEditRelatedModuleChange = (moduleIdStr: string) => {
+        const moduleId = parseInt(moduleIdStr, 10);
+        const selectedModule = availableModules.find(m => m.id === moduleId);
+        if (selectedModule) {
+            editForm.setData((data) => ({
+                ...data,
+                related_module_id: moduleIdStr,
+                title: selectedModule.title, // Autofill Judul Modul
+            }));
+        } else {
+            editForm.setData('related_module_id', '');
+        }
+    };
 
-    const totalStatusSubmissions = useMemo(() => {
-        return statusChartData.reduce((acc, curr) => acc + curr.value, 0);
-    }, [statusChartData]);
+    const openEdit = (item: SubmissionItem) => {
+        editForm.setData({
+            type: item.type,
+            title: item.title,
+            unit: item.unit !== '-' ? item.unit : '',
+            description: item.description,
+            deadline: item.deadline || '',
+            priority: item.priority,
+            status: item.status,
+            related_module_id: item.related_module_id ?? '',
+            program: item.program ?? '',
+            language: item.language ?? 'Indonesia',
+            training_days: item.training_days ?? '',
+            revision_reason: item.revision_reason ?? '',
+        });
+        setEditFile(null);
+        setEditItem(item);
+    };
+
+    const handleEdit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editItem) return;
+
+        // Front-end validation for file upload in Revisi Modul
+        if (editForm.data.type === 'Revisi Modul' && !editFile && !editItem.fileName) {
+            editForm.setError('file', 'Dokumen PDF wajib dilampirkan untuk revisi modul.');
+            return;
+        }
+
+        if (editFile) {
+            // Use FormData when file is attached
+            const formData = new FormData();
+            Object.entries(editForm.data).forEach(([k, v]) => {
+                if (v !== null && v !== undefined) {
+                    formData.append(k, v as string);
+                }
+            });
+            formData.append('file', editFile);
+            formData.append('_method', 'PUT');
+
+            router.post(route('pengajuan.update', editItem.dbId), formData, {
+                forceFormData: true,
+                onSuccess: () => setEditItem(null),
+            });
+        } else {
+            editForm.put(route('pengajuan.update', editItem.dbId), {
+                onSuccess: () => setEditItem(null),
+            });
+        }
+    };
+
+    const handleDelete = () => {
+        if (!deleteItem) return;
+        router.delete(route('pengajuan.destroy', deleteItem.dbId), {
+            onSuccess: () => setDeleteItem(null),
+        });
+    };
+
+    const handleSubmitForApproval = (item: SubmissionItem) => {
+        router.post(route('pengajuan.submit', item.dbId));
+    };
+
+    const handleStandaloneUpload = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!uploadItem || !standaloneFile) return;
+        setUploadProcessing(true);
+        const formData = new FormData();
+        formData.append('file', standaloneFile);
+        router.post(route('pengajuan.upload', uploadItem.dbId), formData, {
+            forceFormData: true,
+            onSuccess: () => { setUploadItem(null); setStandaloneFile(null); },
+            onFinish: () => setUploadProcessing(false),
+        });
+    };
+
+    const canEdit = (status: string) => ['Baru', 'Drafting'].includes(status);
+    const canDelete = (status: string) => status === 'Baru';
+    const canSubmit = (status: string) => ['Baru', 'Drafting'].includes(status);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -319,112 +516,70 @@ export default function Pengajuan() {
             <div className="flex h-full flex-1 flex-col gap-6 p-6 bg-neutral-50/60 dark:bg-neutral-900/10">
                 {/* Header */}
                 <div className="flex flex-col gap-1">
-                    <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-                        Pengajuan Modul
-                    </h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">Pengajuan Modul</h1>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                        Kelola permintaan modul baru, revisi, dan kebutuhan khusus dari unit kerja.
+                        {role === 'User' ? 'Pantau dan ajukan permintaan modul pelatihan.' : 'Kelola seluruh pengajuan modul dari pengguna.'}
                     </p>
                 </div>
 
-                {/* Success Toast */}
-                {toastMessage && (
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400 shadow-sm animate-in fade-in duration-300">
-                        <Check className="size-4.5" />
-                        <span>{toastMessage}</span>
+                {/* Flash */}
+                {flash?.message && (
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400">
+                        <CheckCircle2 className="size-4.5" />
+                        <span>{flash.message}</span>
+                    </div>
+                )}
+                {flash?.error && (
+                    <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-400">
+                        <AlertTriangle className="size-4.5" />
+                        <span>{flash.error}</span>
                     </div>
                 )}
 
-                {/* Metrics row */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    {/* Total Pengajuan */}
-                    <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                        <CardContent className="flex items-center gap-4 p-5">
-                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
-                                <FileText className="size-6" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Total Pengajuan</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{stats.total}</span>
-                                <span className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 mt-0.5">Semua permintaan modul</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Menunggu Proses */}
-                    <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                        <CardContent className="flex items-center gap-4 p-5">
-                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
-                                <Clock className="size-6" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Menunggu Proses</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{stats.waiting}</span>
-                                <span className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 mt-0.5">Perlu diproses lebih lanjut</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Dalam Drafting */}
-                    <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                        <CardContent className="flex items-center gap-4 p-5">
-                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400">
-                                <Edit3 className="size-6" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Dalam Drafting</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{stats.drafting}</span>
-                                <span className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 mt-0.5">Sedang disusun/direvisi</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Selesai */}
-                    <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                        <CardContent className="flex items-center gap-4 p-5">
-                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
-                                <CheckCircle2 className="size-6" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Selesai</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{stats.finished}</span>
-                                <span className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 mt-0.5">Pengajuan telah selesai</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Dashboard Grid split into Main Content and Right Side Column */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-                    
-                    {/* Main content Area (Left 3 columns) */}
+                    {/* LEFT: Table (3/4) */}
                     <div className="lg:col-span-3 space-y-6">
-                        
-                        {/* Filter Bar and Data Table card */}
-                        <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm overflow-hidden">
+
+                        {/* Metrics */}
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+                            {[
+                                { label: 'Total', value: stats.total, icon: FileText, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50 dark:text-blue-400' },
+                                { label: 'Baru', value: stats.baru, icon: Plus, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/50 dark:text-blue-400' },
+                                { label: 'Drafting', value: stats.drafting, icon: Edit3, color: 'text-neutral-500 bg-neutral-100 dark:bg-neutral-800' },
+                                { label: 'Menunggu', value: stats.waiting, icon: Clock, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-400' },
+                                { label: 'Selesai', value: stats.finished, icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 dark:text-emerald-400' },
+                                { label: 'Ditolak', value: stats.ditolak, icon: XCircle, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/50 dark:text-rose-400' },
+                            ].map((m) => (
+                                <Card key={m.label} className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+                                    <CardContent className="flex flex-col items-start gap-2 p-4">
+                                        <div className={`flex size-9 items-center justify-center rounded-xl ${m.color}`}>
+                                            <m.icon className="size-4.5" />
+                                        </div>
+                                        <div>
+                                            <div className="text-xl font-bold text-neutral-900 dark:text-neutral-100">{m.value}</div>
+                                            <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{m.label}</div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+
+                        {/* Table Card */}
+                        <Card className="overflow-hidden border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                             {/* Filters */}
-                            <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/10 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-                                
-                                {/* Search input */}
-                                <div className="relative flex-1 max-w-xs">
-                                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
+                            <div className="flex flex-col gap-3 border-b border-neutral-100 p-4 dark:border-neutral-800 md:flex-row md:items-center md:justify-between">
+                                <div className="relative max-w-sm flex-1">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                                     <input
                                         type="text"
                                         value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Cari judul modul, pengaju, unit..."
+                                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                                        placeholder="Cari judul, ID, atau pengaju..."
                                         className="h-9 w-full rounded-lg border border-neutral-200 bg-white pl-9 pr-4 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                                     />
                                 </div>
-
-                                {/* Selection Dropdowns */}
                                 <div className="flex flex-wrap items-center gap-2">
-                                    {/* Status Filter */}
-                                    <select
-                                        value={statusFilter}
-                                        onChange={(e) => setStatusFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
+                                    <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                                         <option value="Semua Status">Semua Status</option>
                                         <option value="Baru">Baru</option>
                                         <option value="Drafting">Drafting</option>
@@ -432,178 +587,139 @@ export default function Pengajuan() {
                                         <option value="Selesai">Selesai</option>
                                         <option value="Ditolak">Ditolak</option>
                                     </select>
-
-                                    {/* Type Filter */}
-                                    <select
-                                        value={typeFilter}
-                                        onChange={(e) => setTypeFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
-                                        <option value="Semua Jenis">Semua Jenis</option>
+                                    <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                                        <option value="Semua Tipe">Semua Tipe</option>
                                         <option value="Modul Baru">Modul Baru</option>
                                         <option value="Revisi Modul">Revisi Modul</option>
+                                        <option value="Kebutuhan Khusus">Kebutuhan Khusus</option>
                                     </select>
-
-                                    {/* Unit Filter */}
-                                    <select
-                                        value={unitFilter}
-                                        onChange={(e) => setUnitFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
-                                        <option value="Semua Unit">Semua Unit</option>
-                                        <option value="Operasional">Operasional</option>
-                                        <option value="SDM">SDM</option>
-                                        <option value="IT & Digital">IT & Digital</option>
-                                        <option value="Pemasaran">Pemasaran</option>
-                                        <option value="Keuangan">Keuangan</option>
-                                        <option value="Pengembangan SDM">Pengembangan SDM</option>
-                                    </select>
-
-                                    {/* Date range picker selector */}
-                                    <div className="relative flex items-center h-9 border border-neutral-200 dark:border-neutral-800 rounded-lg bg-white dark:bg-neutral-900 px-3 text-xs text-neutral-600 dark:text-neutral-400 gap-1.5 cursor-pointer">
-                                        <Calendar className="size-3.5" />
-                                        <span>{dateRangeText}</span>
-                                    </div>
-
-                                    {/* Reset Filters button */}
-                                    <Button
-                                        onClick={handleResetFilters}
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-9 px-3 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold"
-                                    >
-                                        <RefreshCw className="mr-1.5 size-3.5" />
-                                        Reset Filter
+                                    <Button onClick={handleResetFilters} variant="outline" size="sm" className="h-9 rounded-lg border-neutral-200 px-3 text-xs font-semibold dark:border-neutral-800">
+                                        <RefreshCw className="mr-1.5 size-3.5" /> Reset
                                     </Button>
-
-                                    {/* Add Submission Button */}
-                                    <Button
-                                        onClick={() => setIsAddModalOpen(true)}
-                                        size="sm"
-                                        className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5"
-                                    >
-                                        <Plus className="size-4" />
-                                        <span>Buat Pengajuan</span>
+                                    <Button onClick={() => setIsCreateOpen(true)} size="sm" className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">
+                                        <Plus className="mr-1.5 size-4" /> Ajukan Modul
                                     </Button>
                                 </div>
                             </div>
 
-                            {/* Data Table */}
+                            {/* Table */}
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[950px] text-left border-collapse text-xs">
+                                <table className="w-full min-w-[820px] border-collapse text-left text-xs">
                                     <thead>
                                         <tr className="border-b border-neutral-100 bg-neutral-50/50 font-semibold text-neutral-400 dark:border-neutral-800 dark:bg-neutral-900/30">
-                                            <th className="px-6 py-3 text-center w-12">
-                                                <input
-                                                    type="checkbox"
-                                                    onChange={(e) => handleSelectAll(e.target.checked)}
-                                                    checked={selectedItems.length > 0 && selectedItems.length === filteredSubmissions.length}
-                                                    className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500 size-3.5"
-                                                />
-                                            </th>
-                                            <th className="px-6 py-3.5">No Pengajuan</th>
-                                            <th className="px-6 py-3.5">Jenis</th>
-                                            <th className="px-6 py-3.5">Judul Modul / Kebutuhan</th>
-                                            <th className="px-6 py-3.5">Pengaju</th>
-                                            <th className="px-6 py-3.5">Unit</th>
-                                            <th className="px-6 py-3.5">Tanggal Pengajuan</th>
-                                            <th className="px-6 py-3.5">Deadline</th>
-                                            <th className="px-6 py-3.5">Status</th>
-                                            <th className="px-6 py-3.5 text-center w-24">Aksi</th>
+                                            <th className="px-5 py-3.5">No. Pengajuan</th>
+                                            <th className="px-5 py-3.5">Judul</th>
+                                            <th className="px-5 py-3.5">Tipe</th>
+                                            <th className="px-5 py-3.5">Pengaju</th>
+                                            <th className="px-5 py-3.5">Deadline</th>
+                                            <th className="px-5 py-3.5">Prioritas</th>
+                                            <th className="px-5 py-3.5">File</th>
+                                            <th className="px-5 py-3.5">Status</th>
+                                            <th className="w-20 px-5 py-3.5 text-center">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                                        {filteredSubmissions.length === 0 ? (
+                                        {currentItems.length === 0 ? (
                                             <tr>
-                                                <td colSpan={10} className="text-center py-10 text-neutral-400 font-medium dark:text-neutral-500">
-                                                    Tidak ada data pengajuan yang cocok dengan filter.
+                                                <td colSpan={9} className="py-10 text-center font-medium text-neutral-400 dark:text-neutral-500">
+                                                    Belum ada pengajuan.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredSubmissions.map((sub) => (
-                                                <tr key={sub.id} className="hover:bg-neutral-50/20 dark:hover:bg-neutral-900/10 transition-colors">
-                                                    <td className="px-6 py-4 text-center">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedItems.includes(sub.id)}
-                                                            onChange={(e) => handleSelectRow(sub.id, e.target.checked)}
-                                                            className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500 size-3.5"
-                                                        />
+                                            currentItems.map((item) => (
+                                                <tr key={item.id} className="transition-colors hover:bg-neutral-50/50 dark:hover:bg-neutral-900/20">
+                                                    <td className="whitespace-nowrap px-5 py-4 font-mono text-[10px] font-semibold text-neutral-500 dark:text-neutral-400">
+                                                        {item.id}
                                                     </td>
-                                                    <td className="px-6 py-4 font-semibold text-blue-600 dark:text-blue-400 text-xs">
-                                                        {sub.id}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <Badge
-                                                            variant="secondary"
-                                                            className={`font-semibold rounded-md border-0 px-2.5 py-0.5 text-[10px] ${
-                                                                sub.type === 'Modul Baru'
-                                                                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300'
-                                                                    : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300'
-                                                            }`}
+                                                    <td className="max-w-[160px] px-5 py-4">
+                                                        <button
+                                                            onClick={() => setDetailItem(item)}
+                                                            className="line-clamp-2 text-left font-semibold leading-tight text-neutral-900 hover:text-blue-600 dark:text-neutral-100 dark:hover:text-blue-400"
                                                         >
-                                                            {sub.type}
+                                                            {item.title}
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-5 py-4">
+                                                        <Badge variant="secondary" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${item.type === 'Modul Baru' ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300' : item.type === 'Revisi Modul' ? 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300' : 'bg-teal-50 text-teal-600 dark:bg-teal-950/40 dark:text-teal-300'}`}>
+                                                            {item.type}
                                                         </Badge>
                                                     </td>
-                                                    <td className="px-6 py-4 font-semibold text-neutral-800 dark:text-neutral-200">
-                                                        {sub.title}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-neutral-600 dark:text-neutral-300 font-medium">
-                                                        {sub.applicant}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400 font-medium">
-                                                        {sub.unit}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400 font-medium text-xs">
-                                                        {sub.submissionDate}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400 font-medium text-xs">
-                                                        {sub.deadline}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <Badge
-                                                            className={`font-semibold rounded-md border-0 px-2 py-0.5 text-[10px] ${
-                                                                sub.status === 'Baru'
-                                                                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300'
-                                                                    : sub.status === 'Drafting'
-                                                                    ? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-                                                                    : sub.status === 'Menunggu Approval'
-                                                                    ? 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300'
-                                                                    : sub.status === 'Selesai'
-                                                                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'
-                                                                    : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300'
-                                                            }`}
-                                                        >
-                                                            {sub.status}
+                                                    <td className="whitespace-nowrap px-5 py-4 font-medium text-neutral-600 dark:text-neutral-400">{item.applicant}</td>
+                                                    <td className="whitespace-nowrap px-5 py-4 font-medium text-neutral-500 dark:text-neutral-400">{item.deadline}</td>
+                                                    <td className="px-5 py-4">
+                                                        <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[item.priority] ?? ''}`}>
+                                                            {item.priority}
                                                         </Badge>
                                                     </td>
-                                                    <td className="px-6 py-4 text-center">
-                                                        <div className="flex items-center justify-center gap-1.5">
+                                                    {/* File column */}
+                                                    <td className="px-5 py-4">
+                                                        {item.fileName ? (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <div className="flex size-6 items-center justify-center rounded bg-red-50 text-red-500 dark:bg-red-950/30">
+                                                                    <FileText className="size-3.5" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="max-w-[90px] truncate text-[10px] font-semibold text-neutral-700 dark:text-neutral-300">{item.fileName}</p>
+                                                                    {item.fileSize && <p className="text-[9px] text-neutral-400">{item.fileSize}</p>}
+                                                                </div>
+                                                                {item.fileUrl && (
+                                                                    <a
+                                                                        href={item.fileUrl}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex size-5 items-center justify-center rounded text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                                                        title="Lihat/Download"
+                                                                    >
+                                                                        <Eye className="size-3" />
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        ) : (
                                                             <button
-                                                                onClick={() => {
-                                                                    setSelectedItem(sub);
-                                                                    setIsDetailModalOpen(true);
-                                                                }}
-                                                                className="flex size-7 items-center justify-center rounded hover:bg-neutral-100 text-neutral-500 dark:hover:bg-neutral-800 dark:text-neutral-400"
+                                                                onClick={() => { setUploadItem(item); setStandaloneFile(null); }}
+                                                                className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400"
                                                             >
-                                                                <Eye className="size-3.5" />
+                                                                <Upload className="size-3" />
+                                                                Upload
                                                             </button>
-                                                            <button className="flex size-7 items-center justify-center rounded hover:bg-neutral-100 text-neutral-500 dark:hover:bg-neutral-800 dark:text-neutral-400">
-                                                                <Edit3 className="size-3.5" />
-                                                            </button>
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <button className="flex size-7 items-center justify-center rounded hover:bg-neutral-100 text-neutral-500 dark:hover:bg-neutral-800 dark:text-neutral-400">
-                                                                        <MoreVertical className="size-3.5" />
-                                                                    </button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end" className="w-40 text-xs">
-                                                                    <DropdownMenuItem className="cursor-pointer font-medium">Ubah Status</DropdownMenuItem>
-                                                                    <DropdownMenuItem className="cursor-pointer font-medium">Lihat Detail Alur</DropdownMenuItem>
-                                                                    <DropdownMenuItem className="cursor-pointer font-medium text-rose-600">Hapus Pengajuan</DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-4">
+                                                        <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[item.status] ?? ''}`}>
+                                                            {item.status}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="px-5 py-4 text-center">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <button className="mx-auto flex size-7 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800">
+                                                                    <MoreVertical className="size-3.5" />
+                                                                </button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" className="w-48 text-xs">
+                                                                <DropdownMenuItem onClick={() => setDetailItem(item)} className="cursor-pointer font-medium">
+                                                                    <ArrowUpRight className="mr-2 size-3.5" /> Lihat Detail
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => { setUploadItem(item); setStandaloneFile(null); }} className="cursor-pointer font-medium text-blue-600">
+                                                                    <Upload className="mr-2 size-3.5" /> Upload / Ganti File
+                                                                </DropdownMenuItem>
+                                                                {canSubmit(item.status) && (
+                                                                    <DropdownMenuItem onClick={() => handleSubmitForApproval(item)} className="cursor-pointer font-medium text-amber-600">
+                                                                        <Send className="mr-2 size-3.5" /> Kirim ke Approval
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                {canEdit(item.status) && (
+                                                                    <DropdownMenuItem onClick={() => openEdit(item)} className="cursor-pointer font-medium">
+                                                                        <Edit3 className="mr-2 size-3.5" /> Edit Pengajuan
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                {canDelete(item.status) && (
+                                                                    <DropdownMenuItem onClick={() => setDeleteItem(item)} className="cursor-pointer font-medium text-rose-600">
+                                                                        <Trash2 className="mr-2 size-3.5" /> Hapus
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </td>
                                                 </tr>
                                             ))
@@ -612,545 +728,592 @@ export default function Pengajuan() {
                                 </table>
                             </div>
 
-                            {/* Pagination footer */}
-                            <div className="p-4 border-t border-neutral-100 bg-neutral-50/20 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-neutral-500 dark:text-neutral-400">
-                                <span className="font-medium">
-                                    Menampilkan 1-{filteredSubmissions.length} dari {stats.total} pengajuan
+                            {/* Pagination */}
+                            <div className="flex flex-col gap-3 border-t border-neutral-100 p-4 dark:border-neutral-800 sm:flex-row sm:items-center sm:justify-between">
+                                <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                                    Menampilkan {indexOfFirst + 1}–{Math.min(indexOfLast, filteredSubmissions.length)} dari {filteredSubmissions.length} pengajuan
                                 </span>
-                                <div className="flex items-center gap-4">
-                                    <select
-                                        className="h-8 rounded-lg border border-neutral-200 bg-white px-2 text-xs outline-none text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
-                                        defaultValue="10"
-                                    >
-                                        <option value="10">10 / halaman</option>
-                                        <option value="20">20 / halaman</option>
-                                        <option value="50">50 / halaman</option>
-                                    </select>
-                                    <div className="flex items-center gap-1.5">
-                                        <button className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
-                                            <ChevronLeft className="size-3.5" />
+                                <div className="flex items-center gap-1.5">
+                                    <button onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))} disabled={currentPage === 1} className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+                                        <ChevronLeft className="size-3.5" />
+                                    </button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                        <button key={page} onClick={() => setCurrentPage(page)} className={`flex size-7 items-center justify-center rounded border text-xs font-semibold ${page === currentPage ? 'border-blue-600 bg-blue-600 text-white' : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400'}`}>
+                                            {page}
                                         </button>
-                                        <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border bg-blue-600 border-blue-600 text-white dark:bg-blue-500 dark:border-blue-500">1</button>
-                                        <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">2</button>
-                                        <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">3</button>
-                                        <span className="text-neutral-400">...</span>
-                                        <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">10</button>
-                                        <button className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
-                                            <ChevronRight className="size-3.5" />
-                                        </button>
-                                    </div>
+                                    ))}
+                                    <button onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages || totalPages === 0} className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+                                        <ChevronRight className="size-3.5" />
+                                    </button>
                                 </div>
                             </div>
                         </Card>
-
-                        {/* Bottom Grid for Catatan, SLA, and Aktivitas */}
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                            
-                            {/* Left Side: Catatan Proses & SLA */}
-                            <div className="space-y-6">
-                                {/* Catatan Proses */}
-                                <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm">
-                                    <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
-                                        <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Catatan Proses</h3>
-                                    </div>
-                                    <CardContent className="p-5 space-y-4">
-                                        <div className="flex gap-3 text-xs items-start">
-                                            <div className="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 mt-0.5">
-                                                <ClipboardList className="size-3.5" />
-                                            </div>
-                                            <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                                                Pengajuan modul akan diverifikasi kelengkapan data dalam 1-2 hari kerja.
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-3 text-xs items-start">
-                                            <div className="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 mt-0.5">
-                                                <Edit3 className="size-3.5" />
-                                            </div>
-                                            <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                                                Proses drafting dilakukan oleh Tim Pengembangan Modul dalam 3-5 hari kerja.
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-3 text-xs items-start">
-                                            <div className="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 mt-0.5">
-                                                <CheckCircle className="size-3.5" />
-                                            </div>
-                                            <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                                                Persetujuan akhir dilakukan oleh Approver sesuai alur yang ditentukan.
-                                            </p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* SLA Proses */}
-                                <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm">
-                                    <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
-                                        <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">SLA Proses</h3>
-                                    </div>
-                                    <CardContent className="p-5 space-y-3.5 text-xs">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-neutral-500 font-medium dark:text-neutral-400">Verifikasi</span>
-                                            <span className="font-semibold text-neutral-800 dark:text-neutral-200 bg-neutral-50 dark:bg-neutral-900 border px-2 py-0.5 rounded-md text-[10px]">1-2 hari kerja</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-neutral-500 font-medium dark:text-neutral-400">Drafting</span>
-                                            <span className="font-semibold text-neutral-800 dark:text-neutral-200 bg-neutral-50 dark:bg-neutral-900 border px-2 py-0.5 rounded-md text-[10px]">3-5 hari kerja</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-neutral-500 font-medium dark:text-neutral-400">Approval</span>
-                                            <span className="font-semibold text-neutral-800 dark:text-neutral-200 bg-neutral-50 dark:bg-neutral-900 border px-2 py-0.5 rounded-md text-[10px]">2-3 hari kerja</span>
-                                        </div>
-                                        <div className="border-t pt-3 flex justify-between items-center font-bold text-neutral-900 dark:text-neutral-100">
-                                            <span>Total SLA</span>
-                                            <span className="text-blue-600 dark:text-blue-400">6-10 hari kerja</span>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-
-                            {/* Right Side: Aktivitas Pengajuan Terbaru */}
-                            <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm flex flex-col justify-between">
-                                <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
-                                    <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Aktivitas Pengajuan Terbaru</h3>
-                                </div>
-                                <CardContent className="p-5 flex-1 space-y-4">
-                                    <div className="relative pl-5 border-l border-neutral-100 dark:border-neutral-800 space-y-4 text-xs">
-                                        <div className="relative">
-                                            <span className="absolute -left-[26px] top-1 flex size-3 items-center justify-center rounded-full bg-blue-500 ring-4 ring-white dark:ring-neutral-950"></span>
-                                            <div className="flex flex-col">
-                                                <span className="font-semibold text-neutral-800 dark:text-neutral-200">PMD-2024-0064 — Manajemen Risiko Operasional</span>
-                                                <span className="text-neutral-500 dark:text-neutral-400">Diajukan oleh Andi Pratama (Operasional)</span>
-                                                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">12 Mei 2024 • 10:30</span>
-                                            </div>
-                                        </div>
-                                        <div className="relative">
-                                            <span className="absolute -left-[26px] top-1 flex size-3 items-center justify-center rounded-full bg-zinc-400 ring-4 ring-white dark:ring-neutral-950"></span>
-                                            <div className="flex flex-col">
-                                                <span className="font-semibold text-neutral-800 dark:text-neutral-200">PMD-2024-0063 — Kepemimpinan Situasional</span>
-                                                <span className="text-neutral-500 dark:text-neutral-400">Diajukan oleh Dewi Lestari (SDM)</span>
-                                                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">10 Mei 2024 • 14:15</span>
-                                            </div>
-                                        </div>
-                                        <div className="relative">
-                                            <span className="absolute -left-[26px] top-1 flex size-3 items-center justify-center rounded-full bg-purple-500 ring-4 ring-white dark:ring-neutral-950"></span>
-                                            <div className="flex flex-col">
-                                                <span className="font-semibold text-neutral-800 dark:text-neutral-200">PMD-2024-0062 — Analisis Data untuk Non Data Scientist</span>
-                                                <span className="text-neutral-500 dark:text-neutral-400">Diajukan oleh Budi Santoso (IT & Digital)</span>
-                                                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">09 Mei 2024 • 09:45</span>
-                                            </div>
-                                        </div>
-                                        <div className="relative">
-                                            <span className="absolute -left-[26px] top-1 flex size-3 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-white dark:ring-neutral-950"></span>
-                                            <div className="flex flex-col">
-                                                <span className="font-semibold text-neutral-800 dark:text-neutral-200">PMD-2024-0061 — Customer Experience Excellence</span>
-                                                <span className="text-neutral-500 dark:text-neutral-400">Diajukan oleh Rina Anjayani (Pemasaran)</span>
-                                                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">08 Mei 2024 • 16:20</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="pt-2 border-t text-center">
-                                        <button className="text-blue-600 hover:text-blue-700 text-xs font-semibold dark:text-blue-400 dark:hover:text-blue-300">
-                                            Lihat Semua Aktivitas
-                                        </button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                        </div>
-
                     </div>
 
-                    {/* Right Hand Sidebar (Left 1 column space) */}
+                    {/* RIGHT: Chart */}
                     <div className="space-y-6 lg:col-span-1">
-                        
-                        {/* 1. Donut Chart Box */}
                         <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                             <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
-                                <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Distribusi Status</h3>
+                                <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Distribusi Status</h3>
                             </div>
-                            <CardContent className="p-5 flex flex-col items-center justify-center gap-6">
-                                {/* SVG Donut Chart */}
-                                <div className="relative flex h-28 w-28 items-center justify-center flex-shrink-0">
-                                    <ChartContainer config={chartConfig} className="h-28 w-28 flex-shrink-0">
-                                        <PieChart>
-                                            <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                                            <Pie
-                                                data={statusChartData}
-                                                dataKey="value"
-                                                nameKey="name"
-                                                innerRadius={28}
-                                                outerRadius={38}
-                                                strokeWidth={0}
-                                            >
-                                                {statusChartData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                                                ))}
-                                                <Label
-                                                    content={({ viewBox }) => {
-                                                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                                                            return (
-                                                                <g>
-                                                                    <text
-                                                                        x={viewBox.cx}
-                                                                        y={viewBox.cy}
-                                                                        textAnchor="middle"
-                                                                        dominantBaseline="middle"
-                                                                        className="fill-foreground text-lg font-extrabold text-neutral-800 dark:fill-neutral-100"
-                                                                    >
-                                                                        {totalStatusSubmissions}
-                                                                    </text>
-                                                                    <text
-                                                                        x={viewBox.cx}
-                                                                        y={(viewBox.cy || 0) + 12}
-                                                                        textAnchor="middle"
-                                                                        dominantBaseline="middle"
-                                                                        className="fill-muted-foreground text-[7px] font-bold text-neutral-400 dark:fill-neutral-500 uppercase tracking-wider"
-                                                                    >
-                                                                        Total
-                                                                    </text>
-                                                                </g>
-                                                            )
-                                                        }
-                                                    }}
-                                                />
-                                            </Pie>
-                                        </PieChart>
-                                    </ChartContainer>
-                                </div>
-
-                                {/* Chart Legends */}
-                                <div className="w-full space-y-2 text-xs">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className="size-2.5 rounded-full bg-blue-500"></span>
-                                            <span className="text-neutral-500 dark:text-neutral-400 font-medium">Baru</span>
+                            <CardContent className="p-5">
+                                <ResponsiveContainer width="100%" height={200}>
+                                    <BarChart data={chartData} layout="vertical" barSize={10}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+                                        <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                                        <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={100} />
+                                        <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px', border: '1px solid #e5e7eb' }} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+                                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                                            {chartData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                                <div className="mt-4 space-y-2 text-xs">
+                                    {chartData.map((item) => (
+                                        <div key={item.name} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="size-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
+                                                <span className="font-medium text-neutral-500 dark:text-neutral-400">{item.name}</span>
+                                            </div>
+                                            <span className="font-bold text-neutral-800 dark:text-neutral-200">{item.value}</span>
                                         </div>
-                                        <span className="font-bold text-neutral-800 dark:text-neutral-200">22 <span className="text-neutral-400 font-normal text-[10px] ml-1">({((22 / totalStatusSubmissions) * 100).toFixed(1)}%)</span></span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className="size-2.5 rounded-full bg-zinc-400"></span>
-                                            <span className="text-neutral-500 dark:text-neutral-400 font-medium">Drafting</span>
-                                        </div>
-                                        <span className="font-bold text-neutral-800 dark:text-neutral-200">24 <span className="text-neutral-400 font-normal text-[10px] ml-1">({((24 / totalStatusSubmissions) * 100).toFixed(1)}%)</span></span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className="size-2.5 rounded-full bg-purple-500"></span>
-                                            <span className="text-neutral-500 dark:text-neutral-400 font-medium">Menunggu Approval</span>
-                                        </div>
-                                        <span className="font-bold text-neutral-800 dark:text-neutral-200">18 <span className="text-neutral-400 font-normal text-[10px] ml-1">({((18 / totalStatusSubmissions) * 100).toFixed(1)}%)</span></span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className="size-2.5 rounded-full bg-emerald-500"></span>
-                                            <span className="text-neutral-500 dark:text-neutral-400 font-medium">Selesai</span>
-                                        </div>
-                                        <span className="font-bold text-neutral-800 dark:text-neutral-200">54 <span className="text-neutral-400 font-normal text-[10px] ml-1">({((54 / totalStatusSubmissions) * 100).toFixed(1)}%)</span></span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className="size-2.5 rounded-full bg-rose-500"></span>
-                                            <span className="text-neutral-500 dark:text-neutral-400 font-medium">Ditolak</span>
-                                        </div>
-                                        <span className="font-bold text-neutral-800 dark:text-neutral-200">8 <span className="text-neutral-400 font-normal text-[10px] ml-1">({((8 / totalStatusSubmissions) * 100).toFixed(1)}%)</span></span>
-                                    </div>
+                                    ))}
                                 </div>
                             </CardContent>
                         </Card>
-
-                        {/* 2. Prioritas Pengajuan */}
-                        <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                            <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
-                                <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Prioritas Pengajuan</h3>
-                            </div>
-                            <CardContent className="p-5 space-y-4">
-                                <div className="space-y-3.5">
-                                    {/* Item 1 */}
-                                    <div className="flex items-start gap-2.5 text-xs">
-                                        <div className="flex size-5 items-center justify-center rounded bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 flex-shrink-0 mt-0.5 font-bold">!</div>
-                                        <div className="flex flex-col flex-1">
-                                            <span className="font-bold text-neutral-800 dark:text-neutral-200 leading-snug">Microsoft Excel Intermediate</span>
-                                            <span className="text-neutral-400 dark:text-neutral-500 text-[10px] mt-0.5">Revisi Modul • Agus Setiawan (Keuangan)</span>
-                                            <span className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Deadline terdekat: 24 Mei 2024</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Item 2 */}
-                                    <div className="flex items-start gap-2.5 text-xs">
-                                        <div className="flex size-5 items-center justify-center rounded bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 flex-shrink-0 mt-0.5 font-bold">!</div>
-                                        <div className="flex flex-col flex-1">
-                                            <span className="font-bold text-neutral-800 dark:text-neutral-200 leading-snug">Komunikasi Efektif</span>
-                                            <span className="text-neutral-400 dark:text-neutral-500 text-[10px] mt-0.5">Revisi Modul • Yusuf Setiawan (Operasional)</span>
-                                            <span className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Deadline terdekat: 23 Mei 2024</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Item 3 */}
-                                    <div className="flex items-start gap-2.5 text-xs">
-                                        <div className="flex size-5 items-center justify-center rounded bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex-shrink-0 mt-0.5 font-bold">!</div>
-                                        <div className="flex flex-col flex-1">
-                                            <span className="font-bold text-neutral-800 dark:text-neutral-200 leading-snug">Design Thinking Fundamentals</span>
-                                            <span className="text-neutral-400 dark:text-neutral-500 text-[10px] mt-0.5">Modul Baru • Nita Fadilah (IT & Digital)</span>
-                                            <span className="text-amber-600 dark:text-amber-400 text-[10px] font-bold mt-1">Deadline terdekat: 20 Mei 2024</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Item 4 */}
-                                    <div className="flex items-start gap-2.5 text-xs">
-                                        <div className="flex size-5 items-center justify-center rounded bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 flex-shrink-0 mt-0.5 font-bold">!</div>
-                                        <div className="flex flex-col flex-1">
-                                            <span className="font-bold text-neutral-800 dark:text-neutral-200 leading-snug">Manajemen Proyek Agil</span>
-                                            <span className="text-neutral-400 dark:text-neutral-500 text-[10px] mt-0.5">Revisi Modul • Siti Lestari (IT & Digital)</span>
-                                            <span className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Deadline terdekat: 17 Mei 2024</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Item 5 */}
-                                    <div className="flex items-start gap-2.5 text-xs">
-                                        <div className="flex size-5 items-center justify-center rounded bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex-shrink-0 mt-0.5 font-bold">!</div>
-                                        <div className="flex flex-col flex-1">
-                                            <span className="font-bold text-neutral-800 dark:text-neutral-200 leading-snug">Customer Experience Excellence</span>
-                                            <span className="text-neutral-400 dark:text-neutral-500 text-[10px] mt-0.5">Modul Baru • Rina Anjayani (Pemasaran)</span>
-                                            <span className="text-amber-600 dark:text-amber-400 text-[10px] font-bold mt-1">Deadline terdekat: 29 Mei 2024</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="pt-2 border-t">
-                                    <Button variant="ghost" className="w-full text-center hover:bg-neutral-50 text-neutral-500 text-xs font-semibold dark:hover:bg-neutral-900 dark:text-neutral-400 h-8">
-                                        Lihat Semua Prioritas
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* 3. Aksi Cepat */}
-                        <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                            <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
-                                <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Aksi Cepat</h3>
-                            </div>
-                            <CardContent className="p-5 grid grid-cols-3 gap-2 text-center text-[10px]">
-                                {/* Ajukan Modul Baru */}
-                                <button
-                                    onClick={() => {
-                                        setNewType('Modul Baru');
-                                        setIsAddModalOpen(true);
-                                    }}
-                                    className="flex flex-col items-center justify-center p-3 rounded-xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/20 hover:bg-neutral-50 dark:hover:bg-neutral-900 gap-2 font-semibold text-neutral-700 dark:text-neutral-300 transition-colors"
-                                >
-                                    <div className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
-                                        <Plus className="size-4" />
-                                    </div>
-                                    <span>Ajukan Modul Baru</span>
-                                </button>
-                                
-                                {/* Upload Dokumen */}
-                                <button className="flex flex-col items-center justify-center p-3 rounded-xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/20 hover:bg-neutral-50 dark:hover:bg-neutral-900 gap-2 font-semibold text-neutral-700 dark:text-neutral-300 transition-colors">
-                                    <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
-                                        <Upload className="size-4" />
-                                    </div>
-                                    <span>Upload Dokumen</span>
-                                </button>
-
-                                {/* Import CSV */}
-                                <button className="flex flex-col items-center justify-center p-3 rounded-xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/20 hover:bg-neutral-50 dark:hover:bg-neutral-900 gap-2 font-semibold text-neutral-700 dark:text-neutral-300 transition-colors">
-                                    <div className="flex size-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
-                                        <Download className="size-4" />
-                                    </div>
-                                    <span>Import CSV</span>
-                                </button>
-                            </CardContent>
-                        </Card>
-
                     </div>
-
                 </div>
-
             </div>
 
-            {/* Modal: Detail Pengajuan */}
-            <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-                <DialogContent className="max-w-md bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
+            {/* ── CREATE DIALOG ── */}
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-                            <FileText className="size-5 text-blue-600 dark:text-blue-400" />
-                            <span>Detail Pengajuan Modul</span>
-                        </DialogTitle>
-                        <DialogDescription className="text-xs text-neutral-400 dark:text-neutral-500">
-                            Informasi lengkap pengajuan modul pelatihan.
-                        </DialogDescription>
+                        <DialogTitle>Ajukan Modul Pelatihan</DialogTitle>
+                        <DialogDescription>Isi detail pengajuan modul. Nomor pengajuan dibuat otomatis.</DialogDescription>
                     </DialogHeader>
-
-                    {selectedItem && (
-                        <div className="space-y-4 py-2 text-xs">
-                            <div className="rounded-xl bg-neutral-50 p-4 space-y-2.5 dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800">
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-neutral-400">No Pengajuan</span>
-                                    <span className="font-bold text-neutral-800 dark:text-neutral-200">{selectedItem.id}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-neutral-400">Jenis Modul</span>
-                                    <Badge variant="secondary" className="font-semibold rounded-md border-0 px-2 py-0.5 text-[9px] bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">
-                                        {selectedItem.type}
-                                    </Badge>
-                                </div>
-                                <div className="flex justify-between items-start gap-4">
-                                    <span className="font-semibold text-neutral-400 flex-shrink-0">Judul Modul</span>
-                                    <span className="font-bold text-neutral-800 text-right dark:text-neutral-200">{selectedItem.title}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-neutral-400">Pengaju</span>
-                                    <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedItem.applicant}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-neutral-400">Unit</span>
-                                    <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedItem.unit}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-neutral-400">Tanggal Pengajuan</span>
-                                    <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedItem.submissionDate}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-neutral-400">Deadline</span>
-                                    <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedItem.deadline}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-neutral-400">Status</span>
-                                    <Badge className="font-semibold rounded-md border-0 px-2.5 py-0.5 text-[9px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                        {selectedItem.status}
-                                    </Badge>
-                                </div>
+                    <form onSubmit={handleCreate} className="mt-2 space-y-4">
+                        {/* Informasi Umum Container */}
+                        <div className="grid grid-cols-2 gap-3 p-3.5 bg-neutral-50 dark:bg-neutral-900/40 rounded-xl border border-neutral-200/60 dark:border-neutral-800">
+                            <div className="col-span-2 text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Informasi Umum</div>
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Nama Pengaju</label>
+                                <input type="text" value={auth?.user?.name ?? '-'} disabled className="w-full rounded-lg border border-neutral-200 bg-neutral-100/80 dark:bg-neutral-800/80 px-3 py-1.5 text-xs text-neutral-500 dark:text-neutral-400 outline-none" />
                             </div>
-
-                            <div className="space-y-1">
-                                <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400">Deskripsi / Kebutuhan</span>
-                                <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed bg-neutral-50/40 p-3 rounded-lg border border-neutral-100/50 dark:bg-neutral-900/40 dark:border-neutral-800/50">
-                                    {selectedItem.description}
-                                </p>
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tanggal Pengajuan</label>
+                                <input type="text" value={new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} disabled className="w-full rounded-lg border border-neutral-200 bg-neutral-100/80 dark:bg-neutral-800/80 px-3 py-1.5 text-xs text-neutral-500 dark:text-neutral-400 outline-none" />
                             </div>
-                        </div>
-                    )}
-
-                    <DialogFooter className="mt-4">
-                        <Button
-                            onClick={() => setIsDetailModalOpen(false)}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg h-9 text-xs font-semibold"
-                        >
-                            Tutup
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Modal: Buat Pengajuan */}
-            <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-                <DialogContent className="max-w-md bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
-                    <DialogHeader>
-                        <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-                            <Plus className="size-5 text-blue-600 dark:text-blue-400" />
-                            <span>Buat Pengajuan Modul</span>
-                        </DialogTitle>
-                        <DialogDescription className="text-xs text-neutral-400 dark:text-neutral-500">
-                            Isi detail formulir pengajuan kebutuhan modul kerja Anda.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <form onSubmit={handleAddSubmission} className="space-y-4 py-2 text-xs">
-                        {/* Judul Modul */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                Judul Modul / Kebutuhan Pelatihan
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                value={newTitle}
-                                onChange={(e) => setNewTitle(e.target.value)}
-                                placeholder="Contoh: Pelatihan Customer Service Level 2"
-                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
-                            />
-                        </div>
-
-                        {/* Jenis & Unit Row */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                    Jenis Pengajuan
-                                </label>
-                                <select
-                                    value={newType}
-                                    onChange={(e) => setNewType(e.target.value as 'Modul Baru' | 'Revisi Modul')}
-                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                >
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tipe Modul *</label>
+                                <select value={createData.type} onChange={(e) => setCreateData({ ...createData, type: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
                                     <option value="Modul Baru">Modul Baru</option>
                                     <option value="Revisi Modul">Revisi Modul</option>
+                                    <option value="Kebutuhan Khusus">Kebutuhan Khusus</option>
                                 </select>
                             </div>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                    Unit Kerja
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tanggal Kebutuhan *</label>
+                                <input type="date" value={createData.deadline} onChange={(e) => setCreateData({ ...createData, deadline: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Prioritas *</label>
+                                <select value={createData.priority} onChange={(e) => setCreateData({ ...createData, priority: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Unit Kerja</label>
+                                <input type="text" value={createData.unit} onChange={(e) => setCreateData({ ...createData, unit: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="e.g. Pengembangan SDM" />
+                            </div>
+                        </div>
+
+                        {/* ── CONDITIONAL SECTION: MODUL BARU ── */}
+                        {createData.type === 'Modul Baru' && (
+                            <div className="space-y-3 p-3.5 border border-blue-100 dark:border-blue-900/40 rounded-xl bg-blue-50/20 dark:bg-blue-950/5">
+                                <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">Detail Modul Baru</div>
+                                
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Kategori / Jenis Pelatihan *</label>
+                                    <select value={createData.program} onChange={(e) => setCreateData({ ...createData, program: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required={createData.type === 'Modul Baru'}>
+                                        <option value="">-- Pilih Jenis Pelatihan --</option>
+                                        {trainingTypeList.map((type) => (
+                                            <option key={type} value={type}>{type}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Judul Modul *</label>
+                                    <input type="text" value={createData.title} onChange={(e) => setCreateData({ ...createData, title: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="e.g. Interpretasi Sistem ISO" required />
+                                    {createErrors.title && <p className="mt-1 text-xs text-rose-500">{createErrors.title}</p>}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Bahasa Pelatihan *</label>
+                                        <select value={createData.language} onChange={(e) => setCreateData({ ...createData, language: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
+                                            <option value="Indonesia">Indonesia</option>
+                                            <option value="English">English</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jumlah Hari Pelatihan</label>
+                                        <input type="number" min="1" value={createData.training_days} onChange={(e) => setCreateData({ ...createData, training_days: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="e.g. 3" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Deskripsi / Permintaan Khusus</label>
+                                    <textarea value={createData.description} onChange={(e) => setCreateData({ ...createData, description: e.target.value })} rows={3} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="Jelaskan kebutuhan khusus atau background permintaan..." />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ── CONDITIONAL SECTION: REVISI MODUL (MODUL EXISTING) ── */}
+                        {createData.type === 'Revisi Modul' && (
+                            <div className="space-y-3 p-3.5 border border-violet-100 dark:border-violet-900/40 rounded-xl bg-violet-50/20 dark:bg-violet-950/5">
+                                <div className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider mb-1">Detail Modul Existing / Revisi</div>
+                                
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Pilih Modul Existing *</label>
+                                    <select value={createData.related_module_id} onChange={(e) => handleRelatedModuleChange(e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required={createData.type === 'Revisi Modul'}>
+                                        <option value="">-- Pilih Modul --</option>
+                                        {availableModules.map((m) => (
+                                            <option key={m.id} value={m.id}>{m.code} — {m.title} (Rev. {m.revision})</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {createData.related_module_id && (
+                                    <div className="grid grid-cols-3 gap-2 bg-neutral-100/60 dark:bg-neutral-800/60 p-2.5 rounded-lg border border-neutral-200/50 dark:border-neutral-700/50 text-[11px] text-neutral-600 dark:text-neutral-400">
+                                        <div>
+                                            <span className="font-bold block text-[9px] uppercase tracking-wider text-neutral-400">Kode Modul</span>
+                                            <span>{availableModules.find(m => m.id === parseInt(createData.related_module_id, 10))?.code}</span>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <span className="font-bold block text-[9px] uppercase tracking-wider text-neutral-400 font-sans">Judul & Versi Aktif</span>
+                                            <span className="line-clamp-1">{availableModules.find(m => m.id === parseInt(createData.related_module_id, 10))?.title} (Rev. {availableModules.find(m => m.id === parseInt(createData.related_module_id, 10))?.revision})</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Alasan Perubahan *</label>
+                                    <textarea value={createData.revision_reason} onChange={(e) => setCreateData({ ...createData, revision_reason: e.target.value })} rows={2} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="Alasan mengapa modul ini perlu direvisi..." required={createData.type === 'Revisi Modul'} />
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Detail Perubahan *</label>
+                                    <textarea value={createData.description} onChange={(e) => setCreateData({ ...createData, description: e.target.value })} rows={3} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="Rincian materi/bab yang diubah..." required={createData.type === 'Revisi Modul'} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ── CONDITIONAL SECTION: KEBUTUHAN KHUSUS ── */}
+                        {createData.type === 'Kebutuhan Khusus' && (
+                            <div className="space-y-3 p-3.5 border border-teal-100 dark:border-teal-900/40 rounded-xl bg-teal-50/20 dark:bg-teal-950/5">
+                                <div className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-1">Detail Kebutuhan Khusus</div>
+                                
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Judul Permintaan *</label>
+                                    <input type="text" value={createData.title} onChange={(e) => setCreateData({ ...createData, title: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="e.g. Pelatihan Khusus Karyawan Baru" required />
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Deskripsi Kebutuhan *</label>
+                                    <textarea value={createData.description} onChange={(e) => setCreateData({ ...createData, description: e.target.value })} rows={4} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" placeholder="Jelaskan secara rinci detail kebutuhan pelatihan..." required />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* File Upload */}
+                        {(createData.type === 'Modul Baru' || createData.type === 'Revisi Modul') && (
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400 font-sans">
+                                    Dokumen PDF {createData.type === 'Revisi Modul' ? <span className="text-rose-500">*</span> : <span className="font-normal text-neutral-400">(opsional)</span>}
                                 </label>
-                                <select
-                                    value={newUnit}
-                                    onChange={(e) => setNewUnit(e.target.value)}
-                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                >
-                                    <option value="Operasional">Operasional</option>
-                                    <option value="SDM">SDM</option>
-                                    <option value="IT & Digital">IT & Digital</option>
-                                    <option value="Pemasaran">Pemasaran</option>
-                                    <option value="Keuangan">Keuangan</option>
-                                    <option value="Pengembangan SDM">Pengembangan SDM</option>
-                                </select>
+                                <FileDropZone onFileSelect={setCreateFile} selectedFile={createFile} />
+                                {createErrors.file && <p className="mt-1 text-xs text-rose-500 font-sans">{createErrors.file}</p>}
                             </div>
-                        </div>
+                        )}
 
-                        {/* Target Deadline */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                Target Tanggal Dibutuhkan (Deadline)
-                            </label>
-                            <input
-                                type="date"
-                                required
-                                value={newDeadline}
-                                onChange={(e) => setNewDeadline(e.target.value)}
-                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                            />
-                        </div>
-
-                        {/* Deskripsi */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                Deskripsi Permintaan / Alasan Pengajuan
-                            </label>
-                            <textarea
-                                value={newDescription}
-                                onChange={(e) => setNewDescription(e.target.value)}
-                                placeholder="Jelaskan secara singkat latar belakang kebutuhan dan ruang lingkup modul..."
-                                className="w-full h-20 rounded-lg border border-neutral-200 bg-neutral-50/50 p-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
-                            />
-                        </div>
-
-                        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() => setIsAddModalOpen(false)}
-                                className="rounded-lg h-9 px-4 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-500 dark:text-neutral-400"
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                type="submit"
-                                className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold"
-                            >
-                                Ajukan Permintaan
+                        <DialogFooter className="pt-2">
+                            <Button type="button" variant="outline" onClick={() => { setIsCreateOpen(false); setCreateFile(null); }}>Batal</Button>
+                            <Button type="submit" disabled={createProcessing} className="bg-blue-600 text-white hover:bg-blue-700">
+                                {createProcessing ? 'Menyimpan...' : 'Kirim Pengajuan'}
                             </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
 
+            {/* ── UPLOAD FILE DIALOG ── */}
+            <Dialog open={!!uploadItem} onOpenChange={(open) => { if (!open) { setUploadItem(null); setStandaloneFile(null); } }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Upload Dokumen PDF</DialogTitle>
+                        <DialogDescription>
+                            Upload atau ganti file dokumen untuk pengajuan <span className="font-bold">{uploadItem?.id}</span>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleStandaloneUpload} className="mt-2 space-y-4">
+                        <FileDropZone
+                            onFileSelect={setStandaloneFile}
+                            selectedFile={standaloneFile}
+                            existingFileName={uploadItem?.fileName}
+                            existingFileSize={uploadItem?.fileSize}
+                            existingFileUrl={uploadItem?.fileUrl}
+                        />
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => { setUploadItem(null); setStandaloneFile(null); }}>Batal</Button>
+                            <Button type="submit" disabled={!standaloneFile || uploadProcessing} className="bg-blue-600 text-white hover:bg-blue-700">
+                                {uploadProcessing ? 'Mengupload...' : 'Upload File'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── EDIT DIALOG ── */}
+            <Dialog open={!!editItem} onOpenChange={(open) => { if (!open) setEditItem(null); }}>
+                <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Edit Pengajuan</DialogTitle>
+                        <DialogDescription>Perbarui informasi. Hanya status Baru/Drafting yang dapat diedit.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleEdit} className="mt-2 space-y-4">
+                        {/* Informasi Umum Container */}
+                        <div className="grid grid-cols-2 gap-3 p-3.5 bg-neutral-50 dark:bg-neutral-900/40 rounded-xl border border-neutral-200/60 dark:border-neutral-800">
+                            <div className="col-span-2 text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Informasi Umum</div>
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Nama Pengaju</label>
+                                <input type="text" value={editItem?.applicant ?? '-'} disabled className="w-full rounded-lg border border-neutral-200 bg-neutral-100/80 dark:bg-neutral-800/80 px-3 py-1.5 text-xs text-neutral-500 dark:text-neutral-400 outline-none" />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tanggal Pengajuan</label>
+                                <input type="text" value={editItem?.submissionDate ?? '-'} disabled className="w-full rounded-lg border border-neutral-200 bg-neutral-100/80 dark:bg-neutral-800/80 px-3 py-1.5 text-xs text-neutral-500 dark:text-neutral-400 outline-none" />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tipe Modul *</label>
+                                <select value={editForm.data.type} onChange={(e) => editForm.setData('type', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
+                                    <option value="Modul Baru">Modul Baru</option>
+                                    <option value="Revisi Modul">Revisi Modul</option>
+                                    <option value="Kebutuhan Khusus">Kebutuhan Khusus</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tanggal Kebutuhan *</label>
+                                <input type="date" value={editForm.data.deadline} onChange={(e) => editForm.setData('deadline', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Prioritas *</label>
+                                <select value={editForm.data.priority} onChange={(e) => editForm.setData('priority', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Unit Kerja</label>
+                                <input type="text" value={editForm.data.unit} onChange={(e) => editForm.setData('unit', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" />
+                            </div>
+                        </div>
+
+                        {/* ── CONDITIONAL SECTION: MODUL BARU ── */}
+                        {editForm.data.type === 'Modul Baru' && (
+                            <div className="space-y-3 p-3.5 border border-blue-100 dark:border-blue-900/40 rounded-xl bg-blue-50/20 dark:bg-blue-950/5">
+                                <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">Detail Modul Baru</div>
+                                
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Kategori / Jenis Pelatihan *</label>
+                                    <select value={editForm.data.program} onChange={(e) => editForm.setData('program', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required={editForm.data.type === 'Modul Baru'}>
+                                        <option value="">-- Pilih Jenis Pelatihan --</option>
+                                        {trainingTypeList.map((type) => (
+                                            <option key={type} value={type}>{type}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Judul Modul *</label>
+                                    <input type="text" value={editForm.data.title} onChange={(e) => editForm.setData('title', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required />
+                                    {editForm.errors.title && <p className="mt-1 text-xs text-rose-500">{editForm.errors.title}</p>}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Bahasa Pelatihan *</label>
+                                        <select value={editForm.data.language} onChange={(e) => editForm.setData('language', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
+                                            <option value="Indonesia">Indonesia</option>
+                                            <option value="English">English</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jumlah Hari Pelatihan</label>
+                                        <input type="number" min="1" value={editForm.data.training_days} onChange={(e) => editForm.setData('training_days', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 font-sans" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Deskripsi / Permintaan Khusus</label>
+                                    <textarea value={editForm.data.description} onChange={(e) => editForm.setData('description', e.target.value)} rows={3} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 font-sans" />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ── CONDITIONAL SECTION: REVISI MODUL (MODUL EXISTING) ── */}
+                        {editForm.data.type === 'Revisi Modul' && (
+                            <div className="space-y-3 p-3.5 border border-violet-100 dark:border-violet-900/40 rounded-xl bg-violet-50/20 dark:bg-violet-950/5">
+                                <div className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider mb-1">Detail Modul Existing / Revisi</div>
+                                
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Pilih Modul Existing *</label>
+                                    <select value={editForm.data.related_module_id} onChange={(e) => handleEditRelatedModuleChange(e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required={editForm.data.type === 'Revisi Modul'}>
+                                        <option value="">-- Pilih Modul --</option>
+                                        {availableModules.map((m) => (
+                                            <option key={m.id} value={m.id}>{m.code} — {m.title} (Rev. {m.revision})</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {editForm.data.related_module_id && (
+                                    <div className="grid grid-cols-3 gap-2 bg-neutral-100/60 dark:bg-neutral-800/60 p-2.5 rounded-lg border border-neutral-200/50 dark:border-neutral-700/50 text-[11px] text-neutral-600 dark:text-neutral-400">
+                                        <div>
+                                            <span className="font-bold block text-[9px] uppercase tracking-wider text-neutral-400 font-sans">Kode Modul</span>
+                                            <span>{availableModules.find(m => m.id === parseInt(editForm.data.related_module_id as string, 10))?.code}</span>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <span className="font-bold block text-[9px] uppercase tracking-wider text-neutral-400 font-sans">Judul & Versi Aktif</span>
+                                            <span className="line-clamp-1">{availableModules.find(m => m.id === parseInt(editForm.data.related_module_id as string, 10))?.title} (Rev. {availableModules.find(m => m.id === parseInt(editForm.data.related_module_id as string, 10))?.revision})</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Alasan Perubahan *</label>
+                                    <textarea value={editForm.data.revision_reason} onChange={(e) => editForm.setData('revision_reason', e.target.value)} rows={2} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 font-sans" required={editForm.data.type === 'Revisi Modul'} />
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Detail Perubahan *</label>
+                                    <textarea value={editForm.data.description} onChange={(e) => editForm.setData('description', e.target.value)} rows={3} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 font-sans" required={editForm.data.type === 'Revisi Modul'} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ── CONDITIONAL SECTION: KEBUTUHAN KHUSUS ── */}
+                        {editForm.data.type === 'Kebutuhan Khusus' && (
+                            <div className="space-y-3 p-3.5 border border-teal-100 dark:border-teal-900/40 rounded-xl bg-teal-50/20 dark:bg-teal-950/5">
+                                <div className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-1">Detail Kebutuhan Khusus</div>
+                                
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Judul Permintaan *</label>
+                                    <input type="text" value={editForm.data.title} onChange={(e) => editForm.setData('title', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required />
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Deskripsi Kebutuhan *</label>
+                                    <textarea value={editForm.data.description} onChange={(e) => editForm.setData('description', e.target.value)} rows={4} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* File Upload */}
+                        {(editForm.data.type === 'Modul Baru' || editForm.data.type === 'Revisi Modul') && (
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400 font-sans">
+                                    Ganti Dokumen PDF {editForm.data.type === 'Revisi Modul' ? <span className="text-rose-500">*</span> : <span className="font-normal text-neutral-400">(opsional)</span>}
+                                </label>
+                                <FileDropZone
+                                    onFileSelect={setEditFile}
+                                    selectedFile={editFile}
+                                    existingFileName={editItem?.fileName}
+                                    existingFileSize={editItem?.fileSize}
+                                    existingFileUrl={editItem?.fileUrl}
+                                />
+                                {editForm.errors.file && <p className="mt-1 text-xs text-rose-500 font-sans">{editForm.errors.file}</p>}
+                            </div>
+                        )}
+
+                        <DialogFooter className="pt-2">
+                            <Button type="button" variant="outline" onClick={() => setEditItem(null)}>Batal</Button>
+                            <Button type="submit" disabled={editForm.processing} className="bg-blue-600 text-white hover:bg-blue-700">
+                                {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── DELETE DIALOG ── */}
+            <Dialog open={!!deleteItem} onOpenChange={(open) => { if (!open) setDeleteItem(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Hapus Pengajuan</DialogTitle>
+                        <DialogDescription>
+                            Yakin ingin menghapus pengajuan <span className="font-bold text-neutral-900 dark:text-neutral-100">{deleteItem?.id}</span>? Tindakan ini tidak dapat dibatalkan.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteItem(null)}>Batal</Button>
+                        <Button onClick={handleDelete} className="bg-rose-600 text-white hover:bg-rose-700">Hapus</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── DETAIL DIALOG ── */}
+            <Dialog open={!!detailItem} onOpenChange={(open) => { if (!open) setDetailItem(null); }}>
+                <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="line-clamp-2 pr-6 leading-snug">{detailItem?.title}</DialogTitle>
+                        <DialogDescription className="font-mono text-[11px] font-semibold text-neutral-400">{detailItem?.id}</DialogDescription>
+                    </DialogHeader>
+                    {detailItem && (
+                        <div className="mt-2 space-y-5 text-xs text-neutral-600 dark:text-neutral-400">
+                            {/* Informasi Utama Grid */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 p-3.5 bg-neutral-50 dark:bg-neutral-900/40 rounded-xl border border-neutral-100 dark:border-neutral-800/80">
+                                <div>
+                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Tipe Pengajuan</p>
+                                    <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-[10px] font-semibold bg-neutral-200/60 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200">
+                                        {detailItem.type}
+                                    </Badge>
+                                </div>
+                                <div>
+                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Prioritas</p>
+                                    <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[detailItem.priority]}`}>{detailItem.priority}</Badge>
+                                </div>
+                                <div>
+                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Status</p>
+                                    <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[detailItem.status]}`}>{detailItem.status}</Badge>
+                                </div>
+                                <div>
+                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Pengaju</p>
+                                    <p className="font-semibold text-neutral-900 dark:text-neutral-100">{detailItem.applicant}</p>
+                                </div>
+                                <div>
+                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Unit Kerja</p>
+                                    <p className="font-semibold text-neutral-900 dark:text-neutral-100">{detailItem.unit}</p>
+                                </div>
+                                <div>
+                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Tanggal Pengajuan</p>
+                                    <p className="font-semibold text-neutral-900 dark:text-neutral-100">{detailItem.submissionDate}</p>
+                                </div>
+                                <div>
+                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Tanggal Kebutuhan</p>
+                                    <p className="font-semibold text-neutral-900 dark:text-neutral-100">{detailItem.deadlineFormatted ?? detailItem.deadline}</p>
+                                </div>
+                            </div>
+
+                            {/* ── DETAILS FOR MODUL BARU ── */}
+                            {detailItem.type === 'Modul Baru' && (
+                                <div className="space-y-3 p-3.5 border border-blue-100 dark:border-blue-900/40 rounded-xl bg-blue-50/10 dark:bg-blue-950/5">
+                                    <div className="grid grid-cols-2 gap-3 text-xs">
+                                        <div>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 font-sans">Kategori / Jenis Pelatihan</p>
+                                            <p className="font-semibold text-neutral-800 dark:text-neutral-200">{detailItem.program ?? '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 font-sans">Bahasa Pelatihan</p>
+                                            <p className="font-semibold text-neutral-800 dark:text-neutral-200">{detailItem.language ?? 'Indonesia'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 font-sans">Jumlah Hari Pelatihan</p>
+                                            <p className="font-semibold text-neutral-800 dark:text-neutral-200">{detailItem.training_days ? `${detailItem.training_days} Hari` : '-'}</p>
+                                        </div>
+                                    </div>
+                                    {detailItem.description && (
+                                        <div className="pt-2 border-t border-blue-100 dark:border-blue-900/20">
+                                            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 font-sans">Deskripsi / Permintaan Khusus</p>
+                                            <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal whitespace-pre-line">{detailItem.description}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ── DETAILS FOR REVISI MODUL ── */}
+                            {detailItem.type === 'Revisi Modul' && (
+                                <div className="space-y-3 p-3.5 border border-violet-100 dark:border-violet-900/40 rounded-xl bg-violet-50/10 dark:bg-violet-950/5">
+                                    {detailItem.related_module_id && (
+                                        <div>
+                                            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-violet-500 dark:text-violet-400 font-sans">Modul Existing yang Direvisi</p>
+                                            <div className="bg-white dark:bg-neutral-950 p-2.5 rounded-lg border border-neutral-200/50 dark:border-neutral-800/80">
+                                                <span className="font-mono font-bold text-[10px] text-neutral-500 block">{detailItem.relatedModuleCode}</span>
+                                                <span className="font-semibold text-neutral-800 dark:text-neutral-200 text-xs block">{detailItem.relatedModuleTitle}</span>
+                                                <span className="text-[10px] text-neutral-400 block mt-0.5 font-sans">Versi Aktif: Rev. {detailItem.relatedModuleRevision}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {detailItem.revision_reason && (
+                                        <div className="pt-2 border-t border-violet-100 dark:border-violet-900/20">
+                                            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-violet-500 dark:text-violet-400 font-sans">Alasan Perubahan</p>
+                                            <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal whitespace-pre-line">{detailItem.revision_reason}</p>
+                                        </div>
+                                    )}
+                                    {detailItem.description && (
+                                        <div className="pt-2 border-t border-violet-100 dark:border-violet-900/20">
+                                            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-violet-500 dark:text-violet-400 font-sans">Detail Perubahan</p>
+                                            <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal whitespace-pre-line">{detailItem.description}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ── DETAILS FOR KEBUTUHAN KHUSUS ── */}
+                            {detailItem.type === 'Kebutuhan Khusus' && detailItem.description && (
+                                <div className="space-y-2 p-3.5 border border-teal-100 dark:border-teal-900/40 rounded-xl bg-teal-50/10 dark:bg-teal-950/5">
+                                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Deskripsi Kebutuhan Khusus</p>
+                                    <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal whitespace-pre-line">{detailItem.description}</p>
+                                </div>
+                            )}
+
+                            {/* File attachment section */}
+                            {detailItem.fileName ? (
+                                <div>
+                                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Dokumen PDF</p>
+                                    <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                                        <div className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500 dark:bg-red-950/30">
+                                            <FileText className="size-4.5" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-xs font-semibold text-neutral-800 dark:text-neutral-200">{detailItem.fileName}</p>
+                                            {detailItem.fileSize && <p className="text-[10px] text-neutral-400">{detailItem.fileSize}</p>}
+                                        </div>
+                                        {detailItem.fileUrl && (
+                                            <div className="flex items-center gap-1">
+                                                <a href={detailItem.fileUrl} target="_blank" rel="noopener noreferrer" className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-blue-50 hover:text-blue-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-blue-400" title="Lihat PDF">
+                                                    <Eye className="size-3.5" />
+                                                </a>
+                                                <a href={detailItem.fileUrl} download className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-emerald-50 hover:text-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-emerald-400" title="Download">
+                                                    <Download className="size-3.5" />
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/30 p-3.5 text-center dark:border-neutral-800">
+                                    <p className="text-xs text-neutral-400 font-sans">Belum ada dokumen PDF yang diupload.</p>
+                                </div>
+                            )}
+
+                            {detailItem.rejectReason && (
+                                <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-3.5 dark:border-rose-900/40 dark:bg-rose-950/20">
+                                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 font-sans">Alasan Penolakan dari Manager</p>
+                                    <p className="text-xs leading-relaxed text-rose-600 dark:text-rose-300 font-medium whitespace-pre-line">{detailItem.rejectReason}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDetailItem(null)}>Tutup</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

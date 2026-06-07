@@ -5,8 +5,17 @@ use App\Models\User;
 use App\Services\GoogleDriveOAuthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    // Clear PDF cache before each test to ensure consistency
+    $cachePath = storage_path('app/pdf_cache');
+    if (File::exists($cachePath)) {
+        File::cleanDirectory($cachePath);
+    }
+});
 
 test('authorized users can view database page', function () {
     $user = User::factory()->create();
@@ -210,6 +219,3 @@ test('authorized users can unarchive module', function () {
         'status' => 'Approved',
     ]);
 });
-
-
-

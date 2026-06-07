@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class ModuleRevision extends Model
 {
@@ -16,13 +17,28 @@ class ModuleRevision extends Model
         'module_id',
         'revision',
         'note',
+        'reason',
         'author_name',
         'status',
-        'drive_file_id',
+        'file_path',
+        'file_name',
         'file_size',
         'file_pages',
+        'drive_file_id',
         'created_by',
     ];
+
+    /**
+     * Get the public URL of the revision file.
+     */
+    public function getFileUrlAttribute(): ?string
+    {
+        if ($this->file_path) {
+            return Storage::url($this->file_path);
+        }
+
+        return null;
+    }
 
     /**
      * Get the module associated with this revision.

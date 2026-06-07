@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, usePage, Link } from '@inertiajs/react';
+import { Head, usePage, Link, router } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -73,27 +73,24 @@ interface SyncItem {
     author: string;
 }
 
+interface MasterDataProps extends SharedData {
+    dataList?: MasterItem[];
+}
+
 export default function MasterData() {
-    const page = usePage<SharedData>();
-    const user = page.props.auth?.user;
+    const { props } = usePage<MasterDataProps>();
+    const user = props.auth?.user;
     const role = user?.role || 'User';
 
     // Access control: only admin can access this page
     const hasAccess = role === 'admin';
 
-    // Mock dataset matching the user's screenshot
-    const [dataList, setDataList] = useState<MasterItem[]>([
-        { id: '1', name: 'Teknis', category: 'Jenis Pelatihan', code: 'JP-001', status: 'Aktif', updatedAt: '20 Mei 2024 10:21' },
-        { id: '2', name: 'Manajerial', category: 'Jenis Pelatihan', code: 'JP-002', status: 'Aktif', updatedAt: '20 Mei 2024 10:20' },
-        { id: '3', name: 'Sertifikasi Profesi', category: 'Jenis Pelatihan', code: 'JP-003', status: 'Aktif', updatedAt: '19 Mei 2024 16:45' },
-        { id: '4', name: 'Digital Leadership', category: 'Kategori Pelatihan', code: 'KP-001', status: 'Aktif', updatedAt: '18 Mei 2024 11:30' },
-        { id: '5', name: 'Pengembangan Diri', category: 'Kategori Pelatihan', code: 'KP-002', status: 'Aktif', updatedAt: '18 Mei 2024 11:28' },
-        { id: '6', name: 'Webinar', category: 'Metode', code: 'MD-001', status: 'Aktif', updatedAt: '17 Mei 2024 09:15' },
-        { id: '7', name: 'Kelas Tatap Muka', category: 'Metode', code: 'MD-002', status: 'Aktif', updatedAt: '17 Mei 2024 09:10' },
-        { id: '8', name: 'E-Learning', category: 'Metode', code: 'MD-003', status: 'Aktif', updatedAt: '16 Mei 2024 15:35' },
-        { id: '9', name: 'Badan Pengembangan SDM', category: 'Penyelenggara', code: 'PY-001', status: 'Aktif', updatedAt: '16 Mei 2024 14:20' },
-        { id: '10', name: 'Lembaga Sertifikasi Nasional', category: 'Penyelenggara', code: 'PY-002', status: 'Nonaktif', updatedAt: '15 Mei 2024 13:05' }
-    ]);
+    const initialDataList = props.dataList || [];
+    const [dataList, setDataList] = useState<MasterItem[]>(initialDataList);
+
+    React.useEffect(() => {
+        setDataList(initialDataList);
+    }, [initialDataList]);
 
     // Active Category Filter Tab
     const [selectedTab, setSelectedTab] = useState<string>('Jenis Pelatihan');
@@ -112,25 +109,28 @@ export default function MasterData() {
 
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-    // Mock category counts
+    // Dynamic category counts
     const categoryCounts = useMemo(() => {
-        const counts = {
-            'Jenis Pelatihan': 34,
-            'Kategori Pelatihan': 28,
-            'Metode': 22,
-            'Penyelenggara': 46,
-            'Bahasa': 12,
-            'Jenis Sertifikat': 18,
-            'Unit Kerja': 66,
-            'Status Modul': 60
+        const counts: Record<string, number> = {
+            'Jenis Pelatihan': 0,
+            'Kategori Pelatihan': 0,
+            'Metode': 0,
+            'Penyelenggara': 0,
+            'Bahasa': 0,
+            'Jenis Sertifikat': 0,
+            'Unit Kerja': 0,
+            'Status Modul': 0
         };
-        // Add locally modified overrides
         dataList.forEach(item => {
             if (counts[item.category] !== undefined) {
-                // simple simulation: counts represent static base + current count additions
+                counts[item.category]++;
             }
         });
         return counts;
+    }, [dataList]);
+
+    const activeCount = useMemo(() => {
+        return dataList.filter(item => item.status === 'Aktif').length;
     }, [dataList]);
 
     // Filter dataList
@@ -160,33 +160,31 @@ export default function MasterData() {
         e.preventDefault();
         if (!newName.trim() || !newCode.trim()) return;
 
-        const newItem: MasterItem = {
-            id: String(dataList.length + 1),
+        router.post('/master-data', {
             name: newName,
             category: newCategory,
             code: newCode.toUpperCase(),
             status: newStatus,
-            updatedAt: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-        };
+        }, {
+            onSuccess: () => {
+                setIsAddModalOpen(false);
 
-        setDataList(prev => [newItem, ...prev]);
-        setIsAddModalOpen(false);
+                // Append to history log
+                const newHistoryLog: ChangeHistoryItem = {
+                    id: String(Date.now()),
+                    text: `Tambah data "${newCategory} — ${newName}"`,
+                    author: user?.name?.split(' ')[0] || 'Raffa',
+                    date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+                    time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                };
+                setHistory(prev => [newHistoryLog, ...prev]);
 
-        // Append to history
-        const newHistoryLog: ChangeHistoryItem = {
-            id: String(Date.now()),
-            text: `Tambah data "${newCategory} — ${newName}"`,
-            author: user?.name?.split(' ')[0] || 'Raffa',
-            date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-        };
-        setHistory(prev => [newHistoryLog, ...prev]);
-
-        setNewName('');
-        setNewCode('');
-
-        setToastMessage(`Data ${newName} berhasil ditambahkan ke kategori ${newCategory}.`);
-        setTimeout(() => setToastMessage(null), 4000);
+                setNewName('');
+                setNewCode('');
+                setToastMessage(`Data ${newName} berhasil ditambahkan ke kategori ${newCategory}.`);
+                setTimeout(() => setToastMessage(null), 4000);
+            }
+        });
     };
 
     // Delete item handler
@@ -194,9 +192,12 @@ export default function MasterData() {
         const item = dataList.find(i => i.id === id);
         if (!item) return;
 
-        setDataList(prev => prev.filter(i => i.id !== id));
-        setToastMessage(`Data ${item.name} berhasil dihapus.`);
-        setTimeout(() => setToastMessage(null), 4000);
+        router.delete(`/master-data/${id}`, {
+            onSuccess: () => {
+                setToastMessage(`Data ${item.name} berhasil dihapus.`);
+                setTimeout(() => setToastMessage(null), 4000);
+            }
+        });
     };
 
     // Mock synchronization log
@@ -298,7 +299,7 @@ export default function MasterData() {
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Total Data Aktif</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">286</span>
+                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{activeCount}</span>
                                 <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-500 mt-0.5 flex items-center gap-0.5">
                                     <span>↑ 18 dari bulan lalu</span>
                                 </span>

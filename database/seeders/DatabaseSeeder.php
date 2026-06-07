@@ -3,9 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\Module;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\ModuleRequest;
 use App\Models\ModuleRevision;
 use App\Models\User;
+use App\Models\MasterData;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
@@ -16,32 +17,97 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $masterData = [
+            ['category' => 'Jenis Pelatihan', 'name' => 'Regulasi & Kepatuhan', 'code' => 'JP-001', 'status' => 'Aktif'],
+            ['category' => 'Jenis Pelatihan', 'name' => 'Teknis Laboratorium', 'code' => 'JP-002', 'status' => 'Aktif'],
+            ['category' => 'Jenis Pelatihan', 'name' => 'Sertifikasi & Auditor', 'code' => 'JP-003', 'status' => 'Aktif'],
+            ['category' => 'Jenis Pelatihan', 'name' => 'Manajerial & Kepemimpinan', 'code' => 'JP-004', 'status' => 'Aktif'],
+            ['category' => 'Jenis Pelatihan', 'name' => 'Teknis Produksi', 'code' => 'JP-005', 'status' => 'Aktif'],
+            ['category' => 'Jenis Pelatihan', 'name' => 'Supply Chain & Logistik', 'code' => 'JP-006', 'status' => 'Aktif'],
+            ['category' => 'Jenis Pelatihan', 'name' => 'K3 & Keamanan', 'code' => 'JP-007', 'status' => 'Aktif'],
+            ['category' => 'Jenis Pelatihan', 'name' => 'Pengembangan SDM', 'code' => 'JP-008', 'status' => 'Aktif'],
+            ['category' => 'Jenis Pelatihan', 'name' => 'Lainnya', 'code' => 'JP-009', 'status' => 'Aktif'],
+
+            ['category' => 'Kategori Pelatihan', 'name' => 'Digital Leadership', 'code' => 'KP-001', 'status' => 'Aktif'],
+            ['category' => 'Kategori Pelatihan', 'name' => 'Pengembangan Diri', 'code' => 'KP-002', 'status' => 'Aktif'],
+
+            ['category' => 'Metode', 'name' => 'Webinar', 'code' => 'MD-001', 'status' => 'Aktif'],
+            ['category' => 'Metode', 'name' => 'Kelas Tatap Muka', 'code' => 'MD-002', 'status' => 'Aktif'],
+            ['category' => 'Metode', 'name' => 'E-Learning', 'code' => 'MD-003', 'status' => 'Aktif'],
+
+            ['category' => 'Penyelenggara', 'name' => 'Badan Pengembangan SDM', 'code' => 'PY-001', 'status' => 'Aktif'],
+            ['category' => 'Penyelenggara', 'name' => 'Lembaga Sertifikasi Nasional', 'code' => 'PY-002', 'status' => 'Nonaktif'],
+        ];
+
+        foreach ($masterData as $md) {
+            MasterData::create($md);
+        }
 
         $admin = User::factory()->create([
             'name' => 'System Admin',
             'email' => 'admin@example.com',
             'role' => 'admin',
+            'unit' => 'IT & Digital',
+            'status' => 'Aktif',
+            'last_login_at' => now()->subMinutes(10),
         ]);
 
-        User::factory()->create([
+        $manager = User::factory()->create([
             'name' => 'Siti Nurhayati',
             'email' => 'manager@example.com',
             'role' => 'manager PD',
+            'unit' => 'Pengembangan SDM',
+            'status' => 'Aktif',
+            'last_login_at' => now()->subHours(2),
         ]);
 
-        User::factory()->create([
+        $staf = User::factory()->create([
             'name' => 'Rina Apriyani',
             'email' => 'staf@example.com',
             'role' => 'Staf PD',
+            'unit' => 'Pengembangan SDM',
+            'status' => 'Aktif',
+            'last_login_at' => now()->subHour(),
         ]);
 
-        User::factory()->create([
+        $user = User::factory()->create([
             'name' => 'Andi Pratama',
             'email' => 'user@example.com',
             'role' => 'User',
+            'unit' => 'Operasional',
+            'status' => 'Aktif',
+            'last_login_at' => now()->subHours(5),
         ]);
 
+        $training = User::factory()->create([
+            'name' => 'Ahmad Training',
+            'email' => 'training@example.com',
+            'role' => 'tim training',
+            'unit' => 'Pengembangan SDM',
+            'status' => 'Aktif',
+            'last_login_at' => now()->subMinutes(5),
+        ]);
+
+        // Additional sample users
+        $extraUsers = [
+            ['name' => 'Dewi Lestari', 'email' => 'dewi@example.com', 'role' => 'Staf PD', 'unit' => 'Pengembangan SDM', 'status' => 'Aktif'],
+            ['name' => 'Budi Santoso', 'email' => 'budi@example.com', 'role' => 'Staf PD', 'unit' => 'Teknis Laboratorium', 'status' => 'Aktif'],
+            ['name' => 'Agus Setiawan', 'email' => 'agus@example.com', 'role' => 'User', 'unit' => 'Keuangan', 'status' => 'Nonaktif'],
+            ['name' => 'Mega Kusuma', 'email' => 'mega@example.com', 'role' => 'manager PD', 'unit' => 'Keuangan', 'status' => 'Aktif'],
+            ['name' => 'Yusuf Setiawan', 'email' => 'yusuf@example.com', 'role' => 'Staf PD', 'unit' => 'Operasional', 'status' => 'Aktif'],
+            ['name' => 'Nita Fadilah', 'email' => 'nita@example.com', 'role' => 'User', 'unit' => 'IT & Digital', 'status' => 'Aktif'],
+            ['name' => 'Bambang Hariyanto', 'email' => 'bambang@example.com', 'role' => 'User', 'unit' => 'Pengembangan SDM', 'status' => 'Pending'],
+            ['name' => 'Siti Lestari', 'email' => 'sitil@example.com', 'role' => 'tim training', 'unit' => 'Keuangan', 'status' => 'Aktif'],
+        ];
+
+        $createdExtraUsers = [];
+        foreach ($extraUsers as $u) {
+            $createdExtraUsers[] = User::factory()->create(array_merge($u, [
+                'last_login_at' => now()->subDays(rand(1, 30)),
+            ]));
+        }
+
+        // === Seed Modules ===
         $modulesData = [
             [
                 'code' => 'ILN.1.8',
@@ -205,7 +271,6 @@ class DatabaseSeeder extends Seeder
         foreach ($modulesData as $m) {
             $latestRevisionDate = null;
 
-            // Find the latest revision date to set the module updated_at/created_at
             if (! empty($m['revisions'])) {
                 $latestRev = $m['revisions'][0];
                 $latestRevisionDate = $translateDate($latestRev['date']);
@@ -221,6 +286,8 @@ class DatabaseSeeder extends Seeder
                 'file_size' => $m['file_size'],
                 'file_pages' => $m['file_pages'],
                 'description' => $m['description'],
+                'approved_by' => $admin->id,
+                'approved_at' => $latestRevisionDate ?? now(),
                 'created_by' => $admin->id,
                 'created_at' => $latestRevisionDate ?? now(),
                 'updated_at' => $latestRevisionDate ?? now(),
@@ -234,13 +301,119 @@ class DatabaseSeeder extends Seeder
                     'note' => $r['note'],
                     'author_name' => $r['author_name'],
                     'status' => $r['status'],
-                    'file_size' => $m['file_size'], // seed same size
-                    'file_pages' => $m['file_pages'], // seed same pages
+                    'file_size' => $m['file_size'],
+                    'file_pages' => $m['file_pages'],
                     'created_by' => $admin->id,
                     'created_at' => $revDate,
                     'updated_at' => $revDate,
                 ]);
             }
+        }
+
+        // === Seed Module Requests (Pengajuan) ===
+        $requestsData = [
+            [
+                'type' => 'Modul Baru',
+                'title' => 'Manajemen Risiko Operasional',
+                'applicant_id' => $user->id,
+                'unit' => 'Operasional',
+                'description' => 'Panduan lengkap mengenai tata cara mitigasi risiko operasional, deteksi dini kerugian, dan kepatuhan prosedur internal.',
+                'deadline' => Carbon::now()->addDays(16),
+                'status' => 'Baru',
+                'priority' => 'High',
+                'created_at' => Carbon::now()->subDays(2),
+            ],
+            [
+                'type' => 'Revisi Modul',
+                'title' => 'Kepemimpinan Situasional',
+                'applicant_id' => $staf->id,
+                'unit' => 'Pengembangan SDM',
+                'description' => 'Pembaruan modul kepemimpinan dengan pendekatan model situasional Blanchard terbaru untuk level supervisor.',
+                'deadline' => Carbon::now()->addDays(17),
+                'status' => 'Drafting',
+                'priority' => 'Medium',
+                'created_at' => Carbon::now()->subDays(4),
+            ],
+            [
+                'type' => 'Modul Baru',
+                'title' => 'Analisis Data untuk Non Data Scientist',
+                'applicant_id' => $staf->id,
+                'unit' => 'IT & Digital',
+                'description' => 'Materi dasar interpretasi data, visualisasi menggunakan BI tools, dan penggunaan formula tingkat menengah.',
+                'deadline' => Carbon::now()->addDays(21),
+                'status' => 'Menunggu Approval',
+                'priority' => 'High',
+                'created_at' => Carbon::now()->subDays(5),
+            ],
+            [
+                'type' => 'Modul Baru',
+                'title' => 'Customer Experience Excellence',
+                'applicant_id' => $staf->id,
+                'unit' => 'Pemasaran',
+                'description' => 'Modul pelatihan standarisasi layanan pelanggan prima untuk garda depan pelayanan ritel.',
+                'deadline' => Carbon::now()->addDays(21),
+                'status' => 'Selesai',
+                'priority' => 'Medium',
+                'processed_by' => $manager->id,
+                'processed_at' => Carbon::now()->subDays(1),
+                'created_at' => Carbon::now()->subDays(6),
+            ],
+            [
+                'type' => 'Revisi Modul',
+                'title' => 'Microsoft Excel Intermediate',
+                'applicant_id' => $staf->id,
+                'unit' => 'Keuangan',
+                'description' => 'Revisi modul excel menambahkan bab VLOOKUP/HLOOKUP serta dasar Pivot Table.',
+                'deadline' => Carbon::now()->addDays(17),
+                'status' => 'Ditolak',
+                'priority' => 'Low',
+                'reject_reason' => 'Format tidak sesuai standar perusahaan. Mohon perbaiki template dan kirim ulang.',
+                'processed_by' => $manager->id,
+                'processed_at' => Carbon::now()->subDays(2),
+                'created_at' => Carbon::now()->subDays(7),
+            ],
+            [
+                'type' => 'Modul Baru',
+                'title' => 'Cyber Security Awareness',
+                'applicant_id' => $staf->id,
+                'unit' => 'IT & Digital',
+                'description' => 'Edukasi keamanan siber mendasar bagi seluruh karyawan untuk menghindari celah phising dan kebocoran sandi.',
+                'deadline' => Carbon::now()->addDays(20),
+                'status' => 'Baru',
+                'priority' => 'High',
+                'created_at' => Carbon::now()->subDays(8),
+            ],
+            [
+                'type' => 'Revisi Modul',
+                'title' => 'Komunikasi Efektif',
+                'applicant_id' => $staf->id,
+                'unit' => 'Operasional',
+                'description' => 'Revisi materi komunikasi persuasif dengan tambahan studi kasus negosiasi klien luar negeri.',
+                'deadline' => Carbon::now()->addDays(18),
+                'status' => 'Drafting',
+                'priority' => 'Medium',
+                'created_at' => Carbon::now()->subDays(9),
+            ],
+            [
+                'type' => 'Modul Baru',
+                'title' => 'Design Thinking Fundamentals',
+                'applicant_id' => $staf->id,
+                'unit' => 'IT & Digital',
+                'description' => 'Pelatihan kerangka kerja inovasi design thinking mencakup tahapan Empathize hingga Prototype.',
+                'deadline' => Carbon::now()->addDays(17),
+                'status' => 'Menunggu Approval',
+                'priority' => 'Medium',
+                'created_at' => Carbon::now()->subDays(11),
+            ],
+        ];
+
+        foreach ($requestsData as $index => $req) {
+            $year = Carbon::parse($req['created_at'])->year;
+            $number = str_pad($index + 1, 4, '0', STR_PAD_LEFT);
+            ModuleRequest::create(array_merge($req, [
+                'request_number' => "PMD-{$year}-{$number}",
+                'updated_at' => $req['created_at'],
+            ]));
         }
     }
 }

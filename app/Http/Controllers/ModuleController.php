@@ -112,75 +112,69 @@ class ModuleController extends Controller
      */
     public function store(Request $request)
     {
+        if (! in_array(Auth::user()->role, ['admin', 'staf pd', 'Staf PD'])) {
+            abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk menambahkan modul.');
+        }
+
         $request->validate([
             'code' => 'required|string|unique:modules,code',
             'title' => 'required|string',
             'program' => 'required|string',
             'language' => 'required|string',
             'description' => 'nullable|string',
-            'file' => 'required|file|mimes:pdf|max:10240', // max 10MB PDF
+            'file' => 'required|file|mimes:pdf|max:20480',
         ]);
 
+        $code = strtoupper($request->input('code'));
         $file = $request->file('file');
-        $originalName = $file->getClientOriginalName();
         $fileSizeStr = $this->formatBytes($file->getSize());
 
-        // Save temporarily to read page count
-        $tempPath = $file->store('temp');
-        $absoluteTempPath = storage_path('app/private/'.$tempPath);
-        if (! file_exists($absoluteTempPath)) {
-            $absoluteTempPath = storage_path('app/'.$tempPath);
-        }
+        // Store to local public disk
+        $storagePath = "modules/{$code}/revisi-1.0";
+        $fileName = "{$code}_v1.0.pdf";
+        $localPath = $file->storeAs($storagePath, $fileName, 'public');
 
-        $pageCount = $this->getPdfPageCount($absoluteTempPath);
+        // Count pages
+        $absolutePath = Storage::disk('public')->path($localPath);
+        $pageCount = $this->getPdfPageCount($absolutePath);
 
-        // Upload to Google Drive
+        // Optionally try Google Drive upload (non-fatal)
         $driveFileId = null;
         try {
-            $driveFileId = $this->driveService->uploadFile($absoluteTempPath, $request->input('code').'.pdf');
-
-            // Cache the file locally for fast preview / download
-            $cachePath = storage_path('app/pdf_cache/'.strtoupper($request->input('code')).'.pdf');
-            $cacheDir = dirname($cachePath);
-            if (! file_exists($cacheDir)) {
-                mkdir($cacheDir, 0755, true);
-            }
-            copy($absoluteTempPath, $cachePath);
-        } catch (\Exception $e) {
-            // Cleanup temp file
-            Storage::delete($tempPath);
-
-            return back()->withErrors(['file' => 'Gagal mengunggah file ke Google Drive: '.$e->getMessage()]);
+            $driveFileId = $this->driveService->uploadFile($absolutePath, $code.'.pdf');
+        } catch (\Exception) {
+            // Drive upload failure is non-fatal; file already saved locally
         }
 
-        // Cleanup temp file
-        Storage::delete($tempPath);
-
-        // Create database record
         $module = Module::create([
-            'code' => strtoupper($request->input('code')),
+            'code' => $code,
             'title' => $request->input('title'),
             'program' => $request->input('program'),
             'language' => $request->input('language'),
             'description' => $request->input('description'),
             'status' => 'Approved',
             'current_revision' => '1.0',
-            'drive_file_id' => $driveFileId,
+            'file_path' => $localPath,
+            'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
+            'drive_file_id' => $driveFileId,
+            'approved_by' => Auth::id(),
+            'approved_at' => now(),
             'created_by' => Auth::id(),
         ]);
 
-        // Create revision history record
         ModuleRevision::create([
             'module_id' => $module->id,
             'revision' => '1.0',
             'note' => 'Rilis pertama modul baru.',
             'author_name' => Auth::user()->name ?? 'System Admin',
             'status' => 'Approved',
-            'drive_file_id' => $driveFileId,
+            'file_path' => $localPath,
+            'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
+            'drive_file_id' => $driveFileId,
             'created_by' => Auth::id(),
         ]);
 
@@ -194,33 +188,28 @@ class ModuleController extends Controller
     {
         $module = Module::where('code', $code)->firstOrFail();
 
-        $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
+        // Priority: local public storage → pdf_cache → Google Drive
+        if ($module->file_path && Storage::disk('public')->exists($module->file_path)) {
+            return Storage::disk('public')->download($module->file_path, ($module->file_name ?? $code).'.pdf');
+        }
 
+        $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
         if (file_exists($cachePath)) {
-            return response()->download($cachePath, $module->code.'.pdf', [
-                'Content-Type' => 'application/pdf',
-            ]);
+            return response()->download($cachePath, $module->code.'.pdf', ['Content-Type' => 'application/pdf']);
         }
 
         if (empty($module->drive_file_id)) {
-            return back()->withErrors(['error' => 'File tidak ditemukan di Google Drive.']);
+            return back()->withErrors(['error' => 'File tidak tersedia.']);
         }
 
         try {
             $content = $this->driveService->downloadFile($module->drive_file_id);
 
-            // Save to cache
-            $cacheDir = dirname($cachePath);
-            if (! file_exists($cacheDir)) {
-                mkdir($cacheDir, 0755, true);
-            }
-            file_put_contents($cachePath, $content);
-
             return response($content)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'attachment; filename="'.$module->code.'.pdf"');
+                ->header('Content-Disposition', 'attachment; filename="'.$code.'.pdf"');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Gagal mengunduh file dari Google Drive: '.$e->getMessage()]);
+            return back()->withErrors(['error' => 'Gagal mengunduh file: '.$e->getMessage()]);
         }
     }
 
@@ -231,34 +220,31 @@ class ModuleController extends Controller
     {
         $module = Module::where('code', $code)->firstOrFail();
 
-        $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
+        // Priority: local public storage → pdf_cache → Google Drive
+        if ($module->file_path && Storage::disk('public')->exists($module->file_path)) {
+            return response()->file(
+                Storage::disk('public')->path($module->file_path),
+                ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.$code.'.pdf"']
+            );
+        }
 
+        $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
         if (file_exists($cachePath)) {
-            return response()->file($cachePath, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="'.$module->code.'.pdf"',
-            ]);
+            return response()->file($cachePath, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.$code.'.pdf"']);
         }
 
         if (empty($module->drive_file_id)) {
-            return response()->json(['error' => 'File tidak ditemukan di Google Drive.'], 404);
+            return response()->json(['error' => 'File tidak tersedia.'], 404);
         }
 
         try {
             $content = $this->driveService->downloadFile($module->drive_file_id);
 
-            // Save to cache
-            $cacheDir = dirname($cachePath);
-            if (! file_exists($cacheDir)) {
-                mkdir($cacheDir, 0755, true);
-            }
-            file_put_contents($cachePath, $content);
-
             return response($content)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="'.$module->code.'.pdf"');
+                ->header('Content-Disposition', 'inline; filename="'.$code.'.pdf"');
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Gagal mengunduh file dari Google Drive: '.$e->getMessage()], 500);
+            return response()->json(['error' => 'Gagal preview file: '.$e->getMessage()], 500);
         }
     }
 
@@ -267,6 +253,10 @@ class ModuleController extends Controller
      */
     public function destroy(string $code)
     {
+        if (Auth::user()->role !== 'admin') {
+            abort(403, 'Akses ditolak. Hanya Administrator yang dapat menghapus modul.');
+        }
+
         $module = Module::where('code', $code)->firstOrFail();
 
         // Delete local cache if it exists
@@ -285,6 +275,10 @@ class ModuleController extends Controller
      */
     public function archive(string $code)
     {
+        if (! in_array(strtolower(Auth::user()->role), ['admin', 'staf pd'])) {
+            abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk mengarsipkan modul.');
+        }
+
         $module = Module::where('code', $code)->firstOrFail();
         $module->update(['status' => 'Arsip']);
 
@@ -299,6 +293,10 @@ class ModuleController extends Controller
      */
     public function unarchive(string $code)
     {
+        if (! in_array(strtolower(Auth::user()->role), ['admin', 'staf pd'])) {
+            abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk mengaktifkan kembali modul.');
+        }
+
         $module = Module::where('code', $code)->firstOrFail();
         $module->update(['status' => 'Approved']);
 
@@ -313,73 +311,66 @@ class ModuleController extends Controller
      */
     public function revision(Request $request, string $code)
     {
+        if (! in_array(Auth::user()->role, ['admin', 'staf pd', 'Staf PD'])) {
+            abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk merevisi modul.');
+        }
+
         $request->validate([
             'revision' => 'required|string',
             'note' => 'required|string',
-            'file' => 'required|file|mimes:pdf|max:10240', // max 10MB PDF
+            'file' => 'required|file|mimes:pdf|max:20480',
         ]);
 
         $module = Module::where('code', $code)->firstOrFail();
+        $newRevision = $request->input('revision');
 
         $file = $request->file('file');
         $fileSizeStr = $this->formatBytes($file->getSize());
 
-        // Save temporarily to read page count
-        $tempPath = $file->store('temp');
-        $absoluteTempPath = storage_path('app/private/'.$tempPath);
-        if (! file_exists($absoluteTempPath)) {
-            $absoluteTempPath = storage_path('app/'.$tempPath);
-        }
+        // Store new revision file to local public storage
+        $storagePath = "modules/{$module->code}/revisi-{$newRevision}";
+        $fileName = "{$module->code}_v{$newRevision}.pdf";
+        $localPath = $file->storeAs($storagePath, $fileName, 'public');
 
-        $pageCount = $this->getPdfPageCount($absoluteTempPath);
+        $absolutePath = Storage::disk('public')->path($localPath);
+        $pageCount = $this->getPdfPageCount($absolutePath);
 
-        // Upload to Google Drive
+        // Optionally push to Drive (non-fatal)
         $driveFileId = null;
         try {
-            $driveFileId = $this->driveService->uploadFile($absoluteTempPath, $module->code.'.pdf');
-
-            // Cache the file locally for fast preview / download (overwrites old cache)
-            $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
-            $cacheDir = dirname($cachePath);
-            if (! file_exists($cacheDir)) {
-                mkdir($cacheDir, 0755, true);
-            }
-            copy($absoluteTempPath, $cachePath);
-        } catch (\Exception $e) {
-            // Cleanup temp file
-            Storage::delete($tempPath);
-
-            return back()->withErrors(['file' => 'Gagal mengunggah revisi ke Google Drive: '.$e->getMessage()]);
+            $driveFileId = $this->driveService->uploadFile($absolutePath, $module->code.'.pdf');
+        } catch (\Exception) {
+            // Drive upload failure non-fatal
         }
 
-        // Cleanup temp file
-        Storage::delete($tempPath);
-
-        // Update database record
-        $module->update([
-            'current_revision' => $request->input('revision'),
-            'drive_file_id' => $driveFileId,
-            'file_size' => $fileSizeStr,
-            'file_pages' => $pageCount,
-            'status' => 'Approved', // Reset status to Approved when revised
-        ]);
-
-        // Create revision history record
+        // Save revision history
         ModuleRevision::create([
             'module_id' => $module->id,
-            'revision' => $request->input('revision'),
+            'revision' => $newRevision,
             'note' => $request->input('note'),
             'author_name' => Auth::user()->name ?? 'System Admin',
             'status' => 'Approved',
-            'drive_file_id' => $driveFileId,
+            'file_path' => $localPath,
+            'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
+            'drive_file_id' => $driveFileId,
             'created_by' => Auth::id(),
         ]);
 
-        return redirect()->route('database')->with('message', "Revisi {$request->input('revision')} untuk modul {$module->code} berhasil ditambahkan.");
-    }
+        // Update module to new revision (old file stays in ModuleRevision history)
+        $module->update([
+            'current_revision' => $newRevision,
+            'file_path' => $localPath,
+            'file_name' => $file->getClientOriginalName(),
+            'file_size' => $fileSizeStr,
+            'file_pages' => $pageCount,
+            'drive_file_id' => $driveFileId,
+            'status' => 'Approved',
+        ]);
 
+        return redirect()->route('database')->with('message', "Revisi {$newRevision} untuk modul {$module->code} berhasil ditambahkan.");
+    }
 
     /**
      * Format Indonesian date.
