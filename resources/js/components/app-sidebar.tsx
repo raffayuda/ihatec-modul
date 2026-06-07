@@ -117,10 +117,10 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent className="gap-0 py-2">
-                <NavMain label="Menu Utama" items={menuUtamaItems} />
                 {masterDataItems.length > 0 && (
                     <NavMain label="Master Data" items={masterDataItems} />
                 )}
+                <NavMain label="Menu Utama" items={menuUtamaItems} />
                 <NavMain label="Laporan & Lainnya" items={lainnyaItems} />
             </SidebarContent>
 
