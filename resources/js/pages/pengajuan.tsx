@@ -551,7 +551,7 @@ export default function Pengajuan() {
                                 { label: 'Ditolak', value: stats.ditolak, icon: XCircle, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/50 dark:text-rose-400' },
                             ].map((m) => (
                                 <Card key={m.label} className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                                    <CardContent className="flex flex-col items-start gap-2 p-4">
+                                    <CardContent className="flex items-start gap-2 p-4">
                                         <div className={`flex size-9 items-center justify-center rounded-xl ${m.color}`}>
                                             <m.icon className="size-4.5" />
                                         </div>
