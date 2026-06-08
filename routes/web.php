@@ -8,6 +8,7 @@ use App\Http\Controllers\PengajuanController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\MasterDataController;
+use App\Http\Controllers\DriveIntegrationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -47,11 +48,18 @@ Route::middleware(['auth'])->group(function () {
     Route::post('database/{code}/archive', [ModuleController::class, 'archive'])->name('database.archive');
     Route::post('database/{code}/unarchive', [ModuleController::class, 'unarchive'])->name('database.unarchive');
     Route::post('database/{code}/revision', [ModuleController::class, 'revision'])->name('database.revision');
+    Route::post('database/{code}/update', [ModuleController::class, 'update'])->name('database.update');
     Route::delete('database/{code}', [ModuleController::class, 'destroy'])->name('database.destroy');
 
     // Google Drive OAuth
     Route::get('google-drive/connect', [GoogleDriveOAuthController::class, 'connect'])->name('google-drive.connect');
     Route::get('google-drive/callback', [GoogleDriveOAuthController::class, 'callback'])->name('google-drive.callback');
+
+    // Google Drive Dynamic Settings (admin only)
+    Route::get('admin/drive-integration', [DriveIntegrationController::class, 'index'])->name('admin.drive-integration');
+    Route::post('admin/drive-integration/disconnect', [DriveIntegrationController::class, 'disconnect'])->name('admin.drive-integration.disconnect');
+    Route::post('admin/drive-integration/save-folder', [DriveIntegrationController::class, 'saveFolder'])->name('admin.drive-integration.save-folder');
+    Route::post('admin/drive-integration/create-folder', [DriveIntegrationController::class, 'createFolder'])->name('admin.drive-integration.create-folder');
 
     // Static pages (data still being migrated)
     Route::get('matriks', function () {

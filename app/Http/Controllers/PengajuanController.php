@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Module;
 use App\Models\ModuleRequest;
 use App\Models\MasterData;
+use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -137,6 +138,11 @@ class PengajuanController extends Controller
             ->pluck('name')
             ->toArray();
 
+        $refreshToken = Setting::get('google_refresh_token') 
+            ?? config('services.google.refresh_token') 
+            ?? env('GOOGLE_REFRESH_TOKEN');
+        $isDriveConnected = !empty($refreshToken);
+
         return Inertia::render('pengajuan', [
             'submissions' => $submissions,
             'stats' => $stats,
@@ -145,6 +151,7 @@ class PengajuanController extends Controller
             'trainingTypes' => $trainingTypes,
             'jenisKebutuhanOptions' => $jenisKebutuhanOptions,
             'bahasaPengantarOptions' => $bahasaPengantarOptions,
+            'isDriveConnected' => $isDriveConnected,
         ]);
     }
 

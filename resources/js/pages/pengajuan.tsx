@@ -126,6 +126,7 @@ interface PengajuanProps extends SharedData {
     trainingTypes?: string[];
     jenisKebutuhanOptions?: string[];
     bahasaPengantarOptions?: string[];
+    isDriveConnected?: boolean;
     flash?: {
         message?: string;
         error?: string;
@@ -274,7 +275,7 @@ function FileDropZone({ onFileSelect, selectedFile, existingFileName, existingFi
 
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function Pengajuan() {
-    const { auth, submissions, stats, chartData, availableModules, flash, trainingTypes, jenisKebutuhanOptions, bahasaPengantarOptions } = usePage<PengajuanProps>().props;
+    const { auth, submissions, stats, chartData, availableModules, flash, trainingTypes, jenisKebutuhanOptions, bahasaPengantarOptions, isDriveConnected = true } = usePage<PengajuanProps>().props;
     const role = auth?.user?.role ?? 'User';
     const isProcessor = ['Admin', 'Staf PD'].includes(role);
 
@@ -677,6 +678,15 @@ export default function Pengajuan() {
                     <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-400">
                         <AlertTriangle className="size-4.5" />
                         <span>{flash.error}</span>
+                    </div>
+                )}
+
+                {!isDriveConnected && (
+                    <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-amber-800 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/10 dark:text-amber-400">
+                        <AlertTriangle className="size-5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" />
+                        <div className="text-xs font-semibold leading-normal font-sans">
+                            <strong>Pemberitahuan:</strong> Akun Google Drive belum terhubung. Anda masih dapat mengajukan draf/permintaan modul, tetapi pengajuan tersebut tidak akan bisa disetujui (Approve) oleh Manager PD sampai akun Google Drive terhubung. Harap hubungi Administrator untuk menautkan akun Google Drive.
+                        </div>
                     </div>
                 )}
 

@@ -82,6 +82,7 @@ interface ApprovalProps extends SharedData {
     queue: ApprovalItem[];
     history: ApprovalItem[];
     stats: ApprovalStats;
+    isDriveConnected?: boolean;
     flash?: { message?: string; error?: string };
 }
 
@@ -98,7 +99,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function Approval() {
-    const { auth, queue, history, stats, flash } = usePage<ApprovalProps>().props;
+    const { auth, queue, history, stats, flash, isDriveConnected = true } = usePage<ApprovalProps>().props;
     const user = auth?.user;
     const role = user?.role || 'User';
     const roleLower = (user?.role || '').toLowerCase();
@@ -275,6 +276,15 @@ export default function Approval() {
                     <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-400">
                         <AlertTriangle className="size-4.5" />
                         <span>{flash.error}</span>
+                    </div>
+                )}
+
+                {!isDriveConnected && (
+                    <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-amber-800 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/10 dark:text-amber-400">
+                        <AlertTriangle className="size-5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" />
+                        <div className="text-xs font-semibold leading-normal font-sans">
+                            <strong>Integrasi Google Drive belum terhubung:</strong> Pengajuan tipe <strong>Modul Baru</strong> dan <strong>Revisi Modul</strong> tidak akan dapat disetujui (Approve) sampai akun Google Drive ditautkan. Hubungkan akun terlebih dahulu di halaman <a href="/admin/drive-integration" className="underline font-bold hover:text-amber-900 dark:hover:text-amber-200">Integrasi Drive</a>.
+                        </div>
                     </div>
                 )}
 

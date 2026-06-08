@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Module;
 use App\Models\ModuleRequest;
 use App\Models\ModuleRevision;
+use App\Models\Setting;
 use App\Services\GoogleDriveOAuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -59,10 +60,16 @@ class ApprovalController extends Controller
             'total' => ModuleRequest::count(),
         ];
 
+        $refreshToken = Setting::get('google_refresh_token') 
+            ?? config('services.google.refresh_token') 
+            ?? env('GOOGLE_REFRESH_TOKEN');
+        $isDriveConnected = !empty($refreshToken);
+
         return Inertia::render('approval', [
             'queue' => $queue,
             'history' => $history,
             'stats' => $stats,
+            'isDriveConnected' => $isDriveConnected,
         ]);
     }
 
@@ -86,6 +93,15 @@ class ApprovalController extends Controller
         if ($moduleRequest->status !== 'Menunggu Approval') {
             return redirect()->route('approval')
                 ->with('error', 'Pengajuan ini tidak sedang menunggu approval.');
+        }
+
+        $refreshToken = Setting::get('google_refresh_token') 
+            ?? config('services.google.refresh_token') 
+            ?? env('GOOGLE_REFRESH_TOKEN');
+
+        if (empty($refreshToken) && $moduleRequest->type !== 'Kebutuhan Khusus') {
+            return redirect()->route('approval')
+                ->with('error', 'Gagal menyetujui pengajuan. Akun Google Drive belum terhubung. Hubungkan akun Google Drive terlebih dahulu di halaman Integrasi Drive.');
         }
 
         // ── 8.3: Kebutuhan Khusus ───────────────────────────────────────────
@@ -140,29 +156,24 @@ class ApprovalController extends Controller
         if ($moduleRequest->type === 'Modul Baru') {
             $moduleCode = Module::generateCode();
 
-            // Move file from pengajuan storage to modules storage
-            $newFilePath = null;
-            $newFileName = null;
             $newFileSize = null;
             $pageCount = 1;
             $driveFileId = null;
 
             if ($moduleRequest->file_path && Storage::disk('public')->exists($moduleRequest->file_path)) {
-                $newDir = "modules/{$moduleCode}/revisi-1.0";
-                $newFileName = "{$moduleCode}_v1.0.pdf";
-                $newFilePath = "{$newDir}/{$newFileName}";
-
-                Storage::disk('public')->copy($moduleRequest->file_path, $newFilePath);
-                $newFileSize = $this->formatBytes(Storage::disk('public')->size($newFilePath));
-
-                $absolutePath = Storage::disk('public')->path($newFilePath);
+                $newFileSize = $this->formatBytes(Storage::disk('public')->size($moduleRequest->file_path));
+                $absolutePath = Storage::disk('public')->path($moduleRequest->file_path);
                 $pageCount = $this->getPdfPageCount($absolutePath);
 
-                // Upload to Google Drive (non-fatal)
+                // Upload to Google Drive (FATAL if fails)
                 try {
                     $driveFileId = $this->driveService->uploadFile($absolutePath, $moduleCode.'.pdf');
+                    // Delete the temp file in pengajuan directory
+                    Storage::disk('public')->delete($moduleRequest->file_path);
                 } catch (\Exception $e) {
                     Log::error('Google Drive Upload Failed during Approval', ['error' => $e->getMessage()]);
+                    return redirect()->route('approval')
+                        ->with('error', 'Gagal mengunggah file modul ke Google Drive: ' . $e->getMessage());
                 }
             }
 
@@ -174,8 +185,8 @@ class ApprovalController extends Controller
                 'description' => $moduleRequest->description,
                 'status' => 'Approved',
                 'current_revision' => '1.0',
-                'file_path' => $newFilePath,
-                'file_name' => $newFileName ?? $moduleRequest->file_name,
+                'file_path' => null, // No local copy
+                'file_name' => $moduleRequest->file_name,
                 'file_size' => $newFileSize ?? $moduleRequest->file_size,
                 'file_pages' => $pageCount,
                 'drive_file_id' => $driveFileId,
@@ -193,8 +204,8 @@ class ApprovalController extends Controller
                 'reason' => $moduleRequest->description,
                 'author_name' => $moduleRequest->applicant?->name ?? 'Sistem',
                 'status' => 'Approved',
-                'file_path' => $newFilePath,
-                'file_name' => $newFileName ?? $moduleRequest->file_name,
+                'file_path' => null, // No local copy
+                'file_name' => $moduleRequest->file_name,
                 'file_size' => $newFileSize ?? $moduleRequest->file_size,
                 'file_pages' => $pageCount,
                 'drive_file_id' => $driveFileId,
@@ -207,29 +218,24 @@ class ApprovalController extends Controller
             $existingModule = $moduleRequest->relatedModule;
             $newRevision = Module::incrementRevision($existingModule->current_revision);
 
-            // Move/copy new file
-            $newFilePath = null;
-            $newFileName = null;
             $newFileSize = null;
             $pageCount = 1;
             $driveFileId = null;
 
             if ($moduleRequest->file_path && Storage::disk('public')->exists($moduleRequest->file_path)) {
-                $newDir = "modules/{$existingModule->code}/revisi-{$newRevision}";
-                $newFileName = "{$existingModule->code}_v{$newRevision}.pdf";
-                $newFilePath = "{$newDir}/{$newFileName}";
-
-                Storage::disk('public')->copy($moduleRequest->file_path, $newFilePath);
-                $newFileSize = $this->formatBytes(Storage::disk('public')->size($newFilePath));
-
-                $absolutePath = Storage::disk('public')->path($newFilePath);
+                $newFileSize = $this->formatBytes(Storage::disk('public')->size($moduleRequest->file_path));
+                $absolutePath = Storage::disk('public')->path($moduleRequest->file_path);
                 $pageCount = $this->getPdfPageCount($absolutePath);
 
-                // Upload to Google Drive (non-fatal)
+                // Upload to Google Drive (FATAL if fails)
                 try {
                     $driveFileId = $this->driveService->uploadFile($absolutePath, $existingModule->code.'.pdf');
+                    // Delete the temp file in pengajuan directory
+                    Storage::disk('public')->delete($moduleRequest->file_path);
                 } catch (\Exception $e) {
                     Log::error('Google Drive Upload Failed during Approval', ['error' => $e->getMessage()]);
+                    return redirect()->route('approval')
+                        ->with('error', 'Gagal mengunggah file modul ke Google Drive: ' . $e->getMessage());
                 }
             }
 
@@ -241,8 +247,8 @@ class ApprovalController extends Controller
                 'reason' => $moduleRequest->revision_reason ?? $moduleRequest->description,
                 'author_name' => $moduleRequest->applicant?->name ?? 'Sistem',
                 'status' => 'Approved',
-                'file_path' => $newFilePath,
-                'file_name' => $newFileName ?? $moduleRequest->file_name,
+                'file_path' => null, // No local copy
+                'file_name' => $moduleRequest->file_name,
                 'file_size' => $newFileSize ?? $moduleRequest->file_size,
                 'file_pages' => $pageCount,
                 'drive_file_id' => $driveFileId,
@@ -253,9 +259,9 @@ class ApprovalController extends Controller
             $existingModule->update([
                 'current_revision' => $newRevision,
                 'status' => 'Approved',
-                'file_path' => $newFilePath ?? $existingModule->file_path,
-                'file_name' => $newFileName ?? $existingModule->file_name,
-                'file_size' => $newFileSize ?? $existingModule->file_size,
+                'file_path' => null, // No local copy
+                'file_name' => $moduleRequest->file_name,
+                'file_size' => $newFileSize ?? $moduleRequest->file_size,
                 'file_pages' => $pageCount,
                 'drive_file_id' => $driveFileId ?? $existingModule->drive_file_id,
                 'approved_by' => $user->id,

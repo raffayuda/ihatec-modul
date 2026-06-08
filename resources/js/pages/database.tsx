@@ -26,7 +26,9 @@ import {
     ShieldCheck,
     Briefcase,
     History,
-    Loader2
+    Loader2,
+    AlertTriangle,
+    Pencil
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -53,6 +55,41 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+function generateAcronymCode(title: string, revision: string = '1.0', modules: any[] = []): string {
+    const cleanTitle = title.trim();
+    if (!cleanTitle) return '';
+
+    // Split by spaces/whitespace and filter out empty words
+    const words = cleanTitle.split(/\s+/).filter(word => word.length > 0);
+    let acronym = '';
+
+    if (words.length === 1) {
+        // Only one word - use it in full (clean up special characters)
+        acronym = words[0].replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    } else {
+        // Multiple words - take first letter of each
+        acronym = words
+            .map(word => word.charAt(0))
+            .join('')
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .toUpperCase();
+    }
+
+    if (!acronym) return '';
+
+    const baseCode = `${acronym}-V${revision}`;
+    let finalCode = baseCode;
+    let counter = 1;
+
+    // Check for conflict/clash with existing module codes
+    while (modules.some(m => m.id.toUpperCase() === finalCode.toUpperCase())) {
+        finalCode = `${baseCode}-${counter}`;
+        counter++;
+    }
+
+    return finalCode;
+}
+
 interface ModuleItem {
     id: string;
     title: string;
@@ -73,7 +110,7 @@ interface ModuleItem {
     }>;
 }
 
-interface DatabaseModulProps {
+interface DatabaseModulProps extends SharedData {
     modules?: ModuleItem[];
     metrics?: {
         total: number;
@@ -91,6 +128,7 @@ interface DatabaseModulProps {
         title: string;
         views: number;
     }>;
+    isDriveConnected?: boolean;
 }
 
 interface PdfThumbnailProps {
@@ -201,7 +239,8 @@ export default function DatabaseModul({
     modules: initialModules = [],
     metrics = { total: 0, approved: 0, revisi: 0, arsip: 0 },
     categories = [],
-    popular = []
+    popular = [],
+    isDriveConnected = true,
 }: DatabaseModulProps) {
     const page = usePage<SharedData>();
     const user = page.props.auth?.user;
@@ -266,6 +305,32 @@ export default function DatabaseModul({
 
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+    // Manual code edit tracking
+    const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
+
+    // Edit modal states
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingModuleCode, setEditingModuleCode] = useState<string>('');
+
+    // Edit form hook
+    const editForm = useForm({
+        code: '',
+        title: '',
+        program: 'Regulasi & Kepatuhan',
+        language: 'Indonesia',
+        description: '',
+        file: null as File | null,
+    });
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    // Reset current page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, typeFilter, langFilter, statusFilter, revFilter, showArchivedOnly]);
+
     // Active item matching
     const selectedModule = useMemo(() => {
         return modules.find(m => m.id === activeSelectedId) || modules[0] || null;
@@ -312,6 +377,12 @@ export default function DatabaseModul({
         });
     }, [modules, searchQuery, typeFilter, langFilter, statusFilter, revFilter, showArchivedOnly]);
 
+    // Paginated modules for rendering
+    const paginatedModules = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredModules.slice(start, start + itemsPerPage);
+    }, [filteredModules, currentPage, itemsPerPage]);
+
     // Reset Filters
     const handleResetFilters = () => {
         setSearchQuery('');
@@ -329,7 +400,21 @@ export default function DatabaseModul({
             onSuccess: () => {
                 setIsAddModalOpen(false);
                 reset();
+                setIsCodeManuallyEdited(false);
                 setToastMessage(`Modul ${data.code.toUpperCase()} berhasil ditambahkan ke database.`);
+                setTimeout(() => setToastMessage(null), 4000);
+            },
+        });
+    };
+
+    // Edit module submit handler
+    const handleEditModule = (e: React.FormEvent) => {
+        e.preventDefault();
+        editForm.post(`/database/${editingModuleCode}/update`, {
+            onSuccess: () => {
+                setIsEditModalOpen(false);
+                editForm.reset();
+                setToastMessage(`Modul ${editForm.data.code.toUpperCase()} berhasil diperbarui.`);
                 setTimeout(() => setToastMessage(null), 4000);
             },
         });
@@ -386,6 +471,15 @@ export default function DatabaseModul({
                         Pusat data modul pelatihan, dokumen approved, dan riwayat revisi.
                     </p>
                 </div>
+
+                {!isDriveConnected && (
+                    <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-amber-800 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/10 dark:text-amber-400 animate-in fade-in duration-300">
+                        <AlertTriangle className="size-5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" />
+                        <div className="text-xs font-semibold leading-normal font-sans">
+                            <strong>Integrasi Google Drive belum terhubung:</strong> Anda tidak dapat menambahkan modul baru atau menambahkan revisi ke database modul secara langsung sampai akun Google Drive ditautkan. Hubungkan akun terlebih dahulu di halaman <a href="/admin/drive-integration" className="underline font-bold hover:text-amber-900 dark:hover:text-amber-200">Integrasi Drive</a>.
+                        </div>
+                    </div>
+                )}
 
                 {/* Success Toast */}
                 {toastMessage && (
@@ -614,14 +708,14 @@ export default function DatabaseModul({
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                                        {filteredModules.length === 0 ? (
+                                        {paginatedModules.length === 0 ? (
                                             <tr>
                                                 <td colSpan={9} className="text-center py-10 text-neutral-400 font-medium dark:text-neutral-500">
                                                     Tidak ada data modul yang cocok dengan filter.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredModules.map((item) => (
+                                            paginatedModules.map((item) => (
                                                 <tr
                                                     key={item.id}
                                                     onClick={() => setSelectedModuleId(item.id)}
@@ -689,27 +783,46 @@ export default function DatabaseModul({
                                                                 <DropdownMenuContent align="end" className="w-40 text-xs">
                                                                     <DropdownMenuItem className="cursor-pointer font-medium" onClick={() => window.location.href = `/database/${item.id}/download`}>Unduh PDF</DropdownMenuItem>
                                                                     {(role === 'admin' || role === 'Staf PD') && (
-                                                                        <DropdownMenuItem 
-                                                                            className="cursor-pointer font-medium"
-                                                                            onClick={() => {
-                                                                                let nextRevision = '1.1';
-                                                                                if (item.revision) {
-                                                                                    const parsed = parseFloat(item.revision);
-                                                                                    if (!isNaN(parsed)) {
-                                                                                        nextRevision = (parsed + 0.1).toFixed(1);
+                                                                        <>
+                                                                            <DropdownMenuItem 
+                                                                                className="cursor-pointer font-medium"
+                                                                                onClick={() => {
+                                                                                    setEditingModuleCode(item.id);
+                                                                                    editForm.setData({
+                                                                                        code: item.id,
+                                                                                        title: item.title,
+                                                                                        program: item.program,
+                                                                                        language: item.language,
+                                                                                        description: item.description || '',
+                                                                                        file: null,
+                                                                                    });
+                                                                                    setIsEditModalOpen(true);
+                                                                                }}
+                                                                            >
+                                                                                Edit Modul
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem 
+                                                                                className="cursor-pointer font-medium"
+                                                                                onClick={() => {
+                                                                                    let nextRevision = '1.1';
+                                                                                    if (item.revision) {
+                                                                                        const parsed = parseFloat(item.revision);
+                                                                                        if (!isNaN(parsed)) {
+                                                                                            nextRevision = (parsed + 0.1).toFixed(1);
+                                                                                        }
                                                                                     }
-                                                                                }
-                                                                                setReviseData({
-                                                                                    code: item.id,
-                                                                                    revision: nextRevision,
-                                                                                    note: '',
-                                                                                    file: null,
-                                                                                });
-                                                                                setIsReviseModalOpen(true);
-                                                                            }}
-                                                                        >
-                                                                            Buat Revisi
-                                                                        </DropdownMenuItem>
+                                                                                    setReviseData({
+                                                                                        code: item.id,
+                                                                                        revision: nextRevision,
+                                                                                        note: '',
+                                                                                        file: null,
+                                                                                    });
+                                                                                    setIsReviseModalOpen(true);
+                                                                                }}
+                                                                            >
+                                                                                Buat Revisi
+                                                                            </DropdownMenuItem>
+                                                                        </>
                                                                     )}
                                                                     {(role === 'admin' || role === 'Staf PD') && (
                                                                         item.status === 'Arsip' ? (
@@ -763,25 +876,99 @@ export default function DatabaseModul({
                             {/* Pagination footer */}
                             <div className="p-4 border-t border-neutral-100 bg-neutral-50/20 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-neutral-500 dark:text-neutral-400">
                                 <span className="font-medium">
-                                    Menampilkan 1-{filteredModules.length} dari 386 modul
+                                    Menampilkan {filteredModules.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(currentPage * itemsPerPage, filteredModules.length)} dari {filteredModules.length} modul
                                 </span>
                                 <div className="flex items-center gap-4">
                                     <select
+                                        value={itemsPerPage}
+                                        onChange={(e) => {
+                                            setItemsPerPage(Number(e.target.value));
+                                            setCurrentPage(1);
+                                        }}
                                         className="h-8 rounded-lg border border-neutral-200 bg-white px-2 text-xs outline-none text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
-                                        defaultValue="10"
                                     >
                                         <option value="10">10 / halaman</option>
                                         <option value="20">20 / halaman</option>
                                         <option value="50">50 / halaman</option>
                                     </select>
                                     <div className="flex items-center gap-1.5">
-                                        <button className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400"><ChevronLeft className="size-3.5" /></button>
-                                        <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border bg-blue-600 border-blue-600 text-white dark:bg-blue-500 dark:border-blue-500">1</button>
-                                        <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">2</button>
-                                        <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">3</button>
-                                        <span className="text-neutral-400">...</span>
-                                        <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">39</button>
-                                        <button className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400"><ChevronRight className="size-3.5" /></button>
+                                        <button 
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                            className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 disabled:opacity-55 disabled:hover:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400"
+                                        >
+                                            <ChevronLeft className="size-3.5" />
+                                        </button>
+                                        
+                                        {(() => {
+                                            const totalPages = Math.ceil(filteredModules.length / itemsPerPage);
+                                            const range = [];
+                                            const maxVisible = 5;
+                                            if (totalPages <= maxVisible) {
+                                                for (let i = 1; i <= totalPages; i++) {
+                                                    range.push(i);
+                                                }
+                                            } else {
+                                                range.push(1);
+                                                let start = Math.max(2, currentPage - 1);
+                                                let end = Math.min(totalPages - 1, currentPage + 1);
+
+                                                if (currentPage <= 3) {
+                                                    end = 4;
+                                                } else if (currentPage >= totalPages - 2) {
+                                                    start = totalPages - 3;
+                                                }
+
+                                                if (start > 2) {
+                                                    range.push('...');
+                                                }
+
+                                                for (let i = start; i <= end; i++) {
+                                                    range.push(i);
+                                                }
+
+                                                if (end < totalPages - 1) {
+                                                    range.push('...');
+                                                }
+
+                                                range.push(totalPages);
+                                            }
+
+                                            return range.map((pageVal, index) => {
+                                                if (pageVal === '...') {
+                                                    return (
+                                                        <span key={`ell-${index}`} className="text-neutral-400 px-1 select-none">
+                                                            ...
+                                                        </span>
+                                                    );
+                                                }
+                                                const isActive = pageVal === currentPage;
+                                                return (
+                                                    <button
+                                                        key={`page-${pageVal}`}
+                                                        onClick={() => setCurrentPage(Number(pageVal))}
+                                                        className={`flex size-7 items-center justify-center rounded text-xs font-semibold border ${
+                                                            isActive
+                                                                ? 'bg-blue-600 border-blue-600 text-white dark:bg-blue-500 dark:border-blue-500'
+                                                                : 'border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400'
+                                                        }`}
+                                                    >
+                                                        {pageVal}
+                                                    </button>
+                                                );
+                                            });
+                                        })()}
+
+                                        <button 
+                                            onClick={() => {
+                                                const totalPages = Math.ceil(filteredModules.length / itemsPerPage);
+                                                setCurrentPage(prev => Math.min(prev + 1, totalPages));
+                                            }}
+                                            disabled={currentPage === Math.ceil(filteredModules.length / itemsPerPage) || filteredModules.length === 0}
+                                            className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 disabled:opacity-55 disabled:hover:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400"
+                                        >
+                                            <ChevronRight className="size-3.5" />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1077,7 +1264,19 @@ export default function DatabaseModul({
                                 type="text"
                                 required
                                 value={data.code}
-                                onChange={(e) => setData('code', e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '') {
+                                        setIsCodeManuallyEdited(false);
+                                        setData(prev => ({
+                                            ...prev,
+                                            code: generateAcronymCode(prev.title, '1.0', modules)
+                                        }));
+                                    } else {
+                                        setIsCodeManuallyEdited(true);
+                                        setData('code', val);
+                                    }
+                                }}
                                 placeholder="Contoh: SJPH.01"
                                 className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                             />
@@ -1095,7 +1294,14 @@ export default function DatabaseModul({
                                 type="text"
                                 required
                                 value={data.title}
-                                onChange={(e) => setData('title', e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setData(prev => ({
+                                        ...prev,
+                                        title: val,
+                                        code: isCodeManuallyEdited ? prev.code : generateAcronymCode(val, '1.0', modules)
+                                    }));
+                                }}
                                 placeholder="Contoh: Pengenalan ISO 9001:2015"
                                 className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                             />
@@ -1285,6 +1491,150 @@ export default function DatabaseModul({
                                 className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold"
                             >
                                 {reviseProcessing ? 'Mengunggah...' : 'Simpan Revisi'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: Edit Modul */}
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                <DialogContent className="max-w-md bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                            <Pencil className="size-5 text-blue-600 dark:text-blue-400" />
+                            <span>Edit Modul Pelatihan</span>
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-neutral-400 dark:text-neutral-500">
+                            Ubah detail modul pelatihan. Kode modul dapat disesuaikan jika diperlukan.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleEditModule} className="space-y-4 py-2 text-xs">
+                        {/* Kode Modul */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                Kode Modul
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={editForm.data.code}
+                                onChange={(e) => editForm.setData('code', e.target.value)}
+                                placeholder="Contoh: SJPH.01"
+                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                            />
+                            {editForm.errors.code && (
+                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{editForm.errors.code}</p>
+                            )}
+                        </div>
+
+                        {/* Judul Modul */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                Judul Modul
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={editForm.data.title}
+                                onChange={(e) => editForm.setData('title', e.target.value)}
+                                placeholder="Contoh: Pengenalan ISO 9001:2015"
+                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                            />
+                            {editForm.errors.title && (
+                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{editForm.errors.title}</p>
+                            )}
+                        </div>
+
+                        {/* Program & Bahasa */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                    Program / Jenis Pelatihan
+                                </label>
+                                <select
+                                    value={editForm.data.program}
+                                    onChange={(e) => editForm.setData('program', e.target.value)}
+                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                >
+                                    <option value="Regulasi & Kepatuhan">Regulasi & Kepatuhan</option>
+                                    <option value="Teknis Laboratorium">Teknis Laboratorium</option>
+                                    <option value="Sertifikasi & Auditor">Sertifikasi & Auditor</option>
+                                    <option value="Manajerial & Kepemimpinan">Manajerial & Kepemimpinan</option>
+                                    <option value="Teknis Produksi">Teknis Produksi</option>
+                                    <option value="Supply Chain & Logistik">Supply Chain & Logistik</option>
+                                    <option value="K3 & Keamanan">K3 & Keamanan</option>
+                                    <option value="Pengembangan SDM">Pengembangan SDM</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                    Bahasa
+                                </label>
+                                <select
+                                    value={editForm.data.language}
+                                    onChange={(e) => editForm.setData('language', e.target.value)}
+                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                >
+                                    <option value="Indonesia">Indonesia</option>
+                                    <option value="English">English</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Deskripsi */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                Deskripsi Ringkas Modul
+                            </label>
+                            <textarea
+                                value={editForm.data.description}
+                                onChange={(e) => editForm.setData('description', e.target.value)}
+                                placeholder="Jelaskan secara singkat ruang lingkup modul pelatihan..."
+                                className="w-full h-20 rounded-lg border border-neutral-200 bg-neutral-50/50 p-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                            />
+                        </div>
+
+                        {/* PDF File Upload (Optional) */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                File PDF Modul Baru (Opsional)
+                            </label>
+                            <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => editForm.setData('file', e.target.files ? e.target.files[0] : null)}
+                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 file:mr-2.5 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-neutral-800 dark:file:text-blue-400 cursor-pointer"
+                            />
+                            <p className="text-[10px] text-neutral-400 mt-1">Biarkan kosong jika tidak ingin mengubah file dokumen di Google Drive.</p>
+                            {editForm.errors.file && (
+                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{editForm.errors.file}</p>
+                            )}
+                        </div>
+
+                        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => setIsEditModalOpen(false)}
+                                className="rounded-lg h-9 px-4 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-500 dark:text-neutral-400"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={editForm.processing}
+                                className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold flex items-center gap-1.5"
+                            >
+                                {editForm.processing ? (
+                                    <>
+                                        <Loader2 className="size-3.5 animate-spin" />
+                                        <span>Menyimpan...</span>
+                                    </>
+                                ) : (
+                                    <span>Simpan Perubahan</span>
+                                )}
                             </Button>
                         </DialogFooter>
                     </form>

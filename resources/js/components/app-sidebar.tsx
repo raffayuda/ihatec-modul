@@ -19,6 +19,7 @@ import {
     RotateCcw,
     ClipboardList,
     Bell,
+    Cloud,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
@@ -40,6 +41,7 @@ export function AppSidebar() {
         { title: 'Manajemen Modul', url: '/master-data', icon: Layers },
         // { title: 'Audit Log', url: '/audit-log', icon: History },
         { title: 'Report', url: '/report', icon: BarChart3 },
+        { title: 'Integrasi Drive', url: '/admin/drive-integration', icon: Cloud },
         { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
@@ -97,7 +99,7 @@ export function AppSidebar() {
 
     // Group: "Menu Utama" vs "Master Data" vs "Laporan & Lainnya"
     const masterDataTitles = ['Manajemen User', 'Manajemen Modul'];
-    const lainnyaTitles = ['Report', 'Pengaturan'];
+    const lainnyaTitles = ['Report', 'Pengaturan', 'Integrasi Drive'];
     const menuUtamaItems = allItems.filter((item) => !lainnyaTitles.includes(item.title) && !masterDataTitles.includes(item.title));
     const masterDataItems = allItems.filter((item) => masterDataTitles.includes(item.title));
     const lainnyaItems = allItems.filter((item) => lainnyaTitles.includes(item.title));

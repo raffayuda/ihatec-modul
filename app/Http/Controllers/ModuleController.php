@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Module;
 use App\Models\ModuleRevision;
+use App\Models\Setting;
 use App\Services\GoogleDriveOAuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -99,11 +100,17 @@ class ModuleController extends Controller
             ];
         });
 
+        $refreshToken = Setting::get('google_refresh_token') 
+            ?? config('services.google.refresh_token') 
+            ?? env('GOOGLE_REFRESH_TOKEN');
+        $isDriveConnected = !empty($refreshToken);
+
         return Inertia::render('database', [
             'modules' => $modules,
             'metrics' => $metrics,
             'categories' => $categories,
             'popular' => $popularModules,
+            'isDriveConnected' => $isDriveConnected,
         ]);
     }
 
@@ -114,6 +121,14 @@ class ModuleController extends Controller
     {
         if (! in_array(Auth::user()->role, ['admin', 'staf pd', 'Staf PD'])) {
             abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk menambahkan modul.');
+        }
+
+        $refreshToken = Setting::get('google_refresh_token') 
+            ?? config('services.google.refresh_token') 
+            ?? env('GOOGLE_REFRESH_TOKEN');
+
+        if (empty($refreshToken)) {
+            return back()->withErrors(['error' => 'Tidak dapat menyimpan modul. Akun Google Drive belum terhubung. Silakan hubungi Administrator untuk menghubungkan Google Drive.']);
         }
 
         $request->validate([
@@ -129,22 +144,22 @@ class ModuleController extends Controller
         $file = $request->file('file');
         $fileSizeStr = $this->formatBytes($file->getSize());
 
-        // Store to local public disk
-        $storagePath = "modules/{$code}/revisi-1.0";
-        $fileName = "{$code}_v1.0.pdf";
-        $localPath = $file->storeAs($storagePath, $fileName, 'public');
-
-        // Count pages
-        $absolutePath = Storage::disk('public')->path($localPath);
+        // Store temporarily
+        $tempPath = $file->store('temp_uploads', 'public');
+        $absolutePath = Storage::disk('public')->path($tempPath);
         $pageCount = $this->getPdfPageCount($absolutePath);
 
-        // Optionally try Google Drive upload (non-fatal)
-        $driveFileId = null;
+        // Upload to Google Drive (FATAL if fails)
         try {
             $driveFileId = $this->driveService->uploadFile($absolutePath, $code.'.pdf');
-        } catch (\Exception) {
-            // Drive upload failure is non-fatal; file already saved locally
+        } catch (\Exception $e) {
+            // Clean up temp file
+            Storage::disk('public')->delete($tempPath);
+            return back()->withErrors(['error' => 'Gagal mengunggah ke Google Drive: '.$e->getMessage()]);
         }
+
+        // Clean up temp file
+        Storage::disk('public')->delete($tempPath);
 
         $module = Module::create([
             'code' => $code,
@@ -154,7 +169,7 @@ class ModuleController extends Controller
             'description' => $request->input('description'),
             'status' => 'Approved',
             'current_revision' => '1.0',
-            'file_path' => $localPath,
+            'file_path' => null,
             'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
@@ -170,7 +185,7 @@ class ModuleController extends Controller
             'note' => 'Rilis pertama modul baru.',
             'author_name' => Auth::user()->name ?? 'System Admin',
             'status' => 'Approved',
-            'file_path' => $localPath,
+            'file_path' => null,
             'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
@@ -259,6 +274,20 @@ class ModuleController extends Controller
 
         $module = Module::where('code', $code)->firstOrFail();
 
+        // Delete associated files from Google Drive
+        $driveFileIds = $module->revisions()->pluck('drive_file_id')
+            ->merge([$module->drive_file_id])
+            ->filter()
+            ->unique();
+
+        foreach ($driveFileIds as $fileId) {
+            try {
+                $this->driveService->deleteFile($fileId);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning("Gagal menghapus file Google Drive {$fileId} saat menghapus modul {$code}: " . $e->getMessage());
+            }
+        }
+
         // Delete local cache if it exists
         $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
         if (file_exists($cachePath)) {
@@ -269,6 +298,112 @@ class ModuleController extends Controller
 
         return redirect()->route('database')->with('message', "Modul {$code} berhasil dihapus.");
     }
+
+    /**
+     * Update the specified module.
+     */
+    public function update(Request $request, string $code)
+    {
+        if (! in_array(Auth::user()->role, ['admin', 'staf pd', 'Staf PD'])) {
+            abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk mengubah modul.');
+        }
+
+        $module = Module::where('code', $code)->firstOrFail();
+
+        $request->validate([
+            'code' => 'required|string|unique:modules,code,' . $module->id,
+            'title' => 'required|string',
+            'program' => 'required|string',
+            'language' => 'required|string',
+            'description' => 'nullable|string',
+            'file' => 'nullable|file|mimes:pdf|max:20480',
+        ]);
+
+        $newCode = strtoupper($request->input('code'));
+        $oldDriveFileId = $module->drive_file_id;
+        $file = $request->file('file');
+
+        $updateData = [
+            'code' => $newCode,
+            'title' => $request->input('title'),
+            'program' => $request->input('program'),
+            'language' => $request->input('language'),
+            'description' => $request->input('description'),
+        ];
+
+        // Delete cache file if code changes or new file is uploaded
+        if ($newCode !== $module->code || $file) {
+            $cachePath = storage_path('app/pdf_cache/' . $module->code . '.pdf');
+            if (file_exists($cachePath)) {
+                @unlink($cachePath);
+            }
+            $newCachePath = storage_path('app/pdf_cache/' . $newCode . '.pdf');
+            if (file_exists($newCachePath)) {
+                @unlink($newCachePath);
+            }
+        }
+
+        if ($file) {
+            $fileSizeStr = $this->formatBytes($file->getSize());
+
+            // Store temporarily
+            $tempPath = $file->store('temp_uploads', 'public');
+            $absolutePath = Storage::disk('public')->path($tempPath);
+            $pageCount = $this->getPdfPageCount($absolutePath);
+
+            // Upload new file to Google Drive
+            try {
+                $driveFileId = $this->driveService->uploadFile($absolutePath, $newCode.'.pdf');
+            } catch (\Exception $e) {
+                Storage::disk('public')->delete($tempPath);
+                return back()->withErrors(['error' => 'Gagal mengunggah file baru ke Google Drive: '.$e->getMessage()]);
+            }
+
+            // Clean up temp file
+            Storage::disk('public')->delete($tempPath);
+
+            // Delete old file from Google Drive
+            if (!empty($oldDriveFileId)) {
+                try {
+                    $this->driveService->deleteFile($oldDriveFileId);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning("Gagal menghapus file lama Google Drive {$oldDriveFileId} saat memperbarui modul {$code}: " . $e->getMessage());
+                }
+            }
+
+            $updateData['file_name'] = $file->getClientOriginalName();
+            $updateData['file_size'] = $fileSizeStr;
+            $updateData['file_pages'] = $pageCount;
+            $updateData['drive_file_id'] = $driveFileId;
+            $updateData['file_path'] = null;
+
+            // Update the latest revision record
+            $latestRevision = $module->revisions()->first();
+            if ($latestRevision) {
+                $oldRevFileId = $latestRevision->drive_file_id;
+                if (!empty($oldRevFileId) && $oldRevFileId !== $oldDriveFileId) {
+                    try {
+                        $this->driveService->deleteFile($oldRevFileId);
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::warning("Gagal menghapus file revisi lama Google Drive {$oldRevFileId}: " . $e->getMessage());
+                    }
+                }
+
+                $latestRevision->update([
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_size' => $fileSizeStr,
+                    'file_pages' => $pageCount,
+                    'drive_file_id' => $driveFileId,
+                    'file_path' => null,
+                ]);
+            }
+        }
+
+        $module->update($updateData);
+
+        return redirect()->route('database')->with('message', "Modul {$newCode} berhasil diperbarui.");
+    }
+
 
     /**
      * Archive the specified module.
@@ -315,6 +450,14 @@ class ModuleController extends Controller
             abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk merevisi modul.');
         }
 
+        $refreshToken = Setting::get('google_refresh_token') 
+            ?? config('services.google.refresh_token') 
+            ?? env('GOOGLE_REFRESH_TOKEN');
+
+        if (empty($refreshToken)) {
+            return back()->withErrors(['error' => 'Tidak dapat merevisi modul. Akun Google Drive belum terhubung. Silakan hubungi Administrator untuk menghubungkan Google Drive.']);
+        }
+
         $request->validate([
             'revision' => 'required|string',
             'note' => 'required|string',
@@ -327,21 +470,22 @@ class ModuleController extends Controller
         $file = $request->file('file');
         $fileSizeStr = $this->formatBytes($file->getSize());
 
-        // Store new revision file to local public storage
-        $storagePath = "modules/{$module->code}/revisi-{$newRevision}";
-        $fileName = "{$module->code}_v{$newRevision}.pdf";
-        $localPath = $file->storeAs($storagePath, $fileName, 'public');
-
-        $absolutePath = Storage::disk('public')->path($localPath);
+        // Store temporarily
+        $tempPath = $file->store('temp_uploads', 'public');
+        $absolutePath = Storage::disk('public')->path($tempPath);
         $pageCount = $this->getPdfPageCount($absolutePath);
 
-        // Optionally push to Drive (non-fatal)
-        $driveFileId = null;
+        // Upload to Google Drive (FATAL if fails)
         try {
             $driveFileId = $this->driveService->uploadFile($absolutePath, $module->code.'.pdf');
-        } catch (\Exception) {
-            // Drive upload failure non-fatal
+        } catch (\Exception $e) {
+            // Clean up temp file
+            Storage::disk('public')->delete($tempPath);
+            return back()->withErrors(['error' => 'Gagal mengunggah ke Google Drive: '.$e->getMessage()]);
         }
+
+        // Clean up temp file
+        Storage::disk('public')->delete($tempPath);
 
         // Save revision history
         ModuleRevision::create([
@@ -350,7 +494,7 @@ class ModuleController extends Controller
             'note' => $request->input('note'),
             'author_name' => Auth::user()->name ?? 'System Admin',
             'status' => 'Approved',
-            'file_path' => $localPath,
+            'file_path' => null,
             'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
@@ -361,7 +505,7 @@ class ModuleController extends Controller
         // Update module to new revision (old file stays in ModuleRevision history)
         $module->update([
             'current_revision' => $newRevision,
-            'file_path' => $localPath,
+            'file_path' => null,
             'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
