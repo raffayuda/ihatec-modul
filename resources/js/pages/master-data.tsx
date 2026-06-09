@@ -322,8 +322,8 @@ export default function MasterData() {
 
                 {/* Success Toast */}
                 {toastMessage && (
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400 shadow-sm animate-in fade-in duration-300">
-                        <CheckCircle2 className="size-4.5" />
+                    <div className="fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400 shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300">
+                        <CheckCircle2 className="size-4.5 text-emerald-600 dark:text-emerald-450" />
                         <span>{toastMessage}</span>
                     </div>
                 )}

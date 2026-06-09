@@ -26,6 +26,7 @@ import {
     Download,
     X as XIcon,
     FileCheck,
+    Loader2,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -41,7 +42,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -148,6 +149,110 @@ const PRIORITY_COLORS: Record<string, string> = {
     Medium: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300',
     Low: 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400',
 };
+
+interface PdfThumbnailProps {
+    url: string;
+    fallback: React.ReactNode;
+}
+
+export function PdfThumbnail({ url, fallback }: PdfThumbnailProps) {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        let isMounted = true;
+        setLoading(true);
+        setError(false);
+
+        const renderPdf = async () => {
+            try {
+                // Ensure pdfjsLib is loaded
+                if (!(window as any).pdfjsLib) {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+                        script.onload = () => {
+                            (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+                            resolve(true);
+                        };
+                        script.onerror = reject;
+                        document.body.appendChild(script);
+                    });
+                }
+
+                const pdfjsLib = (window as any).pdfjsLib;
+                if (!pdfjsLib) {
+                    throw new Error('PDF.js not loaded');
+                }
+
+                const loadingTask = pdfjsLib.getDocument({
+                    url: url,
+                    withCredentials: true
+                });
+                const pdf = await loadingTask.promise;
+                
+                if (!isMounted) return;
+
+                const page = await pdf.getPage(1);
+                
+                if (!isMounted) return;
+
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const context = canvas.getContext('2d');
+                if (!context) return;
+
+                // Adjust to fit container width (96px/w-24)
+                const unscaledViewport = page.getViewport({ scale: 1 });
+                const scale = 96 / unscaledViewport.width;
+                const viewport = page.getViewport({ scale: scale });
+
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport,
+                };
+
+                await page.render(renderContext).promise;
+
+                if (isMounted) {
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error('Error rendering PDF thumbnail:', err);
+                if (isMounted) {
+                    setError(true);
+                    setLoading(false);
+                }
+            }
+        };
+
+        renderPdf();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [url]);
+
+    if (error) {
+        return <>{fallback}</>;
+    }
+
+    return (
+        <div className="w-24 h-32 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-850 flex items-center justify-center relative shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+            {loading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-neutral-950/80 z-10 font-medium">
+                    <Loader2 className="size-4 animate-spin text-blue-600 dark:text-blue-500" />
+                </div>
+            )}
+            <canvas ref={canvasRef} className="w-full h-full object-cover" />
+        </div>
+    );
+}
 
 // ── File Upload Zone Component ──────────────────────────────────────────────
 interface FileDropZoneProps {
@@ -383,6 +488,34 @@ export default function Pengajuan() {
     // Standalone file upload
     const [standaloneFile, setStandaloneFile] = useState<File | null>(null);
     const [uploadProcessing, setUploadProcessing] = useState(false);
+
+    // Toast state and auto-close handler
+    const [localToast, setLocalToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    useEffect(() => {
+        if (flash?.message) {
+            setLocalToast({ message: flash.message, type: 'success' });
+            const timer = setTimeout(() => setLocalToast(null), 4000);
+            return () => clearTimeout(timer);
+        } else if (flash?.error) {
+            setLocalToast({ message: flash.error, type: 'error' });
+            const timer = setTimeout(() => setLocalToast(null), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [flash]);
+
+    // Selected Submission for Right Column Preview
+    const [selectedSubmissionId, setSelectedSubmissionId] = useState<string>('');
+
+    // If selectedSubmissionId is empty, use the first submission code if any
+    const activeSelectedId = useMemo(() => {
+        if (selectedSubmissionId) return selectedSubmissionId;
+        return submissions.length > 0 ? submissions[0].id : '';
+    }, [submissions, selectedSubmissionId]);
+
+    const selectedSubmission = useMemo(() => {
+        return submissions.find(s => s.id === activeSelectedId) || submissions[0] || null;
+    }, [submissions, activeSelectedId]);
 
     // Filter
     const filteredSubmissions = useMemo(() => {
@@ -667,17 +800,19 @@ export default function Pengajuan() {
                     </p>
                 </div>
 
-                {/* Flash */}
-                {flash?.message && (
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400">
-                        <CheckCircle2 className="size-4.5" />
-                        <span>{flash.message}</span>
-                    </div>
-                )}
-                {flash?.error && (
-                    <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-400">
-                        <AlertTriangle className="size-4.5" />
-                        <span>{flash.error}</span>
+                {/* Floating success/error toast */}
+                {localToast && (
+                    <div className={`fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border p-4 text-sm font-semibold shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300 ${
+                        localToast.type === 'success'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300'
+                            : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300'
+                    }`}>
+                        {localToast.type === 'success' ? (
+                            <CheckCircle2 className="size-4.5 text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                            <AlertTriangle className="size-4.5 text-rose-600 dark:text-rose-450" />
+                        )}
+                        <span>{localToast.message}</span>
                     </div>
                 )}
 
@@ -813,14 +948,22 @@ export default function Pengajuan() {
                                             </tr>
                                         ) : (
                                             currentItems.map((item) => (
-                                                <tr key={item.id} className="transition-colors hover:bg-neutral-50/50 dark:hover:bg-neutral-900/20">
+                                                <tr
+                                                    key={item.id}
+                                                    onClick={() => setSelectedSubmissionId(item.id)}
+                                                    className={`cursor-pointer transition-colors ${
+                                                        activeSelectedId === item.id
+                                                            ? 'bg-blue-50/30 hover:bg-blue-50/40 dark:bg-blue-950/10 dark:hover:bg-blue-950/15'
+                                                            : 'hover:bg-neutral-50/20 dark:hover:bg-neutral-900/10'
+                                                    }`}
+                                                >
                                                     <td className="whitespace-nowrap px-5 py-4 font-mono text-[10px] font-semibold text-neutral-500 dark:text-neutral-400">
                                                         {item.id}
                                                     </td>
-                                                    <td className="max-w-[160px] px-5 py-4">
+                                                    <td className="max-w-[160px] px-5 py-4" onClick={(e) => e.stopPropagation()}>
                                                         <button
                                                             onClick={() => setDetailItem(item)}
-                                                            className="line-clamp-2 text-left font-semibold leading-tight text-neutral-900 hover:text-blue-600 dark:text-neutral-100 dark:hover:text-blue-400"
+                                                            className="line-clamp-2 text-left font-semibold leading-tight text-neutral-900 hover:text-blue-600 dark:text-neutral-100 dark:hover:text-blue-400 cursor-pointer"
                                                         >
                                                             {item.title}
                                                         </button>
@@ -838,7 +981,7 @@ export default function Pengajuan() {
                                                         </Badge>
                                                     </td>
                                                     {/* File column */}
-                                                    <td className="px-5 py-4">
+                                                    <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                                                         {item.fileName ? (
                                                             <div className="flex items-center gap-1.5">
                                                                 <div className="flex size-6 items-center justify-center rounded bg-red-50 text-red-500 dark:bg-red-950/30">
@@ -866,7 +1009,7 @@ export default function Pengajuan() {
                                                             ) : (
                                                                 <button
                                                                     onClick={() => { setUploadItem(item); setStandaloneFile(null); }}
-                                                                    className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                                                    className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer"
                                                                 >
                                                                     <Upload className="size-3" />
                                                                     Upload
@@ -879,10 +1022,10 @@ export default function Pengajuan() {
                                                             {item.status}
                                                         </Badge>
                                                     </td>
-                                                    <td className="px-5 py-4 text-center">
+                                                    <td className="px-5 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
-                                                                <button className="mx-auto flex size-7 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800">
+                                                                <button className="mx-auto flex size-7 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800 cursor-pointer">
                                                                     <MoreVertical className="size-3.5" />
                                                                 </button>
                                                             </DropdownMenuTrigger>
@@ -942,8 +1085,139 @@ export default function Pengajuan() {
                         </Card>
                     </div>
 
-                    {/* RIGHT: Chart */}
+                    {/* RIGHT: Chart & Preview */}
                     <div className="space-y-6 lg:col-span-1">
+                        
+                        {/* Preview Dokumen panel */}
+                        <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950 flex flex-col justify-between">
+                            <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800 bg-neutral-50/10">
+                                <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Preview Dokumen</h3>
+                            </div>
+                            
+                            {selectedSubmission ? (
+                                <CardContent className="p-5 flex flex-col gap-5 text-xs flex-1 justify-between">
+                                    
+                                    {/* Cover Card Mockup & Specs */}
+                                    <div className="space-y-4">
+                                        <div className="flex gap-4">
+                                            {/* Cover Card / Thumbnail */}
+                                            {selectedSubmission.fileUrl ? (
+                                                <PdfThumbnail 
+                                                    url={selectedSubmission.fileUrl} 
+                                                    fallback={
+                                                        <div className="w-24 h-32 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-850 flex flex-col p-2.5 items-center justify-between relative shadow-sm hover:shadow-md transition-shadow">
+                                                            <div className="flex justify-between w-full items-center">
+                                                                <span className="text-[7px] font-bold text-neutral-400 uppercase leading-none tracking-wider">Modul</span>
+                                                                <FileText className="size-3 text-neutral-400" />
+                                                            </div>
+                                                            <div className="flex flex-col items-center text-center gap-1">
+                                                                <span className="text-[6px] font-extrabold text-neutral-900 dark:text-neutral-100 leading-tight uppercase line-clamp-3">
+                                                                    {selectedSubmission.title}
+                                                                </span>
+                                                                <span className="text-[5px] text-neutral-400">{selectedSubmission.type}</span>
+                                                            </div>
+                                                            <div className="flex justify-between w-full items-center border-t pt-1.5 dark:border-neutral-800">
+                                                                <span className="text-[5px] font-semibold text-neutral-400">{selectedSubmission.id}</span>
+                                                                <Badge className="font-extrabold rounded px-1.5 py-0.2 text-[5px] bg-red-50 text-red-650 leading-none border-0">PDF</Badge>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                />
+                                            ) : (
+                                                <div className="w-24 h-32 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-850 flex flex-col p-2.5 items-center justify-between relative shadow-sm hover:shadow-md transition-shadow">
+                                                    <div className="flex justify-between w-full items-center">
+                                                        <span className="text-[7px] font-bold text-neutral-400 uppercase leading-none tracking-wider">Submission</span>
+                                                        <FileText className="size-3 text-neutral-400" />
+                                                    </div>
+                                                    <div className="flex flex-col items-center text-center gap-1">
+                                                        <span className="text-[6px] font-extrabold text-neutral-900 dark:text-neutral-100 leading-tight uppercase line-clamp-3 font-sans">
+                                                            {selectedSubmission.title}
+                                                        </span>
+                                                        <span className="text-[5px] text-neutral-400">{selectedSubmission.type}</span>
+                                                    </div>
+                                                    <div className="flex justify-between w-full items-center border-t pt-1.5 dark:border-neutral-800">
+                                                        <span className="text-[5px] font-semibold text-neutral-400">{selectedSubmission.id}</span>
+                                                        <Badge className="font-extrabold rounded px-1.5 py-0.2 text-[5px] bg-neutral-100 text-neutral-550 leading-none border-0">NONE</Badge>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Specs */}
+                                            <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-neutral-900 dark:text-neutral-100 text-xs truncate leading-snug" title={selectedSubmission.title}>
+                                                        {selectedSubmission.title}
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-1 mt-2">
+                                                    <div className="flex justify-between text-[10px]">
+                                                        <span className="font-semibold text-neutral-400">No. Pengajuan</span>
+                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300 truncate max-w-[80px]">{selectedSubmission.id}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px]">
+                                                        <span className="font-semibold text-neutral-400">Tipe</span>
+                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300 truncate max-w-[80px]">{selectedSubmission.type}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px]">
+                                                        <span className="font-semibold text-neutral-400">Prioritas</span>
+                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300">{selectedSubmission.priority}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px]">
+                                                        <span className="font-semibold text-neutral-400">Status</span>
+                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300">{selectedSubmission.status}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px]">
+                                                        <span className="font-semibold text-neutral-400">Pengaju</span>
+                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300 truncate max-w-[80px]">{selectedSubmission.applicant}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-between text-[10px] items-center pt-2 border-t dark:border-neutral-800">
+                                            <span className="font-semibold text-neutral-400 font-sans">Tanggal Pengajuan</span>
+                                            <span className="font-bold text-neutral-700 dark:text-neutral-300">{selectedSubmission.submissionDate}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Action buttons */}
+                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t dark:border-neutral-800">
+                                        <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            className="h-9 rounded-lg text-xs font-semibold border-neutral-200 dark:border-neutral-800 text-neutral-600 cursor-pointer"
+                                            onClick={() => setDetailItem(selectedSubmission)}
+                                        >
+                                            Detail
+                                        </Button>
+                                        {selectedSubmission.fileUrl ? (
+                                            <Button 
+                                                size="sm" 
+                                                className="h-9 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                                                onClick={() => window.open(selectedSubmission.fileUrl!, '_blank', 'noopener,noreferrer')}
+                                            >
+                                                <span>Buka PDF</span>
+                                                <Eye className="size-3.5" />
+                                            </Button>
+                                        ) : (
+                                            <Button 
+                                                size="sm" 
+                                                disabled
+                                                className="h-9 bg-neutral-100 dark:bg-neutral-800 text-neutral-400 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 cursor-not-allowed border-0"
+                                            >
+                                                <span>No PDF</span>
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                </CardContent>
+                            ) : (
+                                <div className="p-8 text-center text-neutral-400 text-xs flex-1 flex items-center justify-center">
+                                    Pilih pengajuan di tabel untuk melihat preview.
+                                </div>
+                            )}
+                        </Card>
+
                         <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                             <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
                                 <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Distribusi Status</h3>

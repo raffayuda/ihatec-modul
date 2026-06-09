@@ -22,49 +22,15 @@ import {
     UploadCloud,
     Server,
     BarChart3,
-    RefreshCw
+    RefreshCw,
+    BookOpen,
+    Clock,
+    Plus,
+    Eye,
+    ArrowUpRight,
+    Loader2,
+    Bell
 } from 'lucide-react';
-
-// Stepper Flow Component
-const ProcessStepper = () => {
-    const steps = [
-        { num: 1, icon: Send, label: "Pengajuan", desc: "Pengaju mengirim modul baru atau revisi" },
-        { num: 2, icon: FileText, label: "Drafting", desc: "Penyusunan & upload dokumen modul" },
-        { num: 3, icon: Users, label: "Approval", desc: "Review & approval oleh Manager/PD" },
-        { num: 4, icon: CheckCircle2, label: "Approved", desc: "Modul disetujui dan dipublikasikan", active: true },
-        { num: 5, icon: Archive, label: "Database", desc: "Tersimpan & siap diakses tim training" },
-    ];
-
-    return (
-        <div className="w-full bg-white dark:bg-[#18181b] rounded-2xl border border-gray-100 dark:border-[#27272a] shadow-lg p-6">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8 lg:gap-4 justify-between">
-                {steps.map((step, i) => (
-                    <>
-                        <div key={i} className="flex flex-col items-center text-center flex-1">
-                            <div className={`relative mb-3 flex size-12 items-center justify-center rounded-full border-2 ${
-                                step.active 
-                                    ? 'border-emerald-500 bg-emerald-50 text-emerald-600 dark:border-emerald-500 dark:bg-emerald-950/20 dark:text-emerald-400' 
-                                    : 'border-blue-600 bg-blue-50 text-blue-600 dark:border-blue-500 dark:bg-blue-950/20 dark:text-blue-400'
-                            }`}>
-                                <span className={`absolute -top-1 -left-1 flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${
-                                    step.active ? 'bg-emerald-500' : 'bg-blue-600 dark:bg-blue-500'
-                                }`}>
-                                    {step.num}
-                                </span>
-                                <step.icon className="size-5" />
-                            </div>
-                            <span className="text-sm font-bold text-neutral-800 dark:text-neutral-200">{step.label}</span>
-                            <p className="mt-1 text-[10px] font-medium text-neutral-400 dark:text-neutral-500 max-w-[120px]">{step.desc}</p>
-                        </div>
-                        {i < steps.length - 1 && (
-                            <div className="hidden lg:block w-12 h-0.5 border-t-2 border-dashed border-gray-200 dark:border-neutral-700 flex-shrink-0" />
-                        )}
-                    </>
-                ))}
-            </div>
-        </div>
-    );
-};
 
 export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
@@ -102,7 +68,7 @@ export default function Welcome() {
         const timer = setTimeout(() => {
             setIsLoading(false);
             clearInterval(textInterval);
-        }, 1800);
+        }, 1500);
 
         return () => {
             clearTimeout(timer);
@@ -115,7 +81,7 @@ export default function Welcome() {
     };
 
     return (
-        <div className="min-h-screen bg-white text-[#18181b] dark:bg-[#09090b] dark:text-[#f4f4f5] font-['Instrument_Sans',sans-serif] selection:bg-[#FF2D20] selection:text-white transition-colors duration-300">
+        <div className="min-h-screen bg-[#F8FBFF] text-[#0F172A] dark:bg-[#09090b] dark:text-[#f4f4f5] font-sans transition-colors duration-300 selection:bg-blue-600 selection:text-white">
             <AnimatePresence mode="wait">
                 {isLoading && (
                     <motion.div
@@ -123,7 +89,7 @@ export default function Welcome() {
                         initial={{ opacity: 1 }}
                         exit={{ 
                             opacity: 0,
-                            transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
+                            transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] }
                         }}
                         className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white dark:bg-[#09090b] select-none"
                     >
@@ -143,12 +109,12 @@ export default function Welcome() {
                                     duration: 0.8,
                                     ease: [0.16, 1, 0.3, 1]
                                 }}
-                                className="relative mb-8"
+                                className="relative mb-6"
                             >
-                                <div className="absolute inset-0 bg-[#FF2D20]/20 dark:bg-[#FF2D20]/30 rounded-2xl blur-xl filter animate-pulse" />
+                                <div className="absolute inset-0 bg-blue-600/20 rounded-2xl blur-xl filter animate-pulse" />
                                 
                                 <motion.div 
-                                    className="relative size-16 bg-[#FF2D20] rounded-2xl flex items-center justify-center text-white font-black text-4xl italic shadow-2xl shadow-[#FF2D20]/30"
+                                    className="relative size-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-2xl shadow-blue-600/30"
                                     animate={{
                                         y: [0, -6, 0]
                                     }}
@@ -158,7 +124,7 @@ export default function Welcome() {
                                         ease: "easeInOut"
                                     }}
                                 >
-                                    P
+                                    T
                                 </motion.div>
                             </motion.div>
 
@@ -169,7 +135,7 @@ export default function Welcome() {
                                 transition={{ delay: 0.2 }}
                                 className="text-xl font-extrabold tracking-tight text-neutral-900 dark:text-neutral-50 mb-1"
                             >
-                                Modul PD
+                                TrainingPD
                             </motion.h2>
                             <motion.p
                                 initial={{ opacity: 0 }}
@@ -186,10 +152,10 @@ export default function Welcome() {
                                     initial={{ left: "-100%" }}
                                     animate={{ left: "0%" }}
                                     transition={{
-                                        duration: 1.6,
+                                        duration: 1.3,
                                         ease: "easeInOut"
                                     }}
-                                    className="absolute inset-y-0 w-full bg-[#FF2D20] rounded-full"
+                                    className="absolute inset-y-0 w-full bg-blue-600 rounded-full"
                                 />
                             </div>
 
@@ -200,7 +166,7 @@ export default function Welcome() {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -4 }}
                                 transition={{ duration: 0.2 }}
-                                className="text-xs font-semibold text-neutral-400 dark:text-neutral-550"
+                                className="text-xs font-semibold text-neutral-400 dark:text-neutral-500"
                             >
                                 {loadingText}
                             </motion.span>
@@ -208,374 +174,412 @@ export default function Welcome() {
                     </motion.div>
                 )}
             </AnimatePresence>
-            <Head title="Modul PD - Portal Database Modul Pelatihan" />
-            {/* Navigation */}
-            <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-                isScrolled ? 'bg-white/80 dark:bg-[#09090b]/80 backdrop-blur-md border-b border-gray-100 dark:border-[#18181b] py-3' : 'bg-transparent py-5'
-            }`}>
-                <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-                    <div className="flex items-center gap-8">
-                        <Link href="/" className="flex items-center gap-2 group">
-                            <div className="size-8 bg-[#FF2D20] rounded-lg flex items-center justify-center text-white font-black text-xl italic group-hover:scale-110 transition-transform">
-                                P
+
+            <Head title="TrainingPD - Kelola Modul Pelatihan dengan Lebih Mudah" />
+
+            {/* Blue Sky Gradient Background Wrapper for Hero section */}
+            <div className="relative overflow-hidden bg-gradient-to-b from-[#0865F2] via-[#3A8DFF] to-[#F8FBFF] dark:from-[#0b2b63] dark:via-[#133c7d] dark:to-[#09090b] pb-24">
+                
+                {/* Header Navbar */}
+                <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
+                    isScrolled 
+                        ? 'bg-white/90 dark:bg-[#09090b]/90 backdrop-blur-md border-b border-neutral-200/50 dark:border-neutral-800/50 py-3 shadow-sm' 
+                        : 'bg-transparent py-5'
+                }`}>
+                    <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between">
+                        <Link href="/" className="flex items-center gap-2.5 group">
+                            <div className="size-8.5 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl group-hover:scale-105 transition-transform">
+                                T
                             </div>
-                            <span className="font-extrabold text-xl tracking-tight hidden sm:block">Modul PD</span>
+                            <span className={`font-extrabold text-xl tracking-tight transition-colors ${
+                                isScrolled ? 'text-neutral-900 dark:text-white' : 'text-white'
+                            }`}>
+                                TrainingPD
+                            </span>
                         </Link>
                         
-                        <nav className="hidden lg:flex items-center gap-6 text-[13px] font-semibold text-gray-600 dark:text-gray-400">
-                            <a href="#features" className="hover:text-[#FF2D20] transition-colors">Fitur</a>
-                            <a href="#alur" className="hover:text-[#FF2D20] transition-colors">Alur Proses</a>
-                            <a href="#stats" className="hover:text-[#FF2D20] transition-colors">Statistik</a>
+                        <nav className={`hidden lg:flex items-center gap-8 text-xs font-bold transition-colors ${
+                            isScrolled ? 'text-neutral-600 dark:text-neutral-300' : 'text-white/95'
+                        }`}>
+                            <a href="#produk" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Produk</a>
+                            <a href="#solusi" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Solusi</a>
+                            <a href="#fitur" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Fitur</a>
+                            <a href="#alur-kerja" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Alur Kerja</a>
+                            <a href="#faq" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">FAQ</a>
                         </nav>
-                    </div>
 
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">
-                                {appearance === 'dark' ? <Sun className="size-5" /> : <Moon className="size-5" />}
+                        <div className="flex items-center gap-4">
+                            <button onClick={toggleTheme} className={`p-2 transition-colors ${
+                                isScrolled ? 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white' : 'text-white/80 hover:text-white'
+                            }`}>
+                                {appearance === 'dark' ? <Sun className="size-4.5" /> : <Moon className="size-4.5" />}
                             </button>
-                            <a href="https://github.com" target="_blank" className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">
-                                <Github className="size-5" />
-                            </a>
-                        </div>
 
-                        <div className="h-6 w-px bg-gray-200 dark:bg-[#27272a] hidden sm:block mx-1"></div>
+                            <div className={`h-5 w-px ${isScrolled ? 'bg-neutral-200 dark:bg-neutral-800' : 'bg-white/20'} hidden sm:block`}></div>
 
-                        {auth.user ? (
-                            <Link href={route('dashboard')} className="px-5 py-2 bg-[#FF2D20] hover:bg-[#E0241A] text-white font-bold text-sm rounded-full transition-all shadow-lg shadow-[#FF2D20]/20">
-                                Dashboard
-                            </Link>
-                        ) : (
-                            <div className="hidden sm:flex items-center gap-2">
-                                <Link href={route('login')} className="px-4 py-2 text-sm font-bold hover:text-[#FF2D20] transition-colors">
-                                    Masuk
-                                </Link>
-                                <Link href={route('register')} className="px-5 py-2 bg-[#FF2D20] hover:bg-[#E0241A] text-white font-bold text-sm rounded-full transition-all shadow-lg shadow-[#FF2D20]/20">
-                                    Coba Sekarang
-                                </Link>
-                            </div>
-                        )}
-                        
-                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="lg:hidden p-2 text-gray-600 dark:text-gray-400">
-                            {isMobileMenuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
-                        </button>
-                    </div>
-                </div>
-                
-                {/* Mobile Menu */}
-                <AnimatePresence>
-                    {isMobileMenuOpen && (
-                        <motion.div 
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="md:hidden border-b border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#09090b] px-6 py-4 flex flex-col gap-4 overflow-hidden"
-                        >
-                            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="font-bold text-sm hover:text-[#FF2D20] transition-colors">Fitur</a>
-                            <a href="#alur" onClick={() => setIsMobileMenuOpen(false)} className="font-bold text-sm hover:text-[#FF2D20] transition-colors">Alur Proses</a>
-                            <a href="#stats" onClick={() => setIsMobileMenuOpen(false)} className="font-bold text-sm hover:text-[#FF2D20] transition-colors">Statistik</a>
-                            <hr className="border-gray-100 dark:border-[#27272a]" />
                             {auth.user ? (
-                                <Link href={route('dashboard')} className="h-10 rounded-xl bg-[#FF2D20] text-white font-bold text-sm flex items-center justify-center">Dashboard</Link>
-                            ) : (
-                                <div className="flex flex-col gap-2">
-                                    <Link href={route('login')} className="h-10 rounded-xl border border-gray-200 dark:border-[#27272a] font-bold text-sm flex items-center justify-center">Masuk</Link>
-                                    <Link href={route('register')} className="h-10 rounded-xl bg-[#FF2D20] text-white font-bold text-sm flex items-center justify-center">Coba Sekarang</Link>
-                                </div>
-                            )}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </header>
-
-            {/* Hero Section */}
-            <main className="pt-32 pb-20 overflow-hidden">
-                <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-                    <motion.div
-                        initial={{ opacity: 0, x: -30 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.8 }}
-                    >
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF2D20]/10 text-[#FF2D20] text-xs font-bold mb-6">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF2D20] opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF2D20]"></span>
-                            </span>
-                            Platform Digital Manajemen Modul Pelatihan
-                        </div>
-                        
-                        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.05] mb-8">
-                            Kelola <span className="text-[#FF2D20]">Database Modul</span> Pelatihan secara Digital.
-                        </h1>
-                        
-                        <p className="text-xl text-gray-500 dark:text-gray-400 leading-relaxed mb-10 max-w-xl">
-                            Satu portal terpusat untuk pengajuan, approval, revisi, penyimpanan, dan pemetaan modul pelatihan. Dukung tim People Development Anda dengan sistem yang cepat dan transparan.
-                        </p>
-                        
-                        <div className="flex flex-wrap items-center gap-4">
-                            <Link 
-                                href={auth.user ? route('dashboard') : route('register')}
-                                className="px-8 py-4 bg-[#FF2D20] hover:bg-[#E0241A] text-white font-extrabold rounded-xl flex items-center gap-3 transition-all shadow-xl shadow-[#FF2D20]/30 hover:scale-[1.02]"
-                            >
-                                {auth.user ? 'Buka Dashboard' : 'Mulai Sekarang'}
-                                <ArrowRight className="size-5" />
-                            </Link>
-                            <a href="#features" className="px-8 py-4 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] font-extrabold rounded-xl hover:bg-gray-50 dark:hover:bg-[#27272a] transition-all">
-                                Lihat Fitur
-                            </a>
-                        </div>
-                        
-                        <div className="mt-12 flex items-center gap-8 grayscale opacity-40 overflow-hidden whitespace-nowrap">
-                            <div className="flex items-center gap-2 font-bold text-sm"><Database className="size-4" /> 386 Modul</div>
-                            <div className="flex items-center gap-2 font-bold text-sm"><CheckCircle2 className="size-4" /> 312 Approved</div>
-                            <div className="flex items-center gap-2 font-bold text-sm"><Users className="size-4" /> 8 Program</div>
-                        </div>
-                    </motion.div>
-
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
-                        className="relative"
-                    >
-                        <InteractiveDashboardPreview
-                            activeView={heroDashboardView}
-                            onViewChange={setHeroDashboardView}
-                            variant="hero"
-                        />
-
-                        {/* Decorative Background Glow */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-96 bg-[#FF2D20]/10 rounded-full blur-[100px] -z-10 animate-pulse" />
-                    </motion.div>
-                </div>
-            </main>
-
-            {/* Metrics Bar */}
-            <section className="py-10 bg-gray-50 dark:bg-[#09090b] border-y border-gray-100 dark:border-[#18181b]">
-                <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
-                    <div className="text-center">
-                        <div className="text-3xl font-black text-[#FF2D20]">386</div>
-                        <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">Total Modul</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-3xl font-black text-emerald-500">312</div>
-                        <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">Modul Approved</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-3xl font-black text-blue-500">24</div>
-                        <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">Menunggu Review</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-3xl font-black text-amber-500">1.2K</div>
-                        <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">Total Dokumen</div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Features Section */}
-            <section className="py-24" id="features">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl font-extrabold tracking-tight mb-4">Fitur Lengkap untuk Manajemen Modul</h2>
-                        <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
-                            Dari pengajuan hingga publikasi, semua kebutuhan pendataan modul pelatihan dalam satu platform terintegrasi.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        
-                        {/* Feature: Digital Submission */}
-                        <div className="group p-7 rounded-2xl bg-white dark:bg-[#18181b] border border-gray-100 dark:border-[#27272a] hover:border-[#FF2D20]/30 transition-all hover:shadow-xl hover:shadow-red-500/5">
-                            <div className="size-12 rounded-xl bg-[#FF2D20]/10 text-[#FF2D20] flex items-center justify-center mb-5">
-                                <UploadCloud className="size-6" />
-                            </div>
-                            <h3 className="text-lg font-extrabold mb-2 group-hover:text-[#FF2D20] transition-colors">Pengajuan Digital</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
-                                Ajukan modul baru atau revisi secara online. Lengkapi metadata (judul, program, bahasa) dan upload file PDF langsung dari browser.
-                            </p>
-                        </div>
-
-                        {/* Feature: Multi-level Approval */}
-                        <div className="group p-7 rounded-2xl bg-white dark:bg-[#18181b] border border-gray-100 dark:border-[#27272a] hover:border-blue-500/30 transition-all hover:shadow-xl hover:shadow-blue-500/5">
-                            <div className="size-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center mb-5">
-                                <ShieldCheck className="size-6" />
-                            </div>
-                            <h3 className="text-lg font-extrabold mb-2 group-hover:text-blue-500 transition-colors">Approval Bertingkat</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
-                                Alur review dari Tim PD hingga Manager. Setiap keputusan tercatat dengan audit trail lengkap dan notifikasi otomatis.
-                            </p>
-                        </div>
-
-                        {/* Feature: Centralized Database */}
-                        <div className="group p-7 rounded-2xl bg-white dark:bg-[#18181b] border border-gray-100 dark:border-[#27272a] hover:border-emerald-500/30 transition-all hover:shadow-xl hover:shadow-emerald-500/5">
-                            <div className="size-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-5">
-                                <Database className="size-6" />
-                            </div>
-                            <h3 className="text-lg font-extrabold mb-2 group-hover:text-emerald-500 transition-colors">Database Terpusat</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
-                                Semua modul tersimpan dalam satu database dengan versioning. Cari, filter, dan akses dengan cepat berdasarkan program atau kategori.
-                            </p>
-                        </div>
-
-                        {/* Feature: Version History */}
-                        <div className="group p-7 rounded-2xl bg-white dark:bg-[#18181b] border border-gray-100 dark:border-[#27272a] hover:border-violet-500/30 transition-all hover:shadow-xl hover:shadow-violet-500/5">
-                            <div className="size-12 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center mb-5">
-                                <RefreshCw className="size-6" />
-                            </div>
-                            <h3 className="text-lg font-extrabold mb-2 group-hover:text-violet-500 transition-colors">Riwayat Revisi</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
-                                Setiap perubahan modul tercatat dengan nomor versi. Lacak siapa yang merevisi, kapan, dan apa yang berubah.
-                            </p>
-                        </div>
-
-                        {/* Feature: Training Matrix */}
-                        <div className="group p-7 rounded-2xl bg-white dark:bg-[#18181b] border border-gray-100 dark:border-[#27272a] hover:border-amber-500/30 transition-all hover:shadow-xl hover:shadow-amber-500/5">
-                            <div className="size-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-5">
-                                <BarChart3 className="size-6" />
-                            </div>
-                            <h3 className="text-lg font-extrabold mb-2 group-hover:text-amber-500 transition-colors">Matriks Pelatihan</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
-                                Petakan modul ke program pelatihan. Identifikasi kesenjangan kompetensi dan rencanakan pengembangan modul baru.
-                            </p>
-                        </div>
-
-                        {/* Feature: Cloud Integration */}
-                        <div className="group p-7 rounded-2xl bg-white dark:bg-[#18181b] border border-gray-100 dark:border-[#27272a] hover:border-cyan-500/30 transition-all hover:shadow-xl hover:shadow-cyan-500/5">
-                            <div className="size-12 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center mb-5">
-                                <Server className="size-6" />
-                            </div>
-                            <h3 className="text-lg font-extrabold mb-2 group-hover:text-cyan-500 transition-colors">Integrasi Cloud</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
-                                File modul otomatis tersimpan di Google Drive. Preview dan download langsung dari portal tanpa perlu mengunduh ulang.
-                            </p>
-                        </div>
-
-                    </div>
-                </div>
-            </section>
-
-            {/* Alur Proses Section */}
-            <section className="py-24 bg-gray-50 dark:bg-[#09090b] border-y border-gray-100 dark:border-[#18181b]" id="alur">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl font-extrabold tracking-tight mb-4">Alur Proses Modul</h2>
-                        <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
-                            Dari pengajuan hingga tersimpan di database, setiap modul melewati alur yang transparan dan terstandarisasi.
-                        </p>
-                    </div>
-
-                    <ProcessStepper />
-
-                    <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
-                        <div className="space-y-4">
-                            {[
-                                { icon: Send, title: "1. Pengajuan Modul", desc: "Pengaju mengisi detail modul (judul, program, bahasa, deskripsi) dan mengunggah file PDF. Sistem otomatis membaca jumlah halaman dan metadata.", view: 'pengajuan' as DashboardView },
-                                { icon: FileText, title: "2. Review Tim PD", desc: "Tim People Development meninjau materi, relevansi kurikulum, dan format. Memberikan catatan perbaikan jika diperlukan.", view: 'review' as DashboardView },
-                                { icon: Users, title: "3. Approval Manager", desc: "Manager memeriksa draf akhir dan rekomendasi Tim PD, memutuskan apakah modul disetujui, ditolak, atau perlu revisi.", view: 'approval' as DashboardView },
-                                { icon: Archive, title: "4. Database & Distribusi", desc: "Modul yang disetujui otomatis masuk ke database aktif, mendapat nomor versi resmi, dan siap diakses untuk program pelatihan.", view: 'matrix' as DashboardView },
-                            ].map((item, i) => (
-                                <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => setProcessDashboardView(item.view)}
-                                    className={`flex w-full items-start gap-4 rounded-xl p-4 text-left transition-all ${
-                                        processDashboardView === item.view
-                                            ? 'border border-[#FF2D20]/30 bg-[#FF2D20]/5 shadow-md dark:border-[#FF2D20]/20 dark:bg-[#FF2D20]/10'
-                                            : 'border border-transparent hover:bg-gray-50 dark:hover:bg-neutral-900/50'
+                                <Link 
+                                    href={route('dashboard')} 
+                                    className={`px-4.5 py-2 text-xs font-bold rounded-lg transition-all shadow-sm ${
+                                        isScrolled 
+                                            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                            : 'bg-white hover:bg-neutral-100 text-blue-600'
                                     }`}
                                 >
-                                    <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                                        processDashboardView === item.view
-                                            ? 'bg-[#FF2D20] text-white'
-                                            : 'bg-[#FF2D20]/10 text-[#FF2D20]'
-                                    }`}>
-                                        <item.icon className="size-5" />
+                                    Dashboard
+                                </Link>
+                            ) : (
+                                <div className="flex items-center gap-3">
+                                    <Link 
+                                        href={route('login')} 
+                                        className={`text-xs font-bold hover:underline transition-colors ${
+                                            isScrolled ? 'text-neutral-700 dark:text-neutral-300' : 'text-white hover:text-neutral-100'
+                                        }`}
+                                    >
+                                        Masuk
+                                    </Link>
+                                    <a 
+                                        href="#faq"
+                                        className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
+                                            isScrolled 
+                                                ? 'border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-400' 
+                                                : 'border-white/40 text-white hover:bg-white/10'
+                                        }`}
+                                    >
+                                        Jadwalkan Demo
+                                    </a>
+                                </div>
+                            )}
+                            
+                            <button 
+                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+                                className={`lg:hidden p-2 transition-colors ${
+                                    isScrolled ? 'text-neutral-600 dark:text-neutral-400' : 'text-white'
+                                }`}
+                            >
+                                {isMobileMenuOpen ? <X className="size-5.5" /> : <Menu className="size-5.5" />}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {/* Mobile Navigation Menu */}
+                    <AnimatePresence>
+                        {isMobileMenuOpen && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="lg:hidden border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#09090b] px-6 py-4 flex flex-col gap-3.5 overflow-hidden"
+                            >
+                                <a href="#produk" onClick={() => setIsMobileMenuOpen(false)} className="font-bold text-xs hover:text-blue-600 transition-colors">Produk</a>
+                                <a href="#solusi" onClick={() => setIsMobileMenuOpen(false)} className="font-bold text-xs hover:text-blue-600 transition-colors">Solusi</a>
+                                <a href="#fitur" onClick={() => setIsMobileMenuOpen(false)} className="font-bold text-xs hover:text-blue-600 transition-colors">Fitur</a>
+                                <a href="#alur-kerja" onClick={() => setIsMobileMenuOpen(false)} className="font-bold text-xs hover:text-blue-600 transition-colors">Alur Kerja</a>
+                                <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="font-bold text-xs hover:text-blue-600 transition-colors">FAQ</a>
+                                <hr className="border-neutral-100 dark:border-neutral-800" />
+                                {auth.user ? (
+                                    <Link href={route('dashboard')} className="h-9 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center">Dashboard</Link>
+                                ) : (
+                                    <div className="flex flex-col gap-2">
+                                        <Link href={route('login')} className="h-9 rounded-lg border border-neutral-200 dark:border-neutral-800 font-bold text-xs flex items-center justify-center">Masuk</Link>
+                                        <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="h-9 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center">Jadwalkan Demo</a>
                                     </div>
-                                    <div>
-                                        <h4 className="font-extrabold mb-1">{item.title}</h4>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">{item.desc}</p>
-                                    </div>
-                                </button>
-                            ))}
-                            <p className="text-xs text-neutral-400 dark:text-neutral-500 font-medium pl-4">
-                                Klik langkah di atas untuk melihat fitur dashboard yang sesuai →
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </header>
+
+                {/* Hero Content Section */}
+                <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-36 pb-12 flex flex-col items-center text-center relative z-10">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
+                        className="max-w-3xl"
+                    >
+                        <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold tracking-tight text-white leading-tight mb-6">
+                            Kelola Modul Pelatihan dengan Lebih Mudah
+                        </h1>
+                        
+                        <p className="text-sm sm:text-base text-blue-50/90 dark:text-neutral-300 leading-relaxed mb-8 max-w-2xl mx-auto font-medium">
+                            Platform terpusat untuk pengajuan modul, approval, revisi, penyimpanan file, dan matriks pelatihan dalam satu alur kerja yang rapi.
+                        </p>
+                        
+                        <div className="flex flex-wrap items-center justify-center gap-4.5 mb-16">
+                            <Link 
+                                href={auth.user ? route('dashboard') : route('register')}
+                                className="px-6 py-3 bg-[#020617] hover:bg-[#0f172a] text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-black/10 hover:scale-[1.02] flex items-center gap-2"
+                            >
+                                {auth.user ? 'Buka Dashboard' : 'Mulai Sekarang'}
+                                <ArrowRight className="size-4" />
+                            </Link>
+                            <a 
+                                href="#fitur" 
+                                className="text-white hover:text-blue-100 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                            >
+                                Lihat Demo
+                                <span className="text-sm">→</span>
+                            </a>
+                        </div>
+                    </motion.div>
+
+                    {/* Browser Dashboard Mockup */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                        className="w-full max-w-5xl rounded-2xl border border-white/20 shadow-2xl bg-white dark:bg-neutral-950 overflow-hidden relative"
+                    >
+                        {/* Browser Top Frame */}
+                        <div className="flex items-center justify-between px-4 py-3 bg-neutral-100 dark:bg-neutral-900 border-b border-neutral-200/50 dark:border-neutral-800/50">
+                            <div className="flex items-center gap-1.5">
+                                <div className="size-3 rounded-full bg-red-400" />
+                                <div className="size-3 rounded-full bg-yellow-400" />
+                                <div className="size-3 rounded-full bg-green-400" />
+                            </div>
+                            <div className="flex-1 max-w-xs mx-auto">
+                                <div className="bg-white dark:bg-neutral-950 rounded-md py-1 px-3 text-[10px] text-neutral-400 dark:text-neutral-500 font-semibold border border-neutral-200/50 dark:border-neutral-800/30 truncate">
+                                    trainingpd.app
+                                </div>
+                            </div>
+                            <div className="w-12" />
+                        </div>
+
+                        {/* Interactive dashboard preview component inside */}
+                        <div className="p-1 sm:p-2 bg-white dark:bg-neutral-950">
+                            <InteractiveDashboardPreview
+                                activeView={heroDashboardView}
+                                onViewChange={setHeroDashboardView}
+                                variant="hero"
+                            />
+                        </div>
+                    </motion.div>
+                </div>
+            </div>
+
+            {/* About / Operational Section */}
+            <section className="py-20 lg:py-24 bg-white dark:bg-[#09090b]" id="produk">
+                <div className="max-w-7xl mx-auto px-6 lg:px-8">
+                    <div className="text-center mb-16">
+                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-500 uppercase tracking-widest block mb-2">TENTANG KAMI</span>
+                        <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight text-neutral-900 dark:text-white">
+                            Operasional Modul yang Lebih Efisien
+                        </h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {/* Col 1 */}
+                        <div className="flex flex-col items-center text-center p-6 bg-[#F8FBFF] dark:bg-neutral-900/40 rounded-2xl border border-neutral-100 dark:border-neutral-800/40">
+                            <div className="size-14 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                                <RefreshCw className="size-6.5" />
+                            </div>
+                            <h3 className="text-base font-bold text-neutral-900 dark:text-white mb-3">Manajemen Siklus Modul</h3>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium leading-relaxed max-w-xs">
+                                Membuat, revisi, dan mengelola modul pelatihan dalam satu tempat yang terpusat.
                             </p>
                         </div>
 
-                        <InteractiveDashboardPreview
-                            activeView={processDashboardView}
-                            onViewChange={setProcessDashboardView}
-                            variant="inline"
-                        />
+                        {/* Col 2 */}
+                        <div className="flex flex-col items-center text-center p-6 bg-[#F8FBFF] dark:bg-neutral-900/40 rounded-2xl border border-neutral-100 dark:border-neutral-800/40">
+                            <div className="size-14 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                                <FileText className="size-6.5" />
+                            </div>
+                            <h3 className="text-base font-bold text-neutral-900 dark:text-white mb-3">Tracking & Validasi Dokumen</h3>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium leading-relaxed max-w-xs">
+                                Upload, pengecekan, dan validasi file dokumen secara cepat dan akurat.
+                            </p>
+                        </div>
+
+                        {/* Col 3 */}
+                        <div className="flex flex-col items-center text-center p-6 bg-[#F8FBFF] dark:bg-neutral-900/40 rounded-2xl border border-neutral-100 dark:border-neutral-800/40">
+                            <div className="size-14 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                                <Bell className="size-6.5" />
+                            </div>
+                            <h3 className="text-base font-bold text-neutral-900 dark:text-white mb-3">Notifikasi & Approval Cerdas</h3>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium leading-relaxed max-w-xs">
+                                Pengingat otomatis dan approval real-time untuk mempercepat proses persetujuan.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* Stats Section */}
-            <section className="py-24" id="stats">
-                <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
-                    <div className="lg:col-span-5">
-                        <h2 className="text-4xl font-extrabold tracking-tight mb-6">
-                            Percaya diri dengan <span className="text-[#FF2D20]">data</span> yang terkelola.
+            {/* Key Features Grid Section */}
+            <section className="py-20 lg:py-24 bg-[#F8FBFF] dark:bg-neutral-950/30 border-y border-neutral-200/30 dark:border-neutral-900/30" id="fitur">
+                <div className="max-w-7xl mx-auto px-6 lg:px-8">
+                    <div className="text-center mb-16">
+                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-500 uppercase tracking-widest block mb-2">FITUR UTAMA</span>
+                        <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight text-neutral-900 dark:text-white mb-4">
+                            Semua yang Dibutuhkan untuk Mengelola Modul dengan Lebih Cerdas
                         </h2>
-                        <p className="text-lg text-gray-500 dark:text-gray-400 mb-8">
-                            Pantau pertumbuhan database modul, status approval, dan aktivitas tim secara real-time dari dashboard terpusat.
+                        <p className="text-xs sm:text-sm text-neutral-550 dark:text-neutral-400 max-w-xl mx-auto font-medium">
+                            Kelola modul, dokumen, matriks pelatihan, hingga revisi dalam satu platform terintegrasi.
                         </p>
-                        
-                        <ul className="space-y-4">
-                            {[
-                                "Notifikasi otomatis untuk setiap perubahan status",
-                                "Grafik distribusi status approval bulanan",
-                                "Riwayat aktivitas lengkap per pengguna",
-                                "Kapasitas penyimpanan dokumen terpantau"
-                            ].map((item, i) => (
-                                <li key={i} className="flex items-start gap-3">
-                                    <div className="size-5 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-[#FF2D20] mt-1 shrink-0">
-                                        <Check className="size-3 stroke-[4]" />
-                                    </div>
-                                    <span className="font-bold text-[15px]">{item}</span>
-                                </li>
-                            ))}
-                        </ul>
-                        
-                        <Link 
-                            href={auth.user ? route('dashboard') : route('register')}
-                            className="mt-10 group inline-flex items-center gap-2 text-[#FF2D20] font-black text-sm uppercase tracking-widest"
-                        >
-                            {auth.user ? 'Buka Dashboard' : 'Mulai Sekarang'}
-                            <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
-                        </Link>
                     </div>
-                    
-                    {/* Stats Cards Grid */}
-                    <div className="lg:col-span-7">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-6 rounded-2xl bg-[#FF2D20]/5 border border-[#FF2D20]/10">
-                                <div className="text-4xl font-black text-[#FF2D20]">312</div>
-                                <div className="text-sm font-bold text-gray-500 dark:text-gray-400 mt-2">Modul Disetujui</div>
-                                <div className="mt-3 w-full h-2 rounded-full bg-[#FF2D20]/10">
-                                    <div className="h-full w-[81%] rounded-full bg-[#FF2D20]" />
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Card 01 - Kepatuhan Dokumen */}
+                        <div className="p-8 rounded-3xl border border-neutral-200/60 dark:border-neutral-800/60 bg-white dark:bg-neutral-900 flex flex-col justify-between shadow-sm">
+                            <div className="mb-6">
+                                <span className="text-xs font-extrabold text-blue-600 dark:text-blue-500 font-mono">01</span>
+                                <h3 className="text-base font-extrabold text-neutral-900 dark:text-white mt-1 mb-2">Kepatuhan Dokumen</h3>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium leading-relaxed">
+                                    Pantau status dokumen, validasi file, dan kelengkapan modul dalam satu tampilan.
+                                </p>
+                            </div>
+                            {/* Inner Widget Visual */}
+                            <div className="bg-[#F8FBFF] dark:bg-neutral-950/50 rounded-2xl border border-neutral-100 dark:border-neutral-800/50 p-4">
+                                <div className="flex items-center justify-between mb-3 text-[10px] font-bold">
+                                    <span className="text-neutral-900 dark:text-white">Dokumen Compliance</span>
+                                    <span className="text-blue-600 dark:text-blue-400">Detail</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-center text-[9px] font-semibold mb-4">
+                                    <div className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 p-2 rounded-lg">
+                                        <div>65%</div>
+                                        <div className="text-[7px] text-neutral-400 mt-0.5">Valid</div>
+                                    </div>
+                                    <div className="bg-amber-50 dark:bg-amber-950/20 text-amber-600 p-2 rounded-lg">
+                                        <div>82%</div>
+                                        <div className="text-[7px] text-neutral-400 mt-0.5">Review</div>
+                                    </div>
+                                    <div className="bg-red-50 dark:bg-red-950/20 text-red-600 p-2 rounded-lg">
+                                        <div>22%</div>
+                                        <div className="text-[7px] text-neutral-400 mt-0.5">Expired</div>
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5 text-[8px] font-semibold text-neutral-500 dark:text-neutral-400">
+                                    <div className="flex justify-between">
+                                        <span>• Valid</span>
+                                        <span className="font-extrabold text-neutral-800 dark:text-neutral-200">65</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>• Pending Review</span>
+                                        <span className="font-extrabold text-neutral-800 dark:text-neutral-200">48</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>• Expired</span>
+                                        <span className="font-extrabold text-neutral-800 dark:text-neutral-200">15</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
-                                <div className="text-4xl font-black text-emerald-500">86%</div>
-                                <div className="text-sm font-bold text-gray-500 dark:text-gray-400 mt-2">Approval Rate</div>
-                                <div className="mt-3 w-full h-2 rounded-full bg-emerald-500/10">
-                                    <div className="h-full w-[86%] rounded-full bg-emerald-500" />
+                        </div>
+
+                        {/* Card 02 - Penyimpanan File */}
+                        <div className="p-8 rounded-3xl border border-neutral-200/60 dark:border-neutral-800/60 bg-white dark:bg-neutral-900 flex flex-col justify-between shadow-sm">
+                            <div className="mb-6">
+                                <span className="text-xs font-extrabold text-blue-600 dark:text-blue-500 font-mono">02</span>
+                                <h3 className="text-base font-extrabold text-neutral-900 dark:text-white mt-1 mb-2">Penyimpanan File</h3>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium leading-relaxed">
+                                    Lihat kapasitas penyimpanan, kategori dokumen, dan akses file secara terstruktur.
+                                </p>
+                            </div>
+                            {/* Inner Widget Visual */}
+                            <div className="bg-[#F8FBFF] dark:bg-neutral-950/50 rounded-2xl border border-neutral-100 dark:border-neutral-800/50 p-4 flex gap-4 items-center">
+                                <div className="size-20 shrink-0 border-[6px] border-blue-600 border-t-neutral-200 rounded-full flex flex-col items-center justify-center text-[10px] font-black">
+                                    <span>1.24 GB</span>
+                                    <span className="text-[6px] text-neutral-400 font-bold uppercase tracking-wider">Terpakai</span>
+                                </div>
+                                <div className="flex-1 space-y-1.5 text-[8px] font-bold text-neutral-500 dark:text-neutral-400">
+                                    <div className="flex justify-between">
+                                        <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-blue-600" /> Modul</span>
+                                        <span>55%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-500" /> Dokumen</span>
+                                        <span>25%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-orange-500" /> Laporan</span>
+                                        <span>15%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-neutral-400" /> Lainnya</span>
+                                        <span>5%</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10">
-                                <div className="text-4xl font-black text-blue-500">8</div>
-                                <div className="text-sm font-bold text-gray-500 dark:text-gray-400 mt-2">Program Pelatihan</div>
-                                <div className="mt-3 w-full h-2 rounded-full bg-blue-500/10">
-                                    <div className="h-full w-[100%] rounded-full bg-blue-500" />
-                                </div>
+                        </div>
+
+                        {/* Card 03 - Matriks Pelatihan */}
+                        <div className="p-8 rounded-3xl border border-neutral-200/60 dark:border-neutral-800/60 bg-white dark:bg-neutral-900 flex flex-col justify-between shadow-sm">
+                            <div className="mb-6">
+                                <span className="text-xs font-extrabold text-blue-600 dark:text-blue-500 font-mono">03</span>
+                                <h3 className="text-base font-extrabold text-neutral-900 dark:text-white mt-1 mb-2">Matriks Pelatihan</h3>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium leading-relaxed">
+                                    Petakan kebutuhan pelatihan dan hubungan antar modul dengan rapi.
+                                </p>
                             </div>
-                            <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10">
-                                <div className="text-4xl font-black text-amber-500">28%</div>
-                                <div className="text-sm font-bold text-gray-500 dark:text-gray-400 mt-2">Kapasitas Terpakai</div>
-                                <div className="mt-3 w-full h-2 rounded-full bg-amber-500/10">
-                                    <div className="h-full w-[28%] rounded-full bg-amber-500" />
+                            {/* Inner Widget Visual */}
+                            <div className="bg-[#F8FBFF] dark:bg-neutral-950/50 rounded-2xl border border-neutral-100 dark:border-neutral-800/50 p-3 overflow-hidden">
+                                <table className="w-full text-center text-[7px] border-collapse font-semibold text-neutral-500 dark:text-neutral-400">
+                                    <thead>
+                                        <tr className="border-b border-neutral-200/50 dark:border-neutral-800/50 pb-1.5">
+                                            <th className="text-left font-bold py-1">Matriks Pelatihan</th>
+                                            <th>Modul A</th>
+                                            <th>Modul B</th>
+                                            <th>Modul C</th>
+                                            <th>Modul D</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-200/30 dark:divide-neutral-800/30">
+                                        <tr>
+                                            <td className="text-left font-bold py-1 text-neutral-700 dark:text-neutral-300">Tim Admin</td>
+                                            <td className="text-blue-600 font-extrabold">●</td>
+                                            <td className="text-emerald-500 font-extrabold">●</td>
+                                            <td className="text-neutral-300">○</td>
+                                            <td className="text-blue-600 font-extrabold">●</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="text-left font-bold py-1 text-neutral-700 dark:text-neutral-300">Tim Operasional</td>
+                                            <td className="text-blue-600 font-extrabold">●</td>
+                                            <td className="text-neutral-300">○</td>
+                                            <td className="text-blue-600 font-extrabold">●</td>
+                                            <td className="text-neutral-300">○</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="text-left font-bold py-1 text-neutral-700 dark:text-neutral-300">Tim Quality</td>
+                                            <td className="text-[#8B5CF6] font-extrabold">●</td>
+                                            <td className="text-blue-600 font-extrabold">●</td>
+                                            <td className="text-[#8B5CF6] font-extrabold">●</td>
+                                            <td className="text-emerald-500 font-extrabold">●</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Card 04 - Riwayat Revisi */}
+                        <div className="p-8 rounded-3xl border border-neutral-200/60 dark:border-neutral-800/60 bg-white dark:bg-neutral-900 flex flex-col justify-between shadow-sm">
+                            <div className="mb-6">
+                                <span className="text-xs font-extrabold text-blue-600 dark:text-blue-500 font-mono">04</span>
+                                <h3 className="text-base font-extrabold text-neutral-900 dark:text-white mt-1 mb-2">Riwayat Revisi</h3>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium leading-relaxed">
+                                    Lacak perubahan modul, versi file, dan histori approval dengan mudah.
+                                </p>
+                            </div>
+                            {/* Inner Widget Visual */}
+                            <div className="bg-[#F8FBFF] dark:bg-neutral-950/50 rounded-2xl border border-neutral-100 dark:border-neutral-800/50 p-3.5 space-y-2.5 text-[8px] font-semibold">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="bg-blue-50 text-blue-600 px-1 py-0.2 rounded font-bold text-[7px]">v2.0</span>
+                                        <span className="text-neutral-800 dark:text-neutral-200">Perubahan konten Bab 3</span>
+                                    </div>
+                                    <span className="text-neutral-400 font-medium">Admin</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="bg-purple-50 text-purple-600 px-1 py-0.2 rounded font-bold text-[7px]">v1.2</span>
+                                        <span className="text-neutral-800 dark:text-neutral-200">Perbaikan format tabel</span>
+                                    </div>
+                                    <span className="text-neutral-400 font-medium">Tim PD</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="bg-neutral-100 text-neutral-600 px-1 py-0.2 rounded font-bold text-[7px]">v1.1</span>
+                                        <span className="text-neutral-800 dark:text-neutral-200">Update referensi dokumen</span>
+                                    </div>
+                                    <span className="text-neutral-400 font-medium">Tim Training</span>
                                 </div>
                             </div>
                         </div>
@@ -583,85 +587,268 @@ export default function Welcome() {
                 </div>
             </section>
 
-            {/* CTA Section */}
-            <section className="py-24 bg-gray-50 dark:bg-[#09090b] border-t border-gray-100 dark:border-[#18181b]">
-                <div className="max-w-4xl mx-auto px-6 text-center">
-                    <h2 className="text-4xl font-extrabold tracking-tight mb-6">
-                        Siap kelola modul pelatihan <br />secara <span className="text-[#FF2D20]">lebih baik</span>?
-                    </h2>
-                    <p className="text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto mb-10">
-                        Ribuan modul telah terkelola melalui portal ini. Mulai digitalisasi pendataan modul pelatihan tim Anda sekarang.
-                    </p>
-                    <div className="flex flex-wrap items-center justify-center gap-4">
-                        <Link 
-                            href={auth.user ? route('dashboard') : route('register')}
-                            className="px-8 py-4 bg-[#FF2D20] hover:bg-[#E0241A] text-white font-extrabold rounded-xl flex items-center gap-3 transition-all shadow-xl shadow-[#FF2D20]/30 hover:scale-[1.02]"
-                        >
-                            {auth.user ? 'Buka Dashboard' : 'Mulai Sekarang'}
-                            <ArrowRight className="size-5" />
-                        </Link>
-                        <Link
-                            href={route('login')}
-                            className="px-8 py-4 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] font-extrabold rounded-xl hover:bg-gray-50 dark:hover:bg-[#27272a] transition-all"
-                        >
-                            Masuk ke Akun
-                        </Link>
+            {/* Flow / CTA Section (Orbit Layout) */}
+            <section className="py-24 bg-gradient-to-b from-[#EBF3FF] to-white dark:from-[#0d2140] dark:to-[#09090b] relative overflow-hidden" id="alur-kerja">
+                <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                    
+                    {/* Left Hand: Floating Visual widgets */}
+                    <div className="lg:col-span-6 order-2 lg:order-1 relative h-[360px] max-w-md mx-auto w-full">
+                        {/* Center decorative ring background */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="size-64 sm:size-80 rounded-full border border-dashed border-blue-500/20 dark:border-blue-400/10 animate-spin-slow" />
+                        </div>
+
+                        {/* Floating Card 1: Dokumen Modul */}
+                        <div className="absolute top-8 left-0 sm:left-4 bg-white dark:bg-neutral-900 border border-neutral-200/50 dark:border-neutral-800 rounded-2xl p-4 shadow-lg w-44 hover:-translate-y-1 transition-transform">
+                            <div className="flex items-center gap-2 mb-2 text-blue-600 dark:text-blue-400">
+                                <FileText className="size-4 shrink-0" />
+                                <span className="font-extrabold text-[9px]">Dokumen Modul</span>
+                            </div>
+                            <div className="text-neutral-800 dark:text-neutral-200 text-xs font-bold mb-1">42 File</div>
+                            <div className="text-neutral-400 text-[8px] font-semibold">Lihat Detail →</div>
+                        </div>
+
+                        {/* Floating Card 2: Reminder Revisi */}
+                        <div className="absolute top-20 right-0 sm:right-4 bg-white dark:bg-neutral-900 border border-neutral-200/50 dark:border-neutral-800 rounded-2xl p-4 shadow-lg w-48 hover:-translate-y-1 transition-transform">
+                            <div className="flex items-center gap-2 mb-2 text-orange-600 dark:text-orange-400">
+                                <Clock className="size-4 shrink-0" />
+                                <span className="font-extrabold text-[9px]">Reminder Revisi</span>
+                            </div>
+                            <div className="text-neutral-800 dark:text-neutral-200 text-[10px] font-bold mb-1 leading-snug">3 revisi menunggu tindakan</div>
+                            <div className="text-neutral-400 text-[8px] font-semibold">Lihat Semua →</div>
+                        </div>
+
+                        {/* Floating Card 3: Review Performa */}
+                        <div className="absolute bottom-12 left-2 sm:left-8 bg-white dark:bg-neutral-900 border border-neutral-200/50 dark:border-neutral-800 rounded-2xl p-4 shadow-lg w-52 hover:-translate-y-1 transition-transform">
+                            <div className="flex items-center justify-between mb-2 text-neutral-900 dark:text-white">
+                                <span className="font-extrabold text-[9px]">Review Performa</span>
+                                <span className="bg-emerald-50 text-emerald-600 px-1 py-0.2 rounded text-[7px] font-bold">Admin</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                                <div className="size-5 rounded-full bg-blue-100 flex items-center justify-center text-[7px] font-bold text-blue-600">OP</div>
+                                <span className="text-[8px] font-semibold text-neutral-700 dark:text-neutral-300">Olivia J. - Need Renewal</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="size-5 rounded-full bg-purple-100 flex items-center justify-center text-[7px] font-bold text-purple-600">MS</div>
+                                <span className="text-[8px] font-semibold text-neutral-700 dark:text-neutral-300">Michael S. - Approved</span>
+                            </div>
+                        </div>
+
+                        {/* Floating Card 4: Status Approval */}
+                        <div className="absolute bottom-6 right-2 sm:right-8 bg-white dark:bg-neutral-900 border border-neutral-200/50 dark:border-neutral-800 rounded-2xl p-4 shadow-lg w-44 hover:-translate-y-1 transition-transform">
+                            <div className="flex items-center gap-1.5 mb-2 text-emerald-500">
+                                <CheckCircle2 className="size-4 shrink-0" />
+                                <span className="font-extrabold text-[9px]">Status Approval</span>
+                            </div>
+                            <div className="text-neutral-800 dark:text-neutral-200 text-xs font-bold mb-1">98% Approved</div>
+                            <div className="text-neutral-400 text-[8px] font-semibold">Lihat Detail →</div>
+                        </div>
+                    </div>
+
+                    {/* Right Hand: Flow description and CTA text */}
+                    <div className="lg:col-span-6 order-1 lg:order-2 flex flex-col justify-center text-center lg:text-left">
+                        <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-900 dark:text-white leading-tight mb-4">
+                            Kendalikan Alur Modul Pelatihan dengan Lebih Mudah
+                        </h2>
+                        
+                        <p className="text-sm sm:text-base text-neutral-500 dark:text-neutral-400 leading-relaxed mb-8 max-w-xl mx-auto lg:mx-0 font-medium">
+                            Automasi proses review, approval, dan pengingat revisi agar tidak ada yang terlewat dan semua pihak selalu selaras.
+                        </p>
+                        
+                        <div>
+                            <Link 
+                                href={auth.user ? route('dashboard') : route('register')}
+                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-500/20 inline-flex items-center gap-2 hover:scale-[1.02]"
+                            >
+                                Mulai Sekarang
+                                <ArrowRight className="size-4" />
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Benefits Section ("Tentang Fitur" / "Operasional Modul yang Lebih Efisien") */}
+            <section className="py-20 lg:py-24 bg-white dark:bg-[#09090b]" id="solusi">
+                <div className="max-w-7xl mx-auto px-6 lg:px-8">
+                    <div className="text-center mb-16">
+                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-500 uppercase tracking-widest block mb-2">TENTANG FITUR</span>
+                        <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight text-neutral-900 dark:text-white">
+                            Operasional Modul yang Lebih Efisien
+                        </h2>
+                    </div>
+
+                    {/* Benefit White Card Container */}
+                    <div className="rounded-3xl border border-neutral-200/60 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 p-8 shadow-sm">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:divide-x md:divide-neutral-200/60 dark:md:divide-neutral-850">
+                            
+                            {/* Column 1 */}
+                            <div className="flex flex-col items-center md:items-start text-center md:text-left md:px-6 first:pl-0">
+                                <div className="size-10 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-4 shrink-0 shadow-sm">
+                                    <BookOpen className="size-5" />
+                                </div>
+                                <h4 className="text-sm font-bold text-neutral-900 dark:text-white mb-2">Manajemen Siklus Modul</h4>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed font-medium">
+                                    Buat, revisi, dan kelola modul pelatihan dalam satu alur kerja yang praktis.
+                                </p>
+                            </div>
+
+                            {/* Column 2 */}
+                            <div className="flex flex-col items-center md:items-start text-center md:text-left md:px-6">
+                                <div className="size-10 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-4 shrink-0 shadow-sm">
+                                    <ShieldCheck className="size-5" />
+                                </div>
+                                <h4 className="text-sm font-bold text-neutral-900 dark:text-white mb-2">Tracking & Validasi Dokumen</h4>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed font-medium">
+                                    Upload, cek kelengkapan, dan verifikasi dokumen tanpa proses manual yang rumit.
+                                </p>
+                            </div>
+
+                            {/* Column 3 */}
+                            <div className="flex flex-col items-center md:items-start text-center md:text-left md:px-6">
+                                <div className="size-10 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-full flex items-center justify-center mb-4 shrink-0 shadow-sm">
+                                    <Bell className="size-5" />
+                                </div>
+                                <h4 className="text-sm font-bold text-neutral-900 dark:text-white mb-2">Notifikasi & Approval Cerdas</h4>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed font-medium">
+                                    Dapatkan pengingat otomatis, status real-time, dan persetujuan yang lebih cepat.
+                                </p>
+                            </div>
+
+                        </div>
+
+                        {/* Progress Timeline Graphic below columns */}
+                        <div className="mt-10 pt-6 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between text-[9px] font-bold text-neutral-400 select-none">
+                            <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-extrabold">
+                                <span className="size-2 bg-blue-600 rounded-full ring-4 ring-blue-50 dark:ring-blue-900/30" />
+                                Pengajuan
+                            </span>
+                            <div className="flex-1 h-0.5 border-t border-dashed border-neutral-200 dark:border-neutral-800 mx-3" />
+                            <span className="flex items-center gap-1.5">
+                                <span className="size-2 bg-neutral-300 dark:bg-neutral-700 rounded-full" />
+                                Review PD
+                            </span>
+                            <div className="flex-1 h-0.5 border-t border-dashed border-neutral-200 dark:border-neutral-800 mx-3" />
+                            <span className="flex items-center gap-1.5">
+                                <span className="size-2 bg-neutral-300 dark:bg-neutral-700 rounded-full" />
+                                Approval Manager
+                            </span>
+                            <div className="flex-1 h-0.5 border-t border-dashed border-neutral-200 dark:border-neutral-800 mx-3" />
+                            <span className="flex items-center gap-1.5">
+                                <span className="size-2 bg-neutral-300 dark:bg-neutral-700 rounded-full" />
+                                Publikasi
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Final CTA Card Section */}
+            <section className="py-16 bg-white dark:bg-[#09090b]">
+                <div className="max-w-7xl mx-auto px-6 lg:px-8">
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-900 dark:to-indigo-900 rounded-3xl p-8 lg:p-12 shadow-xl flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
+                        <div className="max-w-2xl">
+                            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3 tracking-tight">
+                                Siap Menyederhanakan Pengelolaan Modul?
+                            </h2>
+                            <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed font-medium">
+                                Bergabunglah dengan tim yang sudah meningkatkan produktivitas pelatihan mereka bersama TrainingPD.
+                            </p>
+                        </div>
+                        <div className="shrink-0">
+                            <a 
+                                href="#faq"
+                                className="px-6 py-3.5 bg-[#020617] hover:bg-[#0f172a] text-white text-xs font-bold rounded-xl transition-all shadow-md hover:scale-[1.02]"
+                            >
+                                Ajukan Demo
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* FAQ Accordion Section (as fallback for Demo/FAQ requests) */}
+            <section className="py-20 lg:py-24 bg-[#F8FBFF] dark:bg-neutral-950/30 border-t border-neutral-200/30 dark:border-neutral-900/30" id="faq">
+                <div className="max-w-4xl mx-auto px-6">
+                    <div className="text-center mb-16">
+                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-500 uppercase tracking-widest block mb-2">FAQ</span>
+                        <h2 className="text-3xl font-extrabold tracking-tight text-neutral-900 dark:text-white mb-4">
+                            Pertanyaan yang Sering Diajukan
+                        </h2>
+                    </div>
+
+                    <div className="space-y-4">
+                        {[
+                            { q: "Apa itu TrainingPD?", a: "TrainingPD adalah platform terintegrasi berbasis SaaS untuk mengelola modul pelatihan, memetakan kurikulum kompetensi (matriks pelatihan), meninjau pengajuan draf/revisi modul, serta mengarsipkan dokumen." },
+                            { q: "Bagaimana integrasi Google Drive bekerja?", a: "Sistem secara otomatis menghubungkan akun Google Drive Anda. Setiap file modul PDF yang diunggah saat pengajuan akan disimpan di folder Drive pilihan Anda tanpa membebani penyimpanan proyek server lokal." },
+                            { q: "Siapa saja yang bisa menggunakan portal ini?", a: "Portal ini dirancang dengan kontrol akses berbasis peran (RBAC) untuk 5 role utama: Admin (kelola sistem & user), Staf PD (ajukan modul & draf), Manager PD (approval & riwayat), Tim Training (akses database & matriks), dan User biasa (pengajuan kebutuhan khusus)." },
+                            { q: "Bagaimana cara melakukan revisi modul?", a: "Buka menu tindakan di baris modul pada database, pilih 'Buat Revisi', isi catatan perubahan, dan unggah file PDF revisi yang baru. Sistem akan otomatis melacak riwayat revisi dan menaikkan versinya." }
+                        ].map((faq, i) => (
+                            <div key={i} className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200/60 dark:border-neutral-800 p-5 shadow-sm">
+                                <h4 className="text-sm font-bold text-neutral-900 dark:text-white mb-2">{faq.q}</h4>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed font-medium">{faq.a}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </section>
 
             {/* Footer */}
-            <footer className="py-16">
-                <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
-                    <div className="col-span-1 md:col-span-1">
-                        <Link href="/" className="flex items-center gap-2 mb-6">
-                            <div className="size-7 bg-[#FF2D20] rounded-lg flex items-center justify-center text-white font-black italic">P</div>
-                            <span className="font-extrabold text-lg tracking-tight">Modul PD</span>
+            <footer className="bg-white dark:bg-[#09090b] border-t border-neutral-200/30 dark:border-neutral-900/30 py-16">
+                <div className="max-w-7xl mx-auto px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-12 text-center md:text-left">
+                    <div className="col-span-1">
+                        <Link href="/" className="flex items-center justify-center md:justify-start gap-2.5 mb-5 group">
+                            <div className="size-7.5 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">
+                                T
+                            </div>
+                            <span className="font-extrabold text-lg tracking-tight text-neutral-900 dark:text-white">
+                                TrainingPD
+                            </span>
                         </Link>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                            Portal digital manajemen modul pelatihan terintegrasi untuk tim People Development.
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium leading-relaxed max-w-xs mx-auto md:mx-0">
+                            Platform terintegrasi untuk mengelola modul pelatihan, approval, revisi, dan penyimpanan dokumen perusahaan.
                         </p>
                     </div>
                     
                     <div className="space-y-4">
-                        <h4 className="font-extrabold text-sm uppercase tracking-widest">Fitur</h4>
-                        <ul className="text-sm text-gray-500 dark:text-gray-400 space-y-3 font-semibold">
-                            <li><a href="#" className="hover:text-[#FF2D20] transition-colors">Pengajuan Modul</a></li>
-                            <li><a href="#" className="hover:text-[#FF2D20] transition-colors">Approval</a></li>
-                            <li><a href="#" className="hover:text-[#FF2D20] transition-colors">Database Modul</a></li>
-                            <li><a href="#" className="hover:text-[#FF2D20] transition-colors">Matriks Pelatihan</a></li>
+                        <h4 className="font-extrabold text-xs uppercase tracking-widest text-neutral-900 dark:text-white">Produk</h4>
+                        <ul className="text-xs text-neutral-500 dark:text-neutral-400 space-y-3 font-semibold">
+                            <li><a href="#fitur" className="hover:text-blue-600 transition-colors">Pengajuan Modul</a></li>
+                            <li><a href="#alur-kerja" className="hover:text-blue-600 transition-colors">Approval & Review</a></li>
+                            <li><a href="#fitur" className="hover:text-blue-600 transition-colors">Database Modul</a></li>
+                            <li><a href="#fitur" className="hover:text-blue-600 transition-colors">Matriks Pelatihan</a></li>
                         </ul>
                     </div>
 
                     <div className="space-y-4">
-                        <h4 className="font-extrabold text-sm uppercase tracking-widest">Ekosistem</h4>
-                        <ul className="text-sm text-gray-500 dark:text-gray-400 space-y-3 font-semibold">
-                            <li><a href="#" className="hover:text-[#FF2D20] transition-colors">Google Drive Integration</a></li>
-                            <li><a href="#" className="hover:text-[#FF2D20] transition-colors">Laporan & Analitik</a></li>
-                            <li><a href="#" className="hover:text-[#FF2D20] transition-colors">Audit Trail</a></li>
+                        <h4 className="font-extrabold text-xs uppercase tracking-widest text-neutral-900 dark:text-white">Solusi</h4>
+                        <ul className="text-xs text-neutral-500 dark:text-neutral-400 space-y-3 font-semibold">
+                            <li><a href="#solusi" className="hover:text-blue-600 transition-colors">Google Drive Integrasi</a></li>
+                            <li><a href="#solusi" className="hover:text-blue-600 transition-colors">Kepatuhan Dokumen</a></li>
+                            <li><a href="#solusi" className="hover:text-blue-600 transition-colors">Audit & Aktivitas</a></li>
                         </ul>
                     </div>
 
                     <div className="space-y-4">
-                        <h4 className="font-extrabold text-sm uppercase tracking-widest">Kontak</h4>
-                        <ul className="text-sm text-gray-500 dark:text-gray-400 space-y-3 font-semibold">
-                            <li>People Development</li>
-                            <li><a href="#" className="hover:text-[#FF2D20] transition-colors">pd@company.com</a></li>
+                        <h4 className="font-extrabold text-xs uppercase tracking-widest text-neutral-900 dark:text-white">Hubungi Kami</h4>
+                        <ul className="text-xs text-neutral-500 dark:text-neutral-400 space-y-3 font-semibold">
+                            <li>People Development Department</li>
+                            <li><a href="mailto:pd@trainingpd.com" className="hover:text-blue-600 transition-colors">pd@trainingpd.com</a></li>
                         </ul>
-                        <div className="flex items-center gap-4 mt-4">
-                            <a href="#" className="text-gray-400 hover:text-[#FF2D20] transition-colors"><Github className="size-5" /></a>
-                            <a href="#" className="text-gray-400 hover:text-[#FF2D20] transition-colors"><Users className="size-5" /></a>
+                        <div className="flex items-center justify-center md:justify-start gap-4 mt-4">
+                            <a href="https://github.com" target="_blank" className="text-neutral-400 hover:text-blue-600 transition-colors"><Github className="size-4.5" /></a>
+                            <a href="#faq" className="text-neutral-400 hover:text-blue-600 transition-colors"><Users className="size-4.5" /></a>
                         </div>
                     </div>
                 </div>
                 
-                <div className="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-gray-100 dark:border-[#18181b] flex flex-col md:flex-row justify-between items-center gap-6">
-                    <p className="text-xs text-gray-400 font-bold">
-                        &copy; {new Date().getFullYear()} Modul PD. All rights reserved.
+                <div className="max-w-7xl mx-auto px-6 lg:px-8 mt-16 pt-8 border-t border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row justify-between items-center gap-6 text-center">
+                    <p className="text-[10px] text-neutral-400 font-bold">
+                        &copy; 2026 TrainingPD. Semua hak dilindungi.
                     </p>
-                    <div className="flex items-center gap-8 text-xs text-gray-400 font-bold">
-                        <a href="#" className="hover:text-gray-900 dark:hover:text-white transition-colors">Kebijakan Privasi</a>
-                        <a href="#" className="hover:text-gray-900 dark:hover:text-white transition-colors">Syarat & Ketentuan</a>
+                    <div className="flex items-center gap-6 text-[10px] text-neutral-400 font-bold">
+                        <a href="#faq" className="hover:text-neutral-900 dark:hover:text-white transition-colors">Kebijakan Privasi</a>
+                        <a href="#faq" className="hover:text-neutral-900 dark:hover:text-white transition-colors">Syarat & Ketentuan</a>
                     </div>
                 </div>
             </footer>

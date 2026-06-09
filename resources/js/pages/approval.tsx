@@ -33,7 +33,7 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Link } from '@inertiajs/react';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -128,6 +128,21 @@ export default function Approval() {
         reject_reason: '', // keterangan
         tanggal_kebutuhan_baru: '',
     });
+
+    // Toast state and auto-close handler
+    const [localToast, setLocalToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    useEffect(() => {
+        if (flash?.message) {
+            setLocalToast({ message: flash.message, type: 'success' });
+            const timer = setTimeout(() => setLocalToast(null), 4000);
+            return () => clearTimeout(timer);
+        } else if (flash?.error) {
+            setLocalToast({ message: flash.error, type: 'error' });
+            const timer = setTimeout(() => setLocalToast(null), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [flash]);
 
     const activeList = activeTab === 'queue' ? queue : history;
 
@@ -265,17 +280,19 @@ export default function Approval() {
                     </p>
                 </div>
 
-                {/* Flash */}
-                {flash?.message && (
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400">
-                        <CheckCircle2 className="size-4.5" />
-                        <span>{flash.message}</span>
-                    </div>
-                )}
-                {flash?.error && (
-                    <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-400">
-                        <AlertTriangle className="size-4.5" />
-                        <span>{flash.error}</span>
+                {/* Floating success/error toast */}
+                {localToast && (
+                    <div className={`fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border p-4 text-sm font-semibold shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300 ${
+                        localToast.type === 'success'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300'
+                            : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300'
+                    }`}>
+                        {localToast.type === 'success' ? (
+                            <CheckCircle2 className="size-4.5 text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                            <AlertTriangle className="size-4.5 text-rose-600 dark:text-rose-450" />
+                        )}
+                        <span>{localToast.message}</span>
                     </div>
                 )}
 

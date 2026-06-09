@@ -17,23 +17,31 @@ export default function VerifyEmail({ status }: { status?: string }) {
     };
 
     return (
-        <AuthLayout title="Verify email" description="Please verify your email address by clicking on the link we just emailed to you.">
-            <Head title="Email verification" />
+        <AuthLayout title="Verifikasi Email Anda" description="Silakan verifikasi alamat email Anda dengan mengeklik tautan yang baru saja kami kirimkan melalui email.">
+            <Head title="Verifikasi Email" />
 
             {status === 'verification-link-sent' && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    A new verification link has been sent to the email address you provided during registration.
+                <div className="mb-4 text-center text-xs font-bold text-green-600 dark:text-green-400">
+                    Tautan verifikasi baru telah dikirim ke alamat email yang Anda berikan saat pendaftaran.
                 </div>
             )}
 
             <form onSubmit={submit} className="space-y-6 text-center">
-                <Button disabled={processing} variant="secondary">
+                <Button 
+                    type="submit"
+                    disabled={processing} 
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full h-11.5 font-bold transition-all shadow-lg shadow-blue-500/25 cursor-pointer flex items-center justify-center gap-2"
+                >
                     {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                    Resend verification email
+                    <span>Kirim Ulang Email Verifikasi</span>
                 </Button>
 
-                <TextLink href={route('logout')} method="post" className="mx-auto block text-sm">
-                    Log out
+                <TextLink 
+                    href={route('logout')} 
+                    method="post" 
+                    className="mx-auto block text-xs font-bold text-neutral-400 hover:text-blue-300 transition-colors"
+                >
+                    Keluar Akun
                 </TextLink>
             </form>
         </AuthLayout>

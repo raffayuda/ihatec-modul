@@ -43,7 +43,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                 <div className="grid gap-5">
                     {/* Email address field */}
                     <div className="grid gap-1.5">
-                        <Label htmlFor="email" className="text-xs font-bold text-neutral-500 dark:text-neutral-405">Alamat Email</Label>
+                        <Label htmlFor="email" className="text-xs font-bold text-neutral-400 ml-3">Alamat Email</Label>
                         <Input
                             id="email"
                             type="email"
@@ -54,7 +54,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             value={data.email}
                             onChange={(e) => setData('email', e.target.value)}
                             placeholder="budi@company.com"
-                            className="rounded-xl h-10 focus-visible:ring-blue-500/20 border-neutral-200 dark:border-neutral-800"
+                            className="rounded-full h-11 bg-black/40 border border-white/10 text-white placeholder-neutral-500 focus-visible:ring-2 focus-visible:ring-blue-500/40 px-5 text-sm"
                         />
                         <InputError message={errors.email} />
                     </div>
@@ -62,9 +62,9 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     {/* Password field */}
                     <div className="grid gap-1.5">
                         <div className="flex items-center justify-between">
-                            <Label htmlFor="password" className="text-xs font-bold text-neutral-500 dark:text-neutral-405">Kata Sandi</Label>
+                            <Label htmlFor="password" className="text-xs font-bold text-neutral-400 ml-3">Kata Sandi</Label>
                             {canResetPassword && (
-                                <TextLink href={route('password.request')} className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 font-semibold" tabIndex={5}>
+                                <TextLink href={route('password.request')} className="text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors mr-3" tabIndex={5}>
                                     Lupa kata sandi?
                                 </TextLink>
                             )}
@@ -78,28 +78,28 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             value={data.password}
                             onChange={(e) => setData('password', e.target.value)}
                             placeholder="••••••••"
-                            className="rounded-xl h-10 focus-visible:ring-blue-500/20 border-neutral-200 dark:border-neutral-800"
+                            className="rounded-full h-11 bg-black/40 border border-white/10 text-white placeholder-neutral-500 focus-visible:ring-2 focus-visible:ring-blue-500/40 px-5 text-sm"
                         />
                         <InputError message={errors.password} />
                     </div>
 
                     {/* Remember me checkbox */}
-                    <div className="flex items-center space-x-2.5">
+                    <div className="flex items-center space-x-2.5 ml-3">
                         <Checkbox 
                             id="remember" 
                             name="remember" 
                             checked={data.remember}
                             onCheckedChange={(checked) => setData('remember', checked === true)}
                             tabIndex={3} 
-                            className="rounded border-neutral-200 dark:border-neutral-800 text-blue-600"
+                            className="rounded border-white/10 text-blue-600 focus:ring-0 focus:ring-offset-0 bg-black/40"
                         />
-                        <Label htmlFor="remember" className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 select-none cursor-pointer">Ingat saya di perangkat ini</Label>
+                        <Label htmlFor="remember" className="text-xs font-semibold text-neutral-400 select-none cursor-pointer">Ingat saya di perangkat ini</Label>
                     </div>
 
                     {/* Submit Button */}
                     <Button 
                         type="submit" 
-                        className="mt-2 w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl h-10.5 font-bold transition-all shadow-md shadow-blue-500/10 cursor-pointer flex items-center justify-center gap-2" 
+                        className="mt-2 w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full h-11.5 font-bold transition-all shadow-lg shadow-blue-500/25 cursor-pointer flex items-center justify-center gap-2" 
                         tabIndex={4} 
                         disabled={processing}
                     >
@@ -109,9 +109,9 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                 </div>
 
                 {/* Redirect link */}
-                <div className="text-center text-xs font-semibold text-neutral-450 dark:text-neutral-500 pt-2 border-t border-neutral-100 dark:border-neutral-900">
+                <div className="text-center text-xs font-semibold text-neutral-400 pt-3 border-t border-white/5">
                     Belum memiliki akun?{' '}
-                    <TextLink href={route('register')} className="text-blue-600 hover:text-blue-700 dark:text-blue-450 font-bold" tabIndex={5}>
+                    <TextLink href={route('register')} className="text-blue-400 hover:text-blue-300 font-bold transition-colors" tabIndex={5}>
                         Daftar Demo
                     </TextLink>
                 </div>

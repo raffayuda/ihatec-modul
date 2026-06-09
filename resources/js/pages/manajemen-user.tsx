@@ -37,7 +37,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Label, Tooltip } from 'recharts';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -96,6 +96,21 @@ export default function ManajemenUser() {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editUser, setEditUser] = useState<UserItem | null>(null);
     const [deleteUser, setDeleteUser] = useState<UserItem | null>(null);
+
+    // Toast state and auto-close handler
+    const [localToast, setLocalToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    useEffect(() => {
+        if (flash?.message) {
+            setLocalToast({ message: flash.message, type: 'success' });
+            const timer = setTimeout(() => setLocalToast(null), 4000);
+            return () => clearTimeout(timer);
+        } else if (flash?.error) {
+            setLocalToast({ message: flash.error, type: 'error' });
+            const timer = setTimeout(() => setLocalToast(null), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [flash]);
 
     // Add user form
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -246,17 +261,19 @@ export default function ManajemenUser() {
                     </p>
                 </div>
 
-                {/* Flash Messages */}
-                {flash?.message && (
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400 shadow-sm">
-                        <UserCheck className="size-4.5" />
-                        <span>{flash.message}</span>
-                    </div>
-                )}
-                {flash?.error && (
-                    <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-400 shadow-sm">
-                        <AlertTriangle className="size-4.5" />
-                        <span>{flash.error}</span>
+                {/* Floating success/error toast */}
+                {localToast && (
+                    <div className={`fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border p-4 text-sm font-semibold shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300 ${
+                        localToast.type === 'success'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300'
+                            : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300'
+                    }`}>
+                        {localToast.type === 'success' ? (
+                            <UserCheck className="size-4.5 text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                            <AlertTriangle className="size-4.5 text-rose-600 dark:text-rose-450" />
+                        )}
+                        <span>{localToast.message}</span>
                     </div>
                 )}
 
