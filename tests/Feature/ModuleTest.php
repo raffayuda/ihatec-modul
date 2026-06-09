@@ -6,6 +6,8 @@ use App\Services\GoogleDriveOAuthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 uses(RefreshDatabase::class);
 
@@ -124,10 +126,10 @@ test('authorized users can preview module from google drive proxy', function () 
     $this->assertEquals('fake PDF binary content', $response->getContent());
 });
 
-test('authorized users can archive module', function () {
+test('archive module route has been removed', function () {
     $user = User::factory()->create();
 
-    $module = Module::create([
+    Module::create([
         'code' => 'ARC-001',
         'title' => 'Archive Test',
         'program' => 'Regulasi & Kepatuhan',
@@ -140,12 +142,7 @@ test('authorized users can archive module', function () {
 
     $response = $this->actingAs($user)->post('/database/ARC-001/archive');
 
-    $response->assertRedirect('/database');
-
-    $this->assertDatabaseHas('modules', [
-        'code' => 'ARC-001',
-        'status' => 'Arsip',
-    ]);
+    $response->assertNotFound();
 });
 
 test('authorized users can upload new revision of a module', function () {
@@ -196,10 +193,10 @@ test('authorized users can upload new revision of a module', function () {
     ]);
 });
 
-test('authorized users can unarchive module', function () {
+test('unarchive module route has been removed', function () {
     $user = User::factory()->create();
 
-    $module = Module::create([
+    Module::create([
         'code' => 'UNARC-001',
         'title' => 'Unarchive Test',
         'program' => 'Regulasi & Kepatuhan',
@@ -212,10 +209,92 @@ test('authorized users can unarchive module', function () {
 
     $response = $this->actingAs($user)->post('/database/UNARC-001/unarchive');
 
+    $response->assertNotFound();
+});
+
+test('authorized users can export modules to excel-ready xlsx', function () {
+    $user = User::factory()->create();
+
+    Module::create([
+        'code' => 'EXP-001',
+        'title' => 'Export Test',
+        'program' => 'Regulasi & Kepatuhan',
+        'language' => 'Indonesia',
+        'status' => 'Approved',
+        'current_revision' => '1.0',
+        'file_size' => '500 KB',
+        'file_pages' => 12,
+    ]);
+
+    $response = $this->actingAs($user)->get('/database/export');
+
+    $response->assertDownload();
+    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+});
+
+test('authorized users can download module import template xlsx', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->get('/database/template');
+
+    $response->assertDownload('template-import-database-modul.xlsx');
+    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+});
+
+test('authorized users can import modules from excel template xlsx', function () {
+    $user = User::factory()->create([
+        'role' => 'admin',
+    ]);
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setCellValue('A1', 'Kode Modul');
+    $sheet->setCellValue('B1', 'Judul Modul');
+    $sheet->setCellValue('C1', 'Program / Jenis Pelatihan');
+    $sheet->setCellValue('D1', 'Revisi');
+    $sheet->setCellValue('E1', 'Bahasa');
+    $sheet->setCellValue('F1', 'Status');
+    $sheet->setCellValue('G1', 'Ukuran File');
+    $sheet->setCellValue('H1', 'Deskripsi');
+    
+    $sheet->setCellValue('A2', 'IMP-001');
+    $sheet->setCellValue('B2', 'Import Excel Test');
+    $sheet->setCellValue('C2', 'Teknis Laboratorium');
+    $sheet->setCellValue('D2', '1.2');
+    $sheet->setCellValue('E2', 'Indonesia');
+    $sheet->setCellValue('F2', 'Approved');
+    $sheet->setCellValue('G2', '2 MB');
+    $sheet->setCellValue('H2', 'Deskripsi dari file Excel.');
+
+    $tempFile = tempnam(sys_get_temp_dir(), 'test_import');
+    $writer = new Xlsx($spreadsheet);
+    $writer->save($tempFile);
+
+    $file = new UploadedFile($tempFile, 'database-modul.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+    $response = $this->actingAs($user)->post('/database/import', [
+        'file' => $file,
+    ]);
+
     $response->assertRedirect('/database');
 
     $this->assertDatabaseHas('modules', [
-        'code' => 'UNARC-001',
+        'code' => 'IMP-001',
+        'title' => 'Import Excel Test',
+        'program' => 'Teknis Laboratorium',
+        'language' => 'Indonesia',
         'status' => 'Approved',
+        'current_revision' => '1.2',
+        'file_size' => '2 MB',
+        'file_pages' => 0,
     ]);
+
+    $this->assertDatabaseHas('module_revisions', [
+        'revision' => '1.2',
+        'note' => 'Diimpor dari file Excel.',
+    ]);
+
+    if (file_exists($tempFile)) {
+        @unlink($tempFile);
+    }
 });

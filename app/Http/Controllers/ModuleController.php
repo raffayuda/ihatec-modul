@@ -6,12 +6,18 @@ use App\Models\Module;
 use App\Models\ModuleRevision;
 use App\Models\Setting;
 use App\Services\GoogleDriveOAuthService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\File;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class ModuleController extends Controller
 {
@@ -61,7 +67,6 @@ class ModuleController extends Controller
             'total' => Module::count(),
             'approved' => Module::where('status', 'Approved')->count(),
             'revisi' => Module::where('status', 'Revisi')->count(),
-            'arsip' => Module::where('status', 'Arsip')->count(),
         ];
 
         // Compute categories chart data
@@ -112,6 +117,287 @@ class ModuleController extends Controller
             'popular' => $popularModules,
             'isDriveConnected' => $isDriveConnected,
         ]);
+    }
+
+    /**
+     * Export module database to a tidy Excel workbook.
+     */
+    public function export()
+    {
+        $modules = Module::orderBy('code')->get();
+        $filename = 'database-modul-'.now()->format('Ymd-His').'.xlsx';
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Database Modul');
+
+        $headers = [
+            'Kode Modul',
+            'Judul Modul',
+            'Program / Jenis Pelatihan',
+            'Revisi',
+            'Bahasa',
+            'Status',
+            'Ukuran File',
+            'Deskripsi',
+            'Terakhir Diperbarui'
+        ];
+
+        // Header style matching blue theme
+        $headerStyle = [
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 11,
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0F67EA'],
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
+        ];
+
+        // Set Headers
+        foreach ($headers as $colIndex => $header) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex + 1);
+            $sheet->setCellValue($colLetter . '1', $header);
+        }
+
+        $sheet->getStyle('A1:I1')->applyFromArray($headerStyle);
+        $sheet->getRowDimension('1')->setRowHeight(28);
+
+        // Data Row styling & filling
+        $rowNumber = 2;
+        foreach ($modules as $module) {
+            $sheet->setCellValue('A' . $rowNumber, $module->code);
+            $sheet->setCellValue('B' . $rowNumber, $module->title);
+            $sheet->setCellValue('C' . $rowNumber, $module->program);
+            $sheet->setCellValue('D' . $rowNumber, $module->current_revision);
+            $sheet->setCellValue('E' . $rowNumber, $module->language);
+            $sheet->setCellValue('F' . $rowNumber, $module->status);
+            $sheet->setCellValue('G' . $rowNumber, $module->file_size);
+            $sheet->setCellValue('H' . $rowNumber, $module->description);
+            $sheet->setCellValue('I' . $rowNumber, $module->updated_at ? $module->updated_at->format('Y-m-d H:i:s') : '');
+
+            // Soft gray borders for each row
+            $sheet->getStyle('A' . $rowNumber . ':I' . $rowNumber)->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('E5E7EB');
+            $sheet->getRowDimension($rowNumber)->setRowHeight(20);
+            $rowNumber++;
+        }
+
+        // Auto-fit columns
+        foreach (range(1, 9) as $colIndex) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+        }
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0',
+        ]);
+    }
+
+    /**
+     * Download an Excel-ready import template.
+     */
+    public function template()
+    {
+        $filename = 'template-import-database-modul.xlsx';
+        
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Template Import');
+
+        $headers = [
+            'Kode Modul',
+            'Judul Modul',
+            'Program / Jenis Pelatihan',
+            'Revisi',
+            'Bahasa',
+            'Status',
+            'Ukuran File',
+            'Deskripsi',
+        ];
+
+        // Header style matching blue theme
+        $headerStyle = [
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 11,
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0F67EA'],
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
+        ];
+
+        // Set Headers
+        foreach ($headers as $colIndex => $header) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex + 1);
+            $sheet->setCellValue($colLetter . '1', $header);
+        }
+
+        $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
+        $sheet->getRowDimension('1')->setRowHeight(28);
+
+        // Add 1 sample row matching actual data format
+        $sheet->setCellValue('A2', 'ILN.1.8');
+        $sheet->setCellValue('B2', 'Interpretasi Sistem dan Implementasi ISO 17025');
+        $sheet->setCellValue('C2', 'Manajerial & Kepemimpinan');
+        $sheet->setCellValue('D2', '2.1');
+        $sheet->setCellValue('E2', 'Indonesia');
+        $sheet->setCellValue('F2', 'Approved');
+        $sheet->setCellValue('G2', '2.5 MB');
+        $sheet->setCellValue('H2', 'Modul panduan interpretasi sistem dan tata kelola implementasi ISO 17025.');
+
+        // Soft gray borders for the sample row
+        $sheet->getStyle('A2:H2')->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('E5E7EB');
+        $sheet->getRowDimension('2')->setRowHeight(20);
+
+        // Auto-fit columns
+        foreach (range(1, 8) as $colIndex) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+        }
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0',
+        ]);
+    }
+
+    /**
+     * Import module database rows from Excel.
+     */
+    public function import(Request $request): RedirectResponse
+    {
+        if (! in_array(strtolower(Auth::user()->role), ['admin', 'staf pd'])) {
+            abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk mengimpor modul.');
+        }
+
+        $request->validate([
+            'file' => [
+                'required',
+                File::types(['xlsx', 'xls'])->max(10 * 1024),
+            ],
+        ]);
+
+        $file = $request->file('file');
+        
+        try {
+            $spreadsheet = IOFactory::load($file->getRealPath());
+            $sheet = $spreadsheet->getActiveSheet();
+            $maxRow = $sheet->getHighestRow();
+            $maxCol = $sheet->getHighestColumn();
+            $maxColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($maxCol);
+
+            // Read Headers from Row 1
+            $headers = [];
+            for ($col = 1; $col <= $maxColIndex; $col++) {
+                $headerVal = $sheet->getCell([$col, 1])->getValue();
+                $headers[$col] = $this->normalizeImportHeader((string) $headerVal);
+            }
+
+            $rows = [];
+            for ($row = 2; $row <= $maxRow; $row++) {
+                $rowData = [];
+                $hasData = false;
+                for ($col = 1; $col <= $maxColIndex; $col++) {
+                    $val = $sheet->getCell([$col, $row])->getValue();
+                    $key = $headers[$col] ?? 'col_' . $col;
+                    $rowData[$key] = $val !== null ? trim((string) $val) : '';
+                    if ($rowData[$key] !== '') {
+                        $hasData = true;
+                    }
+                }
+                if ($hasData) {
+                    $rows[] = $rowData;
+                }
+            }
+        } catch (\Exception $e) {
+            return back()->withErrors(['file' => 'Gagal membaca file Excel: ' . $e->getMessage()]);
+        }
+
+        if (count($rows) === 0) {
+            return back()->withErrors(['file' => 'File import tidak memiliki baris data.']);
+        }
+
+        $imported = DB::transaction(function () use ($rows) {
+            $count = 0;
+
+            foreach ($rows as $row) {
+                $code = strtoupper(trim((string) ($row['code'] ?? '')));
+                $title = trim((string) ($row['title'] ?? ''));
+
+                if ($code === '' && $title === '') {
+                    continue;
+                }
+
+                if ($code === '' || $title === '') {
+                    continue;
+                }
+
+                $revision = trim((string) ($row['revision'] ?? '1.0')) ?: '1.0';
+                $status = trim((string) ($row['status'] ?? 'Approved')) ?: 'Approved';
+
+                if (! in_array($status, ['Approved', 'Revisi'], true)) {
+                    $status = 'Approved';
+                }
+
+                $module = Module::updateOrCreate(
+                    ['code' => $code],
+                    [
+                        'title' => $title,
+                        'program' => trim((string) ($row['program'] ?? 'Lainnya')) ?: 'Lainnya',
+                        'language' => trim((string) ($row['language'] ?? 'Indonesia')) ?: 'Indonesia',
+                        'description' => trim((string) ($row['description'] ?? '')),
+                        'status' => $status,
+                        'current_revision' => $revision,
+                        'file_size' => trim((string) ($row['file_size'] ?? '')),
+                        'file_pages' => (int) ($row['file_pages'] ?? 0),
+                        'created_by' => Auth::id(),
+                        'approved_by' => Auth::id(),
+                        'approved_at' => now(),
+                    ],
+                );
+
+                $module->revisions()->firstOrCreate(
+                    ['revision' => $revision],
+                    [
+                        'note' => 'Diimpor dari file Excel.',
+                        'author_name' => Auth::user()->name ?? 'System Admin',
+                        'status' => $status,
+                        'file_size' => $module->file_size,
+                        'file_pages' => $module->file_pages,
+                        'created_by' => Auth::id(),
+                    ],
+                );
+
+                $count++;
+            }
+
+            return $count;
+        });
+
+        if ($imported === 0) {
+            return back()->withErrors(['file' => 'Tidak ada data valid yang dapat diimpor. Pastikan kolom Kode Modul dan Judul Modul terisi.']);
+        }
+
+        return redirect()->route('database')->with('message', "{$imported} modul berhasil diimpor.");
     }
 
     /**
@@ -406,42 +692,6 @@ class ModuleController extends Controller
 
 
     /**
-     * Archive the specified module.
-     */
-    public function archive(string $code)
-    {
-        if (! in_array(strtolower(Auth::user()->role), ['admin', 'staf pd'])) {
-            abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk mengarsipkan modul.');
-        }
-
-        $module = Module::where('code', $code)->firstOrFail();
-        $module->update(['status' => 'Arsip']);
-
-        // Update the status of revisions to 'Arsip' as well
-        $module->revisions()->update(['status' => 'Arsip']);
-
-        return redirect()->route('database')->with('message', "Modul {$code} berhasil diarsipkan.");
-    }
-
-    /**
-     * Unarchive the specified module.
-     */
-    public function unarchive(string $code)
-    {
-        if (! in_array(strtolower(Auth::user()->role), ['admin', 'staf pd'])) {
-            abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk mengaktifkan kembali modul.');
-        }
-
-        $module = Module::where('code', $code)->firstOrFail();
-        $module->update(['status' => 'Approved']);
-
-        // Update the status of revisions to 'Approved' as well
-        $module->revisions()->update(['status' => 'Approved']);
-
-        return redirect()->route('database')->with('message', "Modul {$code} berhasil diaktifkan kembali.");
-    }
-
-    /**
      * Create a new revision of the specified module.
      */
     public function revision(Request $request, string $code)
@@ -512,10 +762,43 @@ class ModuleController extends Controller
             'drive_file_id' => $driveFileId,
             'status' => 'Approved',
         ]);
-
         return redirect()->route('database')->with('message', "Revisi {$newRevision} untuk modul {$module->code} berhasil ditambahkan.");
     }
+    /**
+     * Normalize header names for importing Excel sheets.
+     */
+    protected function normalizeImportHeader(string $header): string
+    {
+        // Strip BOM and clean up whitespace
+        $header = preg_replace('/[\x{FEFF}\x{200B}]/u', '', $header);
+        $header = trim(strtolower($header));
+        
+        // Map Indonesian and English headers
+        $map = [
+            'kode modul' => 'code',
+            'kode' => 'code',
+            'code' => 'code',
+            'judul modul' => 'title',
+            'judul' => 'title',
+            'title' => 'title',
+            'program / jenis pelatihan' => 'program',
+            'program' => 'program',
+            'jenis pelatihan' => 'program',
+            'revisi' => 'revision',
+            'revision' => 'revision',
+            'bahasa' => 'language',
+            'language' => 'language',
+            'status' => 'status',
+            'ukuran file' => 'file_size',
+            'file size' => 'file_size',
+            'jumlah halaman' => 'file_pages',
+            'file pages' => 'file_pages',
+            'deskripsi' => 'description',
+            'description' => 'description',
+        ];
 
+        return $map[$header] ?? str_replace(' ', '_', $header);
+    }
     /**
      * Format Indonesian date.
      */

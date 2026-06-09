@@ -8,10 +8,10 @@ import {
     BookOpen,
     ShieldAlert,
     RefreshCw,
-    Archive,
     Search,
     Plus,
     Download,
+    Upload,
     Eye,
     MoreVertical,
     ChevronLeft,
@@ -97,7 +97,7 @@ interface ModuleItem {
     revision: string;
     language: string;
     updatedAt: string;
-    status: 'Approved' | 'Revisi' | 'Arsip';
+    status: 'Approved' | 'Revisi';
     fileSize: string;
     filePages: number;
     description: string;
@@ -116,7 +116,6 @@ interface DatabaseModulProps extends SharedData {
         total: number;
         approved: number;
         revisi: number;
-        arsip: number;
     };
     categories?: Array<{
         name: string;
@@ -237,7 +236,7 @@ export function PdfThumbnail({ url, fallback }: PdfThumbnailProps) {
 
 export default function DatabaseModul({
     modules: initialModules = [],
-    metrics = { total: 0, approved: 0, revisi: 0, arsip: 0 },
+    metrics = { total: 0, approved: 0, revisi: 0 },
     categories = [],
     popular = [],
     isDriveConnected = true,
@@ -261,7 +260,6 @@ export default function DatabaseModul({
     const [langFilter, setLangFilter] = useState('Semua Bahasa');
     const [statusFilter, setStatusFilter] = useState('Semua Status');
     const [revFilter, setRevFilter] = useState('Semua Revisi');
-    const [showArchivedOnly, setShowArchivedOnly] = useState(false);
 
     // Selected Module for Right Column Preview
     const [selectedModuleId, setSelectedModuleId] = useState<string>('');
@@ -322,6 +320,12 @@ export default function DatabaseModul({
         file: null as File | null,
     });
 
+    const importForm = useForm({
+        file: null as File | null,
+    });
+
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -329,7 +333,7 @@ export default function DatabaseModul({
     // Reset current page when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, typeFilter, langFilter, statusFilter, revFilter, showArchivedOnly]);
+    }, [searchQuery, typeFilter, langFilter, statusFilter, revFilter]);
 
     // Active item matching
     const selectedModule = useMemo(() => {
@@ -357,12 +361,6 @@ export default function DatabaseModul({
     // Filter logic
     const filteredModules = useMemo(() => {
         return modules.filter((m) => {
-            if (showArchivedOnly) {
-                if (m.status !== 'Arsip') return false;
-            } else {
-                if (m.status === 'Arsip') return false;
-            }
-
             const matchesSearch = 
                 m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -375,7 +373,7 @@ export default function DatabaseModul({
 
             return matchesSearch && matchesType && matchesLang && matchesStatus && matchesRev;
         });
-    }, [modules, searchQuery, typeFilter, langFilter, statusFilter, revFilter, showArchivedOnly]);
+    }, [modules, searchQuery, typeFilter, langFilter, statusFilter, revFilter]);
 
     // Paginated modules for rendering
     const paginatedModules = useMemo(() => {
@@ -390,7 +388,6 @@ export default function DatabaseModul({
         setLangFilter('Semua Bahasa');
         setStatusFilter('Semua Status');
         setRevFilter('Semua Revisi');
-        setShowArchivedOnly(false);
     };
 
     // Add module submit handler
@@ -428,6 +425,19 @@ export default function DatabaseModul({
                 setIsReviseModalOpen(false);
                 resetRevise();
                 setToastMessage(`Revisi ${reviseData.revision} untuk modul ${reviseData.code} berhasil ditambahkan.`);
+                setTimeout(() => setToastMessage(null), 4000);
+            },
+        });
+    };
+
+    const handleImportModules = (e: React.FormEvent) => {
+        e.preventDefault();
+        importForm.post('/database/import', {
+            forceFormData: true,
+            onSuccess: () => {
+                setIsImportModalOpen(false);
+                importForm.reset();
+                setToastMessage('Data modul berhasil diimpor.');
                 setTimeout(() => setToastMessage(null), 4000);
             },
         });
@@ -490,7 +500,7 @@ export default function DatabaseModul({
                 )}
 
                 {/* Metrics Indicator Row */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {/* Total Modul */}
                     <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                         <CardContent className="flex items-center gap-4 p-5">
@@ -534,22 +544,6 @@ export default function DatabaseModul({
                                 <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{metrics.revisi}</span>
                                 <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500 mt-1">
                                     <span>↑ 6 dari bulan lalu</span>
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Arsip */}
-                    <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                        <CardContent className="flex items-center gap-4 p-5">
-                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-600 dark:bg-neutral-850 dark:text-neutral-400">
-                                <Archive className="size-6" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Arsip</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{metrics.arsip}</span>
-                                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500 mt-1">
-                                    <span>↑ 2 dari bulan lalu</span>
                                 </span>
                             </div>
                         </CardContent>
@@ -618,7 +612,6 @@ export default function DatabaseModul({
                                         <option value="Semua Status">Semua Status</option>
                                         <option value="Approved">Approved</option>
                                         <option value="Revisi">Revisi</option>
-                                        <option value="Arsip">Arsip</option>
                                     </select>
 
                                     {/* Revision filter */}
@@ -648,20 +641,6 @@ export default function DatabaseModul({
                                         Reset Filter
                                     </Button>
 
-                                    <Button
-                                        onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-                                        variant={showArchivedOnly ? "default" : "outline"}
-                                        size="sm"
-                                        className={`h-9 px-3.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 ${
-                                            showArchivedOnly 
-                                                ? 'bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 border-amber-600' 
-                                                : 'border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-300'
-                                        }`}
-                                    >
-                                        <Archive className={`size-3.5 ${showArchivedOnly ? 'animate-pulse' : ''}`} />
-                                        <span>{showArchivedOnly ? "Tampilkan Aktif" : "Lihat Arsip"}</span>
-                                    </Button>
-
                                     {(role === 'admin' || role === 'Staf PD') && (
                                         <Button
                                             onClick={() => setIsAddModalOpen(true)}
@@ -673,13 +652,26 @@ export default function DatabaseModul({
                                         </Button>
                                     )}
 
+                                    {(role === 'admin' || role === 'Staf PD') && (
+                                        <Button
+                                            onClick={() => setIsImportModalOpen(true)}
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-9 px-3.5 border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold rounded-lg flex items-center gap-1.5"
+                                        >
+                                            <Upload className="size-3.5" />
+                                            <span>Import Excel</span>
+                                        </Button>
+                                    )}
+
                                     <Button
+                                        onClick={() => window.location.href = '/database/export'}
                                         variant="outline"
                                         size="sm"
                                         className="h-9 px-3.5 border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold rounded-lg flex items-center gap-1.5"
                                     >
                                         <Download className="size-3.5" />
-                                        <span>Export</span>
+                                        <span>Export Excel</span>
                                     </Button>
                                 </div>
                             </div>
@@ -823,41 +815,6 @@ export default function DatabaseModul({
                                                                                 Buat Revisi
                                                                             </DropdownMenuItem>
                                                                         </>
-                                                                    )}
-                                                                    {(role === 'admin' || role === 'Staf PD') && (
-                                                                        item.status === 'Arsip' ? (
-                                                                            <DropdownMenuItem 
-                                                                                className="cursor-pointer font-medium text-emerald-600 dark:text-emerald-400"
-                                                                                onClick={() => {
-                                                                                    if (confirm(`Apakah Anda yakin ingin mengaktifkan kembali (batal arsip) modul ${item.id}?`)) {
-                                                                                        router.post(`/database/${item.id}/unarchive`, {}, {
-                                                                                            onSuccess: () => {
-                                                                                                setToastMessage(`Modul ${item.id} berhasil diaktifkan kembali.`);
-                                                                                                setTimeout(() => setToastMessage(null), 4000);
-                                                                                            }
-                                                                                        });
-                                                                                    }
-                                                                                }}
-                                                                            >
-                                                                                Batal Arsipkan
-                                                                            </DropdownMenuItem>
-                                                                        ) : (
-                                                                            <DropdownMenuItem 
-                                                                                className="cursor-pointer font-medium"
-                                                                                onClick={() => {
-                                                                                    if (confirm(`Apakah Anda yakin ingin mengarsipkan modul ${item.id}?`)) {
-                                                                                        router.post(`/database/${item.id}/archive`, {}, {
-                                                                                            onSuccess: () => {
-                                                                                                setToastMessage(`Modul ${item.id} berhasil diarsipkan.`);
-                                                                                                setTimeout(() => setToastMessage(null), 4000);
-                                                                                            }
-                                                                                        });
-                                                                                    }
-                                                                                }}
-                                                                            >
-                                                                                Arsipkan Modul
-                                                                            </DropdownMenuItem>
-                                                                        )
                                                                     )}
                                                                     {role === 'admin' && (
                                                                         <DropdownMenuItem className="cursor-pointer font-medium text-rose-600" onClick={() => { if (confirm(`Apakah Anda yakin ingin menghapus modul ${item.id}?`)) { router.delete(`/database/${item.id}`); } }}>Hapus Modul</DropdownMenuItem>
@@ -1240,6 +1197,75 @@ export default function DatabaseModul({
                 </div>
 
             </div>
+
+            {/* Modal: Import Excel */}
+            <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+                <DialogContent className="max-w-md bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                            <Upload className="size-5 text-blue-600 dark:text-blue-400" />
+                            <span>Import Data Modul</span>
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-neutral-400 dark:text-neutral-500">
+                            Unduh template, isi datanya di Excel, lalu unggah kembali file .xlsx dengan format kolom yang sama.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleImportModules} className="space-y-4 py-2 text-xs">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => window.location.href = '/database/template'}
+                            className="h-9 w-full rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs font-semibold text-neutral-700 dark:text-neutral-300"
+                        >
+                            <Download className="mr-1.5 size-3.5" />
+                            Download Template Excel
+                        </Button>
+
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                File Template Terisi
+                            </label>
+                            <input
+                                type="file"
+                                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                required
+                                onChange={(e) => importForm.setData('file', e.target.files ? e.target.files[0] : null)}
+                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 file:mr-2.5 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-neutral-800 dark:file:text-blue-400 cursor-pointer"
+                            />
+                            {importForm.errors.file && (
+                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{importForm.errors.file}</p>
+                            )}
+                            {importForm.progress && (
+                                <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                                    <div
+                                        className="h-full bg-blue-600 transition-all"
+                                        style={{ width: `${importForm.progress.percentage}%` }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => setIsImportModalOpen(false)}
+                                className="rounded-lg h-9 px-4 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-500 dark:text-neutral-400"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={importForm.processing}
+                                className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold"
+                            >
+                                {importForm.processing ? 'Mengimpor...' : 'Import Data'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             {/* Modal: Tambah Modul */}
             <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>

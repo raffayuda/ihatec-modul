@@ -43,10 +43,11 @@ Route::middleware(['auth'])->group(function () {
     // Database Modul
     Route::get('database', [ModuleController::class, 'index'])->name('database');
     Route::post('database', [ModuleController::class, 'store'])->name('database.store');
+    Route::get('database/export', [ModuleController::class, 'export'])->name('database.export');
+    Route::get('database/template', [ModuleController::class, 'template'])->name('database.template');
+    Route::post('database/import', [ModuleController::class, 'import'])->name('database.import');
     Route::get('database/{code}/download', [ModuleController::class, 'download'])->name('database.download');
     Route::get('database/{code}/preview', [ModuleController::class, 'preview'])->name('database.preview');
-    Route::post('database/{code}/archive', [ModuleController::class, 'archive'])->name('database.archive');
-    Route::post('database/{code}/unarchive', [ModuleController::class, 'unarchive'])->name('database.unarchive');
     Route::post('database/{code}/revision', [ModuleController::class, 'revision'])->name('database.revision');
     Route::post('database/{code}/update', [ModuleController::class, 'update'])->name('database.update');
     Route::delete('database/{code}', [ModuleController::class, 'destroy'])->name('database.destroy');
