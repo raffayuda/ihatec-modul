@@ -98,8 +98,8 @@ export function AppSidebar() {
     }
 
     // Group: "Menu Utama" vs "Master Data" vs "Laporan & Lainnya"
-    const masterDataTitles = ['Manajemen User', 'Manajemen Modul'];
-    const lainnyaTitles = ['Report', 'Pengaturan', 'Integrasi Drive'];
+    const masterDataTitles = ['Manajemen User', 'Manajemen Modul', 'Integrasi Drive'];
+    const lainnyaTitles = ['Report', 'Pengaturan'];
     const menuUtamaItems = allItems.filter((item) => !lainnyaTitles.includes(item.title) && !masterDataTitles.includes(item.title));
     const masterDataItems = allItems.filter((item) => masterDataTitles.includes(item.title));
     const lainnyaItems = allItems.filter((item) => lainnyaTitles.includes(item.title));
