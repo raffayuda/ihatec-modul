@@ -12,25 +12,23 @@ import {
     Archive,
     Menu,
     X,
-    Sun,
-    Moon,
     ArrowRight,
     Github,
     Database,
     FileText,
-    CheckCircle2,
     UploadCloud,
     Server,
     BarChart3,
     RefreshCw,
     BookOpen,
-    Clock,
     Plus,
     Eye,
     ArrowUpRight,
     Loader2,
     Bell
 } from 'lucide-react';
+import { MotionThemeToggle } from '@/components/motion-theme-toggle';
+import { TrainingFlowBeam } from '@/components/training-flow-beam';
 
 export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
@@ -76,10 +74,7 @@ export default function Welcome() {
         };
     }, []);
 
-    const toggleTheme = () => {
-        updateAppearance(appearance === 'dark' ? 'light' : 'dark');
-    };
-
+    
     return (
         <div className="min-h-screen bg-[#F8FBFF] text-[#0F172A] dark:bg-[#09090b] dark:text-[#f4f4f5] font-sans transition-colors duration-300 selection:bg-blue-600 selection:text-white">
             <AnimatePresence mode="wait">
@@ -209,11 +204,7 @@ export default function Welcome() {
                         </nav>
 
                         <div className="flex items-center gap-4">
-                            <button onClick={toggleTheme} className={`p-2 transition-colors ${
-                                isScrolled ? 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white' : 'text-white/80 hover:text-white'
-                            }`}>
-                                {appearance === 'dark' ? <Sun className="size-4.5" /> : <Moon className="size-4.5" />}
-                            </button>
+                            <MotionThemeToggle variant="diamond" className={`"size-9"`} />
 
                             <div className={`h-5 w-px ${isScrolled ? 'bg-neutral-200 dark:bg-neutral-800' : 'bg-white/20'} hidden sm:block`}></div>
 
@@ -591,58 +582,9 @@ export default function Welcome() {
             <section className="py-24 bg-gradient-to-b from-[#EBF3FF] to-white dark:from-[#0d2140] dark:to-[#09090b] relative overflow-hidden" id="alur-kerja">
                 <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
                     
-                    {/* Left Hand: Floating Visual widgets */}
-                    <div className="lg:col-span-6 order-2 lg:order-1 relative h-[360px] max-w-md mx-auto w-full">
-                        {/* Center decorative ring background */}
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="size-64 sm:size-80 rounded-full border border-dashed border-blue-500/20 dark:border-blue-400/10 animate-spin-slow" />
-                        </div>
-
-                        {/* Floating Card 1: Dokumen Modul */}
-                        <div className="absolute top-8 left-0 sm:left-4 bg-white dark:bg-neutral-900 border border-neutral-200/50 dark:border-neutral-800 rounded-2xl p-4 shadow-lg w-44 hover:-translate-y-1 transition-transform">
-                            <div className="flex items-center gap-2 mb-2 text-blue-600 dark:text-blue-400">
-                                <FileText className="size-4 shrink-0" />
-                                <span className="font-extrabold text-[9px]">Dokumen Modul</span>
-                            </div>
-                            <div className="text-neutral-800 dark:text-neutral-200 text-xs font-bold mb-1">42 File</div>
-                            <div className="text-neutral-400 text-[8px] font-semibold">Lihat Detail →</div>
-                        </div>
-
-                        {/* Floating Card 2: Reminder Revisi */}
-                        <div className="absolute top-20 right-0 sm:right-4 bg-white dark:bg-neutral-900 border border-neutral-200/50 dark:border-neutral-800 rounded-2xl p-4 shadow-lg w-48 hover:-translate-y-1 transition-transform">
-                            <div className="flex items-center gap-2 mb-2 text-orange-600 dark:text-orange-400">
-                                <Clock className="size-4 shrink-0" />
-                                <span className="font-extrabold text-[9px]">Reminder Revisi</span>
-                            </div>
-                            <div className="text-neutral-800 dark:text-neutral-200 text-[10px] font-bold mb-1 leading-snug">3 revisi menunggu tindakan</div>
-                            <div className="text-neutral-400 text-[8px] font-semibold">Lihat Semua →</div>
-                        </div>
-
-                        {/* Floating Card 3: Review Performa */}
-                        <div className="absolute bottom-12 left-2 sm:left-8 bg-white dark:bg-neutral-900 border border-neutral-200/50 dark:border-neutral-800 rounded-2xl p-4 shadow-lg w-52 hover:-translate-y-1 transition-transform">
-                            <div className="flex items-center justify-between mb-2 text-neutral-900 dark:text-white">
-                                <span className="font-extrabold text-[9px]">Review Performa</span>
-                                <span className="bg-emerald-50 text-emerald-600 px-1 py-0.2 rounded text-[7px] font-bold">Admin</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                                <div className="size-5 rounded-full bg-blue-100 flex items-center justify-center text-[7px] font-bold text-blue-600">OP</div>
-                                <span className="text-[8px] font-semibold text-neutral-700 dark:text-neutral-300">Olivia J. - Need Renewal</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <div className="size-5 rounded-full bg-purple-100 flex items-center justify-center text-[7px] font-bold text-purple-600">MS</div>
-                                <span className="text-[8px] font-semibold text-neutral-700 dark:text-neutral-300">Michael S. - Approved</span>
-                            </div>
-                        </div>
-
-                        {/* Floating Card 4: Status Approval */}
-                        <div className="absolute bottom-6 right-2 sm:right-8 bg-white dark:bg-neutral-900 border border-neutral-200/50 dark:border-neutral-800 rounded-2xl p-4 shadow-lg w-44 hover:-translate-y-1 transition-transform">
-                            <div className="flex items-center gap-1.5 mb-2 text-emerald-500">
-                                <CheckCircle2 className="size-4 shrink-0" />
-                                <span className="font-extrabold text-[9px]">Status Approval</span>
-                            </div>
-                            <div className="text-neutral-800 dark:text-neutral-200 text-xs font-bold mb-1">98% Approved</div>
-                            <div className="text-neutral-400 text-[8px] font-semibold">Lihat Detail →</div>
-                        </div>
+                    {/* Left Hand: Animated Beam Flow */}
+                    <div className="lg:col-span-6 order-2 lg:order-1 max-w-md mx-auto w-full">
+                        <TrainingFlowBeam />
                     </div>
 
                     {/* Right Hand: Flow description and CTA text */}
@@ -855,3 +797,5 @@ export default function Welcome() {
         </div>
     );
 }
+
+

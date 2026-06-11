@@ -6,6 +6,13 @@
                 "artisan",
                 "boost:mcp"
             ]
+        },
+        "magicuidesign-mcp": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@magicuidesign/mcp@latest"
+            ]
         }
     }
 }

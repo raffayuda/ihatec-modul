@@ -5,7 +5,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { type BreadcrumbItem as BreadcrumbItemType, type SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
 import { Bell, CircleHelp, Search } from 'lucide-react';
-import AppearanceToggleDropdown from '@/components/appearance-dropdown';
+import { MotionThemeToggle } from '@/components/motion-theme-toggle';
 
 export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: BreadcrumbItemType[] }) {
     const page = usePage<SharedData>();
@@ -49,7 +49,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
                 <div className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900">
                     <CircleHelp className="h-5 w-5 text-neutral-600 dark:text-neutral-350" />
                 </div>
-                <AppearanceToggleDropdown className="text-neutral-600 dark:text-neutral-350" />
+                <MotionThemeToggle variant="diamond" className="text-neutral-600 dark:text-neutral-350" />
 
                 {user && (
                     <div className="flex items-center gap-3 border-l border-neutral-100 pl-4 dark:border-neutral-800">
