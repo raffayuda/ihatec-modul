@@ -8,10 +8,9 @@ interface MotionThemeToggleProps {
     variant?: 'circle' | 'square' | 'triangle' | 'diamond' | 'hexagon' | 'rectangle' | 'star';
     fromCenter?: boolean;
 }
-
 export function MotionThemeToggle({
     className,
-    variant = 'diamond',
+    variant = 'circle',
     fromCenter = false,
 }: MotionThemeToggleProps) {
     const { appearance, updateAppearance } = useAppearance();

@@ -49,7 +49,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
                 <div className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900">
                     <CircleHelp className="h-5 w-5 text-neutral-600 dark:text-neutral-350" />
                 </div>
-                <MotionThemeToggle variant="diamond" className="text-neutral-600 dark:text-neutral-350" />
+                <MotionThemeToggle variant="circle" className="text-neutral-600 dark:text-neutral-350" />
 
                 {user && (
                     <div className="flex items-center gap-3 border-l border-neutral-100 pl-4 dark:border-neutral-800">

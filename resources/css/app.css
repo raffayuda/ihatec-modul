@@ -166,9 +166,19 @@ html{
     scroll-behavior: smooth;
 }
 
-::view-transition-old(root), ::view-transition-new(root) {
-    animation:
-        none;
-    mix-blend-mode:
-        normal;
+::view-transition-old(root) {
+    animation: none;
+    mix-blend-mode: normal;
+    z-index: 1;
+}
+
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+    z-index: 9999;
+    height: 100%;
+}
+
+[data-magicui-theme-vt="active"]::view-transition-new(root) {
+    clip-path: var(--magicui-theme-vt-clip-from);
 }
