@@ -28,7 +28,8 @@ import {
     History,
     Loader2,
     AlertTriangle,
-    Pencil
+    Pencil,
+    Trash2
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -128,6 +129,10 @@ interface DatabaseModulProps extends SharedData {
         views: number;
     }>;
     isDriveConnected?: boolean;
+    flash?: {
+        message?: string;
+        error?: string;
+    };
 }
 
 interface PdfThumbnailProps {
@@ -240,6 +245,7 @@ export default function DatabaseModul({
     categories = [],
     popular = [],
     isDriveConnected = true,
+    flash,
 }: DatabaseModulProps) {
     const page = usePage<SharedData>();
     const user = page.props.auth?.user;
@@ -301,7 +307,19 @@ export default function DatabaseModul({
         reset: resetRevise
     } = reviseForm;
 
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [localToast, setLocalToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    useEffect(() => {
+        if (flash?.message) {
+            setLocalToast({ message: flash.message, type: 'success' });
+            const timer = setTimeout(() => setLocalToast(null), 4000);
+            return () => clearTimeout(timer);
+        } else if (flash?.error) {
+            setLocalToast({ message: flash.error, type: 'error' });
+            const timer = setTimeout(() => setLocalToast(null), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [flash]);
 
     // Manual code edit tracking
     const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
@@ -325,6 +343,7 @@ export default function DatabaseModul({
     });
 
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
@@ -398,8 +417,7 @@ export default function DatabaseModul({
                 setIsAddModalOpen(false);
                 reset();
                 setIsCodeManuallyEdited(false);
-                setToastMessage(`Modul ${data.code.toUpperCase()} berhasil ditambahkan ke database.`);
-                setTimeout(() => setToastMessage(null), 4000);
+                // Flash handles message
             },
         });
     };
@@ -411,8 +429,7 @@ export default function DatabaseModul({
             onSuccess: () => {
                 setIsEditModalOpen(false);
                 editForm.reset();
-                setToastMessage(`Modul ${editForm.data.code.toUpperCase()} berhasil diperbarui.`);
-                setTimeout(() => setToastMessage(null), 4000);
+                // Flash handles message
             },
         });
     };
@@ -424,8 +441,7 @@ export default function DatabaseModul({
             onSuccess: () => {
                 setIsReviseModalOpen(false);
                 resetRevise();
-                setToastMessage(`Revisi ${reviseData.revision} untuk modul ${reviseData.code} berhasil ditambahkan.`);
-                setTimeout(() => setToastMessage(null), 4000);
+                // Flash handles message
             },
         });
     };
@@ -437,8 +453,18 @@ export default function DatabaseModul({
             onSuccess: () => {
                 setIsImportModalOpen(false);
                 importForm.reset();
-                setToastMessage('Data modul berhasil diimpor.');
-                setTimeout(() => setToastMessage(null), 4000);
+                // Flash handles message
+            },
+        });
+    };
+
+    const handleBulkDelete = () => {
+        router.delete('/database/bulk', {
+            data: { ids: selectedModules },
+            onSuccess: () => {
+                setSelectedModules([]);
+                setIsBulkDeleteModalOpen(false);
+                // Flash handles message
             },
         });
     };
@@ -491,11 +517,19 @@ export default function DatabaseModul({
                     </div>
                 )}
 
-                {/* Success Toast */}
-                {toastMessage && (
-                    <div className="fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400 shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300">
-                        <CheckCircle2 className="size-4.5 text-emerald-600 dark:text-emerald-450" />
-                        <span>{toastMessage}</span>
+                {/* Success/Error Toast */}
+                {localToast && (
+                    <div className={`fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border p-4 text-sm font-semibold shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300 ${
+                        localToast.type === 'success'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300'
+                            : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300'
+                    }`}>
+                        {localToast.type === 'success' ? (
+                            <CheckCircle2 className="size-4.5 text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                            <AlertTriangle className="size-4.5 text-rose-600 dark:text-rose-450" />
+                        )}
+                        <span>{localToast.message}</span>
                     </div>
                 )}
 
@@ -559,119 +593,140 @@ export default function DatabaseModul({
                         {/* Filter Bar and Data Table card */}
                         <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm overflow-hidden">
                             {/* Filter items */}
-                            <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/10 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-                                
-                                {/* Search input */}
-                                <div className="relative flex-1 max-w-xs">
-                                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Cari kode modul, judul, program..."
-                                        className="h-9 w-full rounded-lg border border-neutral-200 bg-white pl-9 pr-4 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                    />
+                            <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/10 space-y-4">
+                                {/* Top Row: Search & Primary Actions */}
+                                <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+                                    {/* Search input - prominent and flexible */}
+                                    <div className="relative w-full lg:max-w-md xl:max-w-lg flex-1">
+                                        <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="Cari kode modul, judul, program..."
+                                            className="h-10 w-full rounded-xl border border-neutral-200 bg-white dark:bg-neutral-900 pl-10 pr-4 text-xs text-neutral-900 dark:text-neutral-100 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 shadow-sm transition-all"
+                                        />
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
+                                        {selectedModules.length > 0 && role === 'admin' && (
+                                            <Button
+                                                onClick={() => setIsBulkDeleteModalOpen(true)}
+                                                variant="destructive"
+                                                size="sm"
+                                                className="h-9 px-3.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
+                                            >
+                                                <Trash2 className="size-4" />
+                                                <span>Hapus ({selectedModules.length})</span>
+                                            </Button>
+                                        )}
+
+                                        {(role === 'admin' || role === 'Staf PD') && (
+                                            <Button
+                                                onClick={() => setIsAddModalOpen(true)}
+                                                size="sm"
+                                                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
+                                            >
+                                                <Plus className="size-4" />
+                                                <span>Tambah Modul</span>
+                                            </Button>
+                                        )}
+
+                                        <div className="flex items-center gap-2">
+                                            {(role === 'admin' || role === 'Staf PD') && (
+                                                <Button
+                                                    onClick={() => setIsImportModalOpen(true)}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-9 px-3.5 border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold rounded-lg flex items-center gap-1.5 bg-white dark:bg-neutral-900 shadow-sm"
+                                                >
+                                                    <Upload className="size-3.5" />
+                                                    <span>Import</span>
+                                                </Button>
+                                            )}
+
+                                            <Button
+                                                onClick={() => window.location.href = '/database/export'}
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-9 px-3.5 border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold rounded-lg flex items-center gap-1.5 bg-white dark:bg-neutral-900 shadow-sm"
+                                            >
+                                                <Download className="size-3.5" />
+                                                <span>Export</span>
+                                            </Button>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {/* Select filter group */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {/* Jenis / Program Filter */}
-                                    <select
-                                        value={typeFilter}
-                                        onChange={(e) => setTypeFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
-                                        <option value="Semua Jenis">Semua Jenis</option>
-                                        <option value="Regulasi & Kepatuhan">Regulasi & Kepatuhan</option>
-                                        <option value="Teknis Laboratorium">Teknis Laboratorium</option>
-                                        <option value="Sertifikasi & Auditor">Sertifikasi & Auditor</option>
-                                        <option value="Manajerial & Kepemimpinan">Manajerial & Kepemimpinan</option>
-                                        <option value="Teknis Produksi">Teknis Produksi</option>
-                                        <option value="Supply Chain & Logistik">Supply Chain & Logistik</option>
-                                        <option value="K3 & Keamanan">K3 & Keamanan</option>
-                                        <option value="Pengembangan SDM">Pengembangan SDM</option>
-                                    </select>
+                                {/* Bottom Row: Specific Filters */}
+                                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/60">
+                                    <div className="flex flex-wrap items-center gap-2.5">
+                                        {/* Jenis / Program Filter */}
+                                        <select
+                                            value={typeFilter}
+                                            onChange={(e) => setTypeFilter(e.target.value)}
+                                            className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm"
+                                        >
+                                            <option value="Semua Jenis">Semua Jenis</option>
+                                            <option value="Regulasi & Kepatuhan">Regulasi & Kepatuhan</option>
+                                            <option value="Teknis Laboratorium">Teknis Laboratorium</option>
+                                            <option value="Sertifikasi & Auditor">Sertifikasi & Auditor</option>
+                                            <option value="Manajerial & Kepemimpinan">Manajerial & Kepemimpinan</option>
+                                            <option value="Teknis Produksi">Teknis Produksi</option>
+                                            <option value="Supply Chain & Logistik">Supply Chain & Logistik</option>
+                                            <option value="K3 & Keamanan">K3 & Keamanan</option>
+                                            <option value="Pengembangan SDM">Pengembangan SDM</option>
+                                        </select>
 
-                                    {/* Language Filter */}
-                                    <select
-                                        value={langFilter}
-                                        onChange={(e) => setLangFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
-                                        <option value="Semua Bahasa">Semua Bahasa</option>
-                                        <option value="Indonesia">Indonesia</option>
-                                        <option value="English">English</option>
-                                    </select>
+                                        {/* Language Filter */}
+                                        <select
+                                            value={langFilter}
+                                            onChange={(e) => setLangFilter(e.target.value)}
+                                            className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm"
+                                        >
+                                            <option value="Semua Bahasa">Semua Bahasa</option>
+                                            <option value="Indonesia">Indonesia</option>
+                                            <option value="English">English</option>
+                                        </select>
 
-                                    {/* Status Filter */}
-                                    <select
-                                        value={statusFilter}
-                                        onChange={(e) => setStatusFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
-                                        <option value="Semua Status">Semua Status</option>
-                                        <option value="Approved">Approved</option>
-                                        <option value="Revisi">Revisi</option>
-                                    </select>
+                                        {/* Status Filter */}
+                                        <select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value)}
+                                            className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm"
+                                        >
+                                            <option value="Semua Status">Semua Status</option>
+                                            <option value="Approved">Approved</option>
+                                            <option value="Revisi">Revisi</option>
+                                        </select>
 
-                                    {/* Revision filter */}
-                                    <select
-                                        value={revFilter}
-                                        onChange={(e) => setRevFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
-                                        <option value="Semua Revisi">Semua Revisi</option>
-                                        <option value="1.0">Revisi 1.0</option>
-                                        <option value="1.1">Revisi 1.1</option>
-                                        <option value="1.2">Revisi 1.2</option>
-                                        <option value="1.3">Revisi 1.3</option>
-                                        <option value="2.0">Revisi 2.0</option>
-                                        <option value="2.1">Revisi 2.1</option>
-                                        <option value="2.2">Revisi 2.2</option>
-                                        <option value="3.0">Revisi 3.0</option>
-                                    </select>
+                                        {/* Revision filter */}
+                                        <select
+                                            value={revFilter}
+                                            onChange={(e) => setRevFilter(e.target.value)}
+                                            className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm"
+                                        >
+                                            <option value="Semua Revisi">Semua Revisi</option>
+                                            <option value="1.0">Revisi 1.0</option>
+                                            <option value="1.1">Revisi 1.1</option>
+                                            <option value="1.2">Revisi 1.2</option>
+                                            <option value="1.3">Revisi 1.3</option>
+                                            <option value="2.0">Revisi 2.0</option>
+                                            <option value="2.1">Revisi 2.1</option>
+                                            <option value="2.2">Revisi 2.2</option>
+                                            <option value="3.0">Revisi 3.0</option>
+                                        </select>
+                                    </div>
 
                                     <Button
                                         onClick={handleResetFilters}
                                         variant="outline"
                                         size="sm"
-                                        className="h-9 px-3 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold"
+                                        className="h-9 px-3 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold bg-white dark:bg-neutral-900 shadow-sm"
                                     >
                                         <RefreshCw className="mr-1.5 size-3.5" />
                                         Reset Filter
-                                    </Button>
-
-                                    {(role === 'admin' || role === 'Staf PD') && (
-                                        <Button
-                                            onClick={() => setIsAddModalOpen(true)}
-                                            size="sm"
-                                            className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
-                                        >
-                                            <Plus className="size-4" />
-                                            <span>Tambah Modul</span>
-                                        </Button>
-                                    )}
-
-                                    {(role === 'admin' || role === 'Staf PD') && (
-                                        <Button
-                                            onClick={() => setIsImportModalOpen(true)}
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-9 px-3.5 border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold rounded-lg flex items-center gap-1.5"
-                                        >
-                                            <Upload className="size-3.5" />
-                                            <span>Import Excel</span>
-                                        </Button>
-                                    )}
-
-                                    <Button
-                                        onClick={() => window.location.href = '/database/export'}
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-9 px-3.5 border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold rounded-lg flex items-center gap-1.5"
-                                    >
-                                        <Download className="size-3.5" />
-                                        <span>Export Excel</span>
                                     </Button>
                                 </div>
                             </div>
@@ -1664,6 +1719,39 @@ export default function DatabaseModul({
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: Bulk Delete Confirmation */}
+            <Dialog open={isBulkDeleteModalOpen} onOpenChange={setIsBulkDeleteModalOpen}>
+                <DialogContent className="max-w-sm bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                            <Trash2 className="size-5 text-rose-600 dark:text-rose-500" />
+                            <span>Hapus Masal Modul</span>
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-neutral-400 dark:text-neutral-500">
+                            Yakin ingin menghapus <span className="font-bold text-neutral-900 dark:text-neutral-100">{selectedModules.length}</span> modul yang dipilih secara permanen? File di Google Drive juga akan dihapus.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setIsBulkDeleteModalOpen(false)}
+                            className="rounded-lg h-9 px-4 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-500 dark:text-neutral-400"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleBulkDelete}
+                            className="bg-rose-600 hover:bg-rose-700 text-white dark:bg-rose-600 dark:hover:bg-rose-700 rounded-lg h-9 px-4 text-xs font-semibold"
+                        >
+                            Hapus Semua Terpilih
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

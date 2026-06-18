@@ -146,6 +146,28 @@ class UserController extends Controller
     }
 
     /**
+     * Delete multiple users at once.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $this->authorizeAdmin();
+
+        $ids = $request->input('ids', []);
+        
+        if (empty($ids)) {
+            return redirect()->route('manajemen-user')
+                ->with('error', 'Tidak ada pengguna yang dipilih untuk dihapus.');
+        }
+
+        // Prevent deleting self
+        $filteredIds = array_filter($ids, fn($id) => $id != Auth::id());
+        $count = User::whereIn('id', $filteredIds)->delete();
+
+        return redirect()->route('manajemen-user')
+            ->with('message', "{$count} akun pengguna berhasil dihapus.");
+    }
+
+    /**
      * Delete a user permanently.
      */
     public function destroy(int $id): RedirectResponse

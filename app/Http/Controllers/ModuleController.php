@@ -550,6 +550,52 @@ class ModuleController extends Controller
     }
 
     /**
+     * Delete multiple modules at once.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        if (Auth::user()->role !== 'admin') {
+            abort(403, 'Akses ditolak. Hanya Administrator yang dapat menghapus modul.');
+        }
+
+        $codes = $request->input('ids', []);
+        
+        if (empty($codes)) {
+            return redirect()->route('database')->with('error', 'Tidak ada modul yang dipilih untuk dihapus.');
+        }
+
+        $modules = Module::whereIn('code', $codes)->get();
+        $count = 0;
+
+        foreach ($modules as $module) {
+            // Delete associated files from Google Drive
+            $driveFileIds = $module->revisions()->pluck('drive_file_id')
+                ->merge([$module->drive_file_id])
+                ->filter()
+                ->unique();
+
+            foreach ($driveFileIds as $fileId) {
+                try {
+                    $this->driveService->deleteFile($fileId);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning("Gagal menghapus file Google Drive {$fileId} saat menghapus modul {$module->code}: " . $e->getMessage());
+                }
+            }
+
+            // Delete local cache if it exists
+            $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
+            if (file_exists($cachePath)) {
+                @unlink($cachePath);
+            }
+
+            $module->delete();
+            $count++;
+        }
+
+        return redirect()->route('database')->with('message', "{$count} modul berhasil dihapus.");
+    }
+
+    /**
      * Remove the specified module.
      */
     public function destroy(string $code)

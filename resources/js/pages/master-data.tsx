@@ -70,17 +70,21 @@ interface SyncItem {
 
 interface MasterDataProps extends SharedData {
     dataList?: MasterItem[];
+    flash?: {
+        message?: string;
+        error?: string;
+    };
 }
 
 export default function MasterData() {
     const { props } = usePage<MasterDataProps>();
-    const user = props.auth?.user;
+    const { auth, dataList: initialDataList = [], flash } = props;
+    const user = auth?.user;
     const role = user?.role || 'User';
 
     // Access control: only admin can access this page
     const hasAccess = role.toLowerCase() === 'admin';
 
-    const initialDataList = (props.dataList || []) as MasterItem[];
     const [dataList, setDataList] = useState<MasterItem[]>(initialDataList);
 
     React.useEffect(() => {
@@ -110,7 +114,22 @@ export default function MasterData() {
     const [editCode, setEditCode] = useState('');
     const [editStatus, setEditStatus] = useState<'Aktif' | 'Nonaktif'>('Aktif');
 
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+
+    const [localToast, setLocalToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    React.useEffect(() => {
+        if (flash?.message) {
+            setLocalToast({ message: flash.message, type: 'success' });
+            const timer = setTimeout(() => setLocalToast(null), 4000);
+            return () => clearTimeout(timer);
+        } else if (flash?.error) {
+            setLocalToast({ message: flash.error, type: 'error' });
+            const timer = setTimeout(() => setLocalToast(null), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [flash]);
 
     // Dynamic category counts
     const categoryCounts = useMemo(() => {
@@ -151,6 +170,31 @@ export default function MasterData() {
         setSearchQuery('');
         setCategoryFilter('Semua Kategori');
         setStatusFilter('Semua Status');
+        setSelectedIds([]);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length > 0) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredData.map(item => item.id));
+        }
+    };
+
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleBulkDelete = () => {
+        router.delete('/master-data/bulk', {
+            data: { ids: selectedIds },
+            onSuccess: () => {
+                setSelectedIds([]);
+                setIsBulkDeleteModalOpen(false);
+            },
+        });
     };
 
     // Add item submit handler
@@ -179,8 +223,6 @@ export default function MasterData() {
 
                 setNewName('');
                 setNewCode('');
-                setToastMessage(`Data ${newName} berhasil ditambahkan.`);
-                setTimeout(() => setToastMessage(null), 4000);
             }
         });
     };
@@ -208,9 +250,6 @@ export default function MasterData() {
                     time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
                 };
                 setHistory(prev => [newHistoryLog, ...prev]);
-
-                setToastMessage(`Data ${editName} berhasil diperbarui.`);
-                setTimeout(() => setToastMessage(null), 4000);
             }
         });
     };
@@ -232,8 +271,7 @@ export default function MasterData() {
 
         router.delete(`/master-data/${id}`, {
             onSuccess: () => {
-                setToastMessage(`Data ${item.name} berhasil dihapus.`);
-                setTimeout(() => setToastMessage(null), 4000);
+                // Flash message will be shown
             }
         });
     };
@@ -248,11 +286,11 @@ export default function MasterData() {
 
         router.post('/master-data/import', formData, {
             onSuccess: () => {
-                setToastMessage('Data kode pelatihan berhasil diimpor!');
-                setTimeout(() => setToastMessage(null), 4000);
+                // Flash message will be shown
             },
             onError: (errors) => {
-                alert('Gagal mengimpor file: ' + (errors.file || 'Format tidak valid.'));
+                setLocalToast({ message: 'Gagal mengimpor file: ' + (errors.file || 'Format tidak valid.'), type: 'error' });
+                setTimeout(() => setLocalToast(null), 4000);
             }
         });
     };
@@ -320,11 +358,19 @@ export default function MasterData() {
                     </p>
                 </div>
 
-                {/* Success Toast */}
-                {toastMessage && (
-                    <div className="fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400 shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300">
-                        <CheckCircle2 className="size-4.5 text-emerald-600 dark:text-emerald-450" />
-                        <span>{toastMessage}</span>
+                {/* Success/Error Toast */}
+                {localToast && (
+                    <div className={`fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border p-4 text-sm font-semibold shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300 ${
+                        localToast.type === 'success'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300'
+                            : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300'
+                    }`}>
+                        {localToast.type === 'success' ? (
+                            <CheckCircle2 className="size-4.5 text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                            <AlertTriangle className="size-4.5 text-rose-600 dark:text-rose-450" />
+                        )}
+                        <span>{localToast.message}</span>
                     </div>
                 )}
 
@@ -397,7 +443,10 @@ export default function MasterData() {
                         return (
                             <button
                                 key={tab.name}
-                                onClick={() => setSelectedTab(tab.name)}
+                                onClick={() => {
+                                    setSelectedTab(tab.name);
+                                    setSelectedIds([]);
+                                }}
                                 className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all border ${
                                     selectedTab === tab.name
                                         ? 'bg-blue-600 border-blue-600 text-white dark:bg-blue-500 dark:border-blue-500'
@@ -419,80 +468,97 @@ export default function MasterData() {
                         
                         {/* Filter Bar and Grid table card */}
                         <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm overflow-hidden">
-                            {/* Filters */}
-                            <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/10 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-                                
-                                {/* Search input */}
-                                <div className="relative flex-1 max-w-xs">
-                                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Cari nama data..."
-                                        className="h-9 w-full rounded-lg border border-neutral-200 bg-white pl-9 pr-4 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                    />
+                            {/* Filter items */}
+                            <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/10 space-y-4">
+                                {/* Top Row: Search & Actions */}
+                                <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+                                    <div className="relative w-full lg:max-w-md xl:max-w-lg flex-1">
+                                        <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="Cari nama data..."
+                                            className="h-10 w-full rounded-xl border border-neutral-200 bg-white dark:bg-neutral-900 pl-10 pr-4 text-xs text-neutral-900 dark:text-neutral-100 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 shadow-sm transition-all"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
+                                        {selectedIds.length > 0 && (
+                                            <Button
+                                                onClick={() => setIsBulkDeleteModalOpen(true)}
+                                                variant="destructive"
+                                                size="sm"
+                                                className="h-9 px-3.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
+                                            >
+                                                <Trash2 className="size-4" />
+                                                <span>Hapus ({selectedIds.length})</span>
+                                            </Button>
+                                        )}
+
+                                        <Button
+                                            onClick={() => {
+                                                setNewCategory(selectedTab as MasterItem['category']);
+                                                setIsAddModalOpen(true);
+                                            }}
+                                            size="sm"
+                                            className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
+                                        >
+                                            <Plus className="size-4" />
+                                            <span>Tambah Data</span>
+                                        </Button>
+
+                                        {/* Excel Template & Import actions shown only for Kode Pelatihan */}
+                                        {selectedTab === 'Kode Pelatihan' && (
+                                            <div className="flex items-center gap-2">
+                                                <a
+                                                    href="/master-data/template"
+                                                    className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-650 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-850 shadow-sm"
+                                                >
+                                                    <Download className="size-3.5" />
+                                                    <span>Template</span>
+                                                </a>
+                                                <button
+                                                    onClick={() => document.getElementById('csv-file-input')?.click()}
+                                                    className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-650 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-850 shadow-sm cursor-pointer"
+                                                >
+                                                    <Upload className="size-3.5" />
+                                                    <span>Import</span>
+                                                </button>
+                                                <input
+                                                    type="file"
+                                                    id="csv-file-input"
+                                                    accept=".csv"
+                                                    className="hidden"
+                                                    onChange={handleImportCSV}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
-                                {/* Select filter group */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <select
-                                        value={statusFilter}
-                                        onChange={(e) => setStatusFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
-                                        <option value="Semua Status">Semua Status</option>
-                                        <option value="Aktif">Aktif</option>
-                                        <option value="Nonaktif">Nonaktif</option>
-                                    </select>
+                                {/* Bottom Row: Filters */}
+                                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/60">
+                                    <div className="flex flex-wrap items-center gap-2.5">
+                                        <select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value)}
+                                            className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm"
+                                        >
+                                            <option value="Semua Status">Semua Status</option>
+                                            <option value="Aktif">Aktif</option>
+                                            <option value="Nonaktif">Nonaktif</option>
+                                        </select>
+                                    </div>
 
                                     <Button
                                         onClick={handleResetFilters}
                                         variant="outline"
                                         size="sm"
-                                        className="h-9 px-3 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold"
+                                        className="h-9 px-3 rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 text-xs text-neutral-600 dark:text-neutral-300 font-semibold shadow-sm"
                                     >
                                         <RefreshCw className="mr-1.5 size-3.5" />
                                         Reset Filter
-                                    </Button>
-
-                                    {/* Excel Template & Import actions shown only for Kode Pelatihan */}
-                                    {selectedTab === 'Kode Pelatihan' && (
-                                        <>
-                                            <a
-                                                href="/master-data/template"
-                                                className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-650 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-850 shadow-sm"
-                                            >
-                                                <Download className="size-3.5" />
-                                                <span>Template</span>
-                                            </a>
-                                            <button
-                                                onClick={() => document.getElementById('csv-file-input')?.click()}
-                                                className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-650 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-850 shadow-sm cursor-pointer"
-                                            >
-                                                <Upload className="size-3.5" />
-                                                <span>Import Excel</span>
-                                            </button>
-                                            <input
-                                                type="file"
-                                                id="csv-file-input"
-                                                accept=".csv"
-                                                className="hidden"
-                                                onChange={handleImportCSV}
-                                            />
-                                        </>
-                                    )}
-
-                                    <Button
-                                        onClick={() => {
-                                            setNewCategory(selectedTab as MasterItem['category']);
-                                            setIsAddModalOpen(true);
-                                        }}
-                                        size="sm"
-                                        className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
-                                    >
-                                        <Plus className="size-4" />
-                                        <span>Tambah Data</span>
                                     </Button>
                                 </div>
                             </div>
@@ -502,6 +568,14 @@ export default function MasterData() {
                                 <table className="w-full min-w-[600px] border-collapse text-xs text-left">
                                     <thead>
                                         <tr className="border-b border-neutral-100 bg-neutral-50/50 font-semibold text-neutral-400 dark:border-neutral-800 dark:bg-neutral-900/30">
+                                            <th className="px-6 py-3.5 w-10">
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={filteredData.length > 0 && selectedIds.length === filteredData.length}
+                                                    onChange={toggleSelectAll}
+                                                    className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500 size-3.5 cursor-pointer"
+                                                />
+                                            </th>
                                             <th className="px-6 py-3.5 w-16">No</th>
                                             {selectedTab === 'Kode Pelatihan' ? (
                                                 <>
@@ -521,13 +595,21 @@ export default function MasterData() {
                                     <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                                         {filteredData.length === 0 ? (
                                             <tr>
-                                                <td colSpan={selectedTab === 'Kode Pelatihan' ? 6 : 5} className="text-center py-10 text-neutral-400 font-medium dark:text-neutral-500">
+                                                <td colSpan={selectedTab === 'Kode Pelatihan' ? 7 : 6} className="text-center py-10 text-neutral-400 font-medium dark:text-neutral-500">
                                                     Tidak ada data yang cocok.
                                                 </td>
                                             </tr>
                                         ) : (
                                             filteredData.map((item, index) => (
-                                                <tr key={item.id} className="hover:bg-neutral-50/20 dark:hover:bg-neutral-900/10 transition-colors">
+                                                <tr key={item.id} className={`hover:bg-neutral-50/20 dark:hover:bg-neutral-900/10 transition-colors ${selectedIds.includes(item.id) ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
+                                                    <td className="px-6 py-4">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={selectedIds.includes(item.id)}
+                                                            onChange={() => toggleSelect(item.id)}
+                                                            className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500 size-3.5 cursor-pointer"
+                                                        />
+                                                    </td>
                                                     <td className="px-6 py-4 font-medium text-neutral-500">
                                                         {index + 1}
                                                     </td>
@@ -907,6 +989,24 @@ export default function MasterData() {
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: Bulk Delete Confirmation */}
+            <Dialog open={isBulkDeleteModalOpen} onOpenChange={setIsBulkDeleteModalOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Hapus Masal Data Referensi</DialogTitle>
+                        <DialogDescription>
+                            Yakin ingin menghapus <span className="font-bold text-neutral-900 dark:text-neutral-100">{selectedIds.length}</span> data referensi yang dipilih secara permanen? Tindakan ini tidak dapat dibatalkan.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsBulkDeleteModalOpen(false)}>Batal</Button>
+                        <Button onClick={handleBulkDelete} className="bg-rose-600 hover:bg-rose-700 text-white font-semibold">
+                            Hapus Semua Terpilih
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

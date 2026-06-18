@@ -131,6 +131,22 @@ class MasterDataController extends Controller
     }
 
     /**
+     * Delete multiple master data entries at once.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $ids = $request->input('ids', []);
+        
+        if (empty($ids)) {
+            return back()->with('error', 'Tidak ada data yang dipilih untuk dihapus.');
+        }
+
+        $count = MasterData::whereIn('id', $ids)->delete();
+
+        return back()->with('message', "{$count} data berhasil dihapus.");
+    }
+
+    /**
      * Delete master data.
      */
     public function destroy(int $id): RedirectResponse

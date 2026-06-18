@@ -21,6 +21,7 @@ import {
     Trash2,
     Edit3,
     Check,
+    CheckCircle2,
     X,
 } from 'lucide-react';
 import {
@@ -96,6 +97,8 @@ export default function ManajemenUser() {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editUser, setEditUser] = useState<UserItem | null>(null);
     const [deleteUser, setDeleteUser] = useState<UserItem | null>(null);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
 
     // Toast state and auto-close handler
     const [localToast, setLocalToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -153,6 +156,31 @@ export default function ManajemenUser() {
         setRoleFilter('Semua Role');
         setStatusFilter('Semua Status');
         setCurrentPage(1);
+        setSelectedIds([]);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length > 0) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(currentUsers.map(u => u.id));
+        }
+    };
+
+    const toggleSelect = (id: number) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleBulkDelete = () => {
+        router.delete(route('manajemen-user.bulk-destroy'), {
+            data: { ids: selectedIds },
+            onSuccess: () => {
+                setSelectedIds([]);
+                setIsBulkDeleteOpen(false);
+            },
+        });
     };
 
     const handleAddUser = (e: React.FormEvent) => {
@@ -269,7 +297,7 @@ export default function ManajemenUser() {
                             : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300'
                     }`}>
                         {localToast.type === 'success' ? (
-                            <UserCheck className="size-4.5 text-emerald-600 dark:text-emerald-400" />
+                            <CheckCircle2 className="size-4.5 text-emerald-600 dark:text-emerald-400" />
                         ) : (
                             <AlertTriangle className="size-4.5 text-rose-600 dark:text-rose-450" />
                         )}
@@ -332,37 +360,55 @@ export default function ManajemenUser() {
                         {/* Table + Filters */}
                         <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm overflow-hidden">
                             {/* Filter Bar */}
-                            <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                <div className="relative flex-1 max-w-sm">
-                                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                                        placeholder="Cari nama atau email..."
-                                        className="h-9 w-full rounded-lg border border-neutral-200 bg-white pl-9 pr-4 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                    />
+                            <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/10 space-y-4">
+                                {/* Top Row: Search & Actions */}
+                                <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+                                    <div className="relative w-full lg:max-w-md xl:max-w-lg flex-1">
+                                        <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                                            placeholder="Cari nama atau email..."
+                                            className="h-10 w-full rounded-xl border border-neutral-200 bg-white dark:bg-neutral-900 pl-10 pr-4 text-xs text-neutral-900 dark:text-neutral-100 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 shadow-sm transition-all"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
+                                        {selectedIds.length > 0 && (
+                                            <Button onClick={() => setIsBulkDeleteOpen(true)} variant="destructive" size="sm" className="h-9 px-3.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm">
+                                                <Trash2 className="size-4" />
+                                                <span>Hapus ({selectedIds.length})</span>
+                                            </Button>
+                                        )}
+                                        <Button onClick={() => setIsAddOpen(true)} size="sm" className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm">
+                                            <Plus className="size-4" />
+                                            <span>Tambah User</span>
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none">
-                                        <option value="Semua Role">Semua Role</option>
-                                        <option value="admin">Administrator</option>
-                                        <option value="manager PD">Manager PD</option>
-                                        <option value="Staf PD">Staf PD</option>
-                                        <option value="tim training">Tim Training</option>
-                                        <option value="User">User</option>
-                                    </select>
-                                    <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none">
-                                        <option value="Semua Status">Semua Status</option>
-                                        <option value="Aktif">Aktif</option>
-                                        <option value="Pending">Pending</option>
-                                        <option value="Nonaktif">Nonaktif</option>
-                                    </select>
-                                    <Button onClick={handleResetFilters} variant="outline" size="sm" className="h-9 px-3 rounded-lg border-neutral-200 text-xs text-neutral-600 font-semibold dark:border-neutral-800 dark:text-neutral-300">
-                                        <RefreshCw className="mr-1.5 size-3.5" /> Reset
-                                    </Button>
-                                    <Button onClick={() => setIsAddOpen(true)} size="sm" className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg">
-                                        <Plus className="mr-1.5 size-4" /> Tambah User
+
+                                {/* Bottom Row: Filters */}
+                                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/60">
+                                    <div className="flex flex-wrap items-center gap-2.5">
+                                        <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm">
+                                            <option value="Semua Role">Semua Role</option>
+                                            <option value="admin">Administrator</option>
+                                            <option value="manager PD">Manager PD</option>
+                                            <option value="Staf PD">Staf PD</option>
+                                            <option value="tim training">Tim Training</option>
+                                            <option value="User">User</option>
+                                        </select>
+                                        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm">
+                                            <option value="Semua Status">Semua Status</option>
+                                            <option value="Aktif">Aktif</option>
+                                            <option value="Pending">Pending</option>
+                                            <option value="Nonaktif">Nonaktif</option>
+                                        </select>
+                                    </div>
+
+                                    <Button onClick={handleResetFilters} variant="outline" size="sm" className="h-9 px-3 rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 text-xs text-neutral-600 dark:text-neutral-300 font-semibold shadow-sm">
+                                        <RefreshCw className="mr-1.5 size-3.5" /> Reset Filter
                                     </Button>
                                 </div>
                             </div>
@@ -372,6 +418,14 @@ export default function ManajemenUser() {
                                 <table className="w-full min-w-[800px] text-left border-collapse text-xs">
                                     <thead>
                                         <tr className="border-b border-neutral-100 bg-neutral-50/50 font-semibold text-neutral-400 dark:border-neutral-800 dark:bg-neutral-900/30">
+                                            <th className="px-6 py-3.5 w-10">
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={currentUsers.length > 0 && selectedIds.length === currentUsers.length}
+                                                    onChange={toggleSelectAll}
+                                                    className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500 size-3.5 cursor-pointer"
+                                                />
+                                            </th>
                                             <th className="px-6 py-3.5">Nama</th>
                                             <th className="px-6 py-3.5">Email</th>
                                             <th className="px-6 py-3.5">Role</th>
@@ -384,13 +438,21 @@ export default function ManajemenUser() {
                                     <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                                         {currentUsers.length === 0 ? (
                                             <tr>
-                                                <td colSpan={7} className="text-center py-10 text-neutral-400 font-medium dark:text-neutral-500">
+                                                <td colSpan={8} className="text-center py-10 text-neutral-400 font-medium dark:text-neutral-500">
                                                     Tidak ada user yang cocok dengan filter.
                                                 </td>
                                             </tr>
                                         ) : (
                                             currentUsers.map((user) => (
-                                                <tr key={user.id} className="hover:bg-neutral-50/20 dark:hover:bg-neutral-900/10 transition-colors">
+                                                <tr key={user.id} className={`hover:bg-neutral-50/20 dark:hover:bg-neutral-900/10 transition-colors ${selectedIds.includes(user.id) ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
+                                                    <td className="px-6 py-4">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={selectedIds.includes(user.id)}
+                                                            onChange={() => toggleSelect(user.id)}
+                                                            className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500 size-3.5 cursor-pointer"
+                                                        />
+                                                    </td>
                                                     <td className="px-6 py-4 font-semibold text-neutral-900 dark:text-neutral-100">{user.name}</td>
                                                     <td className="px-6 py-4 font-medium text-neutral-500 dark:text-neutral-400">{user.email}</td>
                                                     <td className="px-6 py-4">
@@ -642,6 +704,24 @@ export default function ManajemenUser() {
                         <Button variant="outline" onClick={() => setDeleteUser(null)}>Batal</Button>
                         <Button onClick={handleDeleteUser} className="bg-rose-600 hover:bg-rose-700 text-white font-semibold">
                             Hapus Permanen
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* BULK DELETE CONFIRMATION DIALOG */}
+            <Dialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Hapus Masal Pengguna</DialogTitle>
+                        <DialogDescription>
+                            Yakin ingin menghapus <span className="font-bold text-neutral-900 dark:text-neutral-100">{selectedIds.length}</span> akun pengguna yang dipilih secara permanen? Tindakan ini tidak dapat dibatalkan.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsBulkDeleteOpen(false)}>Batal</Button>
+                        <Button onClick={handleBulkDelete} className="bg-rose-600 hover:bg-rose-700 text-white font-semibold">
+                            Hapus Semua Terpilih
                         </Button>
                     </DialogFooter>
                 </DialogContent>

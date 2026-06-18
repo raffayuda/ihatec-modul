@@ -30,6 +30,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('manajemen-user', [UserController::class, 'store'])->name('manajemen-user.store');
     Route::put('manajemen-user/{id}', [UserController::class, 'update'])->name('manajemen-user.update');
     Route::post('manajemen-user/{id}/status', [UserController::class, 'updateStatus'])->name('manajemen-user.status');
+    Route::delete('manajemen-user/bulk', [UserController::class, 'bulkDestroy'])->name('manajemen-user.bulk-destroy');
     Route::delete('manajemen-user/{id}', [UserController::class, 'destroy'])->name('manajemen-user.destroy');
 
     // Pengajuan Modul
@@ -46,6 +47,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('database/export', [ModuleController::class, 'export'])->name('database.export');
     Route::get('database/template', [ModuleController::class, 'template'])->name('database.template');
     Route::post('database/import', [ModuleController::class, 'import'])->name('database.import');
+    Route::delete('database/bulk', [ModuleController::class, 'bulkDestroy'])->name('database.bulk-destroy');
     Route::get('database/{code}/download', [ModuleController::class, 'download'])->name('database.download');
     Route::get('database/{code}/preview', [ModuleController::class, 'preview'])->name('database.preview');
     Route::post('database/{code}/revision', [ModuleController::class, 'revision'])->name('database.revision');
@@ -76,6 +78,7 @@ Route::middleware(['auth'])->group(function () {
     Route::put('master-data/{id}', [MasterDataController::class, 'update'])->name('master-data.update');
     Route::get('master-data/template', [MasterDataController::class, 'downloadTemplate'])->name('master-data.template');
     Route::post('master-data/import', [MasterDataController::class, 'import'])->name('master-data.import');
+    Route::delete('master-data/bulk', [MasterDataController::class, 'bulkDestroy'])->name('master-data.bulk-destroy');
     Route::delete('master-data/{id}', [MasterDataController::class, 'destroy'])->name('master-data.destroy');
 
     Route::get('audit-log', function () {
