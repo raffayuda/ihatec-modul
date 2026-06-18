@@ -52,6 +52,7 @@ class ModuleController extends Controller
                 'description' => $m->description ?? '',
                 'revisionsHistory' => $m->revisions->map(function ($rev) {
                     return [
+                        'id' => $rev->id,
                         'version' => $rev->revision,
                         'date' => $this->formatIndonesianDate($rev->created_at).' WIB',
                         'author' => $rev->author_name,
@@ -75,14 +76,9 @@ class ModuleController extends Controller
             ->get();
 
         $colorMap = [
-            'Regulasi & Kepatuhan' => '#3b82f6',
-            'Teknis Laboratorium' => '#a855f7',
-            'Sertifikasi & Auditor' => '#ec4899',
-            'Manajerial & Kepemimpinan' => '#f59e0b',
-            'Teknis Produksi' => '#10b981',
-            'Supply Chain & Logistik' => '#38bdf8',
-            'K3 & Keamanan' => '#ef4444',
-            'Pengembangan SDM' => '#14b8a6',
+            'Modul' => '#3b82f6',
+            'Lembar Kerja' => '#a855f7',
+            'Post Test' => '#ec4899',
             'Lainnya' => '#6b7280',
         ];
 
@@ -105,10 +101,7 @@ class ModuleController extends Controller
             ];
         });
 
-        $refreshToken = Setting::get('google_refresh_token') 
-            ?? config('services.google.refresh_token') 
-            ?? env('GOOGLE_REFRESH_TOKEN');
-        $isDriveConnected = !empty($refreshToken);
+        $isDriveConnected = true;
 
         return Inertia::render('database', [
             'modules' => $modules,
@@ -134,7 +127,6 @@ class ModuleController extends Controller
         $headers = [
             'Kode Modul',
             'Judul Modul',
-            'Program / Jenis Pelatihan',
             'Revisi',
             'Bahasa',
             'Status',
@@ -166,7 +158,7 @@ class ModuleController extends Controller
             $sheet->setCellValue($colLetter . '1', $header);
         }
 
-        $sheet->getStyle('A1:I1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
         $sheet->getRowDimension('1')->setRowHeight(28);
 
         // Data Row styling & filling
@@ -174,22 +166,21 @@ class ModuleController extends Controller
         foreach ($modules as $module) {
             $sheet->setCellValue('A' . $rowNumber, $module->code);
             $sheet->setCellValue('B' . $rowNumber, $module->title);
-            $sheet->setCellValue('C' . $rowNumber, $module->program);
-            $sheet->setCellValue('D' . $rowNumber, $module->current_revision);
-            $sheet->setCellValue('E' . $rowNumber, $module->language);
-            $sheet->setCellValue('F' . $rowNumber, $module->status);
-            $sheet->setCellValue('G' . $rowNumber, $module->file_size);
-            $sheet->setCellValue('H' . $rowNumber, $module->description);
-            $sheet->setCellValue('I' . $rowNumber, $module->updated_at ? $module->updated_at->format('Y-m-d H:i:s') : '');
+            $sheet->setCellValue('C' . $rowNumber, $module->current_revision);
+            $sheet->setCellValue('D' . $rowNumber, $module->language);
+            $sheet->setCellValue('E' . $rowNumber, $module->status);
+            $sheet->setCellValue('F' . $rowNumber, $module->file_size);
+            $sheet->setCellValue('G' . $rowNumber, $module->description);
+            $sheet->setCellValue('H' . $rowNumber, $module->updated_at ? $module->updated_at->format('Y-m-d H:i:s') : '');
 
             // Soft gray borders for each row
-            $sheet->getStyle('A' . $rowNumber . ':I' . $rowNumber)->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('E5E7EB');
+            $sheet->getStyle('A' . $rowNumber . ':H' . $rowNumber)->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('E5E7EB');
             $sheet->getRowDimension($rowNumber)->setRowHeight(20);
             $rowNumber++;
         }
 
         // Auto-fit columns
-        foreach (range(1, 9) as $colIndex) {
+        foreach (range(1, 8) as $colIndex) {
             $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
             $sheet->getColumnDimension($colLetter)->setAutoSize(true);
         }
@@ -217,7 +208,6 @@ class ModuleController extends Controller
         $headers = [
             'Kode Modul',
             'Judul Modul',
-            'Program / Jenis Pelatihan',
             'Revisi',
             'Bahasa',
             'Status',
@@ -248,25 +238,24 @@ class ModuleController extends Controller
             $sheet->setCellValue($colLetter . '1', $header);
         }
 
-        $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:G1')->applyFromArray($headerStyle);
         $sheet->getRowDimension('1')->setRowHeight(28);
 
         // Add 1 sample row matching actual data format
         $sheet->setCellValue('A2', 'ILN.1.8');
         $sheet->setCellValue('B2', 'Interpretasi Sistem dan Implementasi ISO 17025');
-        $sheet->setCellValue('C2', 'Manajerial & Kepemimpinan');
-        $sheet->setCellValue('D2', '2.1');
-        $sheet->setCellValue('E2', 'Indonesia');
-        $sheet->setCellValue('F2', 'Approved');
-        $sheet->setCellValue('G2', '2.5 MB');
-        $sheet->setCellValue('H2', 'Modul panduan interpretasi sistem dan tata kelola implementasi ISO 17025.');
+        $sheet->setCellValue('C2', '2.1');
+        $sheet->setCellValue('D2', 'Indonesia');
+        $sheet->setCellValue('E2', 'Approved');
+        $sheet->setCellValue('F2', '2.5 MB');
+        $sheet->setCellValue('G2', 'Modul panduan interpretasi sistem dan tata kelola implementasi ISO 17025.');
 
         // Soft gray borders for the sample row
-        $sheet->getStyle('A2:H2')->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('E5E7EB');
+        $sheet->getStyle('A2:G2')->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('E5E7EB');
         $sheet->getRowDimension('2')->setRowHeight(20);
 
         // Auto-fit columns
-        foreach (range(1, 8) as $colIndex) {
+        foreach (range(1, 7) as $colIndex) {
             $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
             $sheet->getColumnDimension($colLetter)->setAutoSize(true);
         }
@@ -281,7 +270,7 @@ class ModuleController extends Controller
     }
 
     /**
-     * Import module database rows from Excel.
+     * Import data modul rows dari Excel.
      */
     public function import(Request $request): RedirectResponse
     {
@@ -405,22 +394,13 @@ class ModuleController extends Controller
      */
     public function store(Request $request)
     {
-        if (! in_array(Auth::user()->role, ['admin', 'staf pd', 'Staf PD'])) {
+        if (! in_array(strtolower(Auth::user()->role), ['admin', 'staf pd'])) {
             abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk menambahkan modul.');
-        }
-
-        $refreshToken = Setting::get('google_refresh_token') 
-            ?? config('services.google.refresh_token') 
-            ?? env('GOOGLE_REFRESH_TOKEN');
-
-        if (empty($refreshToken)) {
-            return back()->withErrors(['error' => 'Tidak dapat menyimpan modul. Akun Google Drive belum terhubung. Silakan hubungi Administrator untuk menghubungkan Google Drive.']);
         }
 
         $request->validate([
             'code' => 'required|string|unique:modules,code',
             'title' => 'required|string',
-            'program' => 'required|string',
             'language' => 'required|string',
             'description' => 'nullable|string',
             'file' => 'required|file|mimes:pdf|max:20480',
@@ -430,36 +410,24 @@ class ModuleController extends Controller
         $file = $request->file('file');
         $fileSizeStr = $this->formatBytes($file->getSize());
 
-        // Store temporarily
-        $tempPath = $file->store('temp_uploads', 'public');
-        $absolutePath = Storage::disk('public')->path($tempPath);
+        // Store locally
+        $filePath = $file->storeAs('modules', $code.'.pdf', 'public');
+        $absolutePath = Storage::disk('public')->path($filePath);
         $pageCount = $this->getPdfPageCount($absolutePath);
-
-        // Upload to Google Drive (FATAL if fails)
-        try {
-            $driveFileId = $this->driveService->uploadFile($absolutePath, $code.'.pdf');
-        } catch (\Exception $e) {
-            // Clean up temp file
-            Storage::disk('public')->delete($tempPath);
-            return back()->withErrors(['error' => 'Gagal mengunggah ke Google Drive: '.$e->getMessage()]);
-        }
-
-        // Clean up temp file
-        Storage::disk('public')->delete($tempPath);
 
         $module = Module::create([
             'code' => $code,
             'title' => $request->input('title'),
-            'program' => $request->input('program'),
+            'program' => 'Lainnya',
             'language' => $request->input('language'),
             'description' => $request->input('description'),
             'status' => 'Approved',
-            'current_revision' => '1.0',
-            'file_path' => null,
+            'current_revision' => '0.0',
+            'file_path' => $filePath,
             'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
-            'drive_file_id' => $driveFileId,
+            'drive_file_id' => null,
             'approved_by' => Auth::id(),
             'approved_at' => now(),
             'created_by' => Auth::id(),
@@ -467,15 +435,15 @@ class ModuleController extends Controller
 
         ModuleRevision::create([
             'module_id' => $module->id,
-            'revision' => '1.0',
+            'revision' => '0.0',
             'note' => 'Rilis pertama modul baru.',
             'author_name' => Auth::user()->name ?? 'System Admin',
             'status' => 'Approved',
-            'file_path' => null,
+            'file_path' => $filePath,
             'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
-            'drive_file_id' => $driveFileId,
+            'drive_file_id' => null,
             'created_by' => Auth::id(),
         ]);
 
@@ -483,35 +451,17 @@ class ModuleController extends Controller
     }
 
     /**
-     * Download the PDF from Google Drive.
+     * Download the PDF from local storage.
      */
     public function download(string $code)
     {
         $module = Module::where('code', $code)->firstOrFail();
 
-        // Priority: local public storage → pdf_cache → Google Drive
         if ($module->file_path && Storage::disk('public')->exists($module->file_path)) {
             return Storage::disk('public')->download($module->file_path, ($module->file_name ?? $code).'.pdf');
         }
 
-        $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
-        if (file_exists($cachePath)) {
-            return response()->download($cachePath, $module->code.'.pdf', ['Content-Type' => 'application/pdf']);
-        }
-
-        if (empty($module->drive_file_id)) {
-            return back()->withErrors(['error' => 'File tidak tersedia.']);
-        }
-
-        try {
-            $content = $this->driveService->downloadFile($module->drive_file_id);
-
-            return response($content)
-                ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'attachment; filename="'.$code.'.pdf"');
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Gagal mengunduh file: '.$e->getMessage()]);
-        }
+        return back()->withErrors(['error' => 'File tidak tersedia.']);
     }
 
     /**
@@ -521,7 +471,6 @@ class ModuleController extends Controller
     {
         $module = Module::where('code', $code)->firstOrFail();
 
-        // Priority: local public storage → pdf_cache → Google Drive
         if ($module->file_path && Storage::disk('public')->exists($module->file_path)) {
             return response()->file(
                 Storage::disk('public')->path($module->file_path),
@@ -529,24 +478,7 @@ class ModuleController extends Controller
             );
         }
 
-        $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
-        if (file_exists($cachePath)) {
-            return response()->file($cachePath, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.$code.'.pdf"']);
-        }
-
-        if (empty($module->drive_file_id)) {
-            return response()->json(['error' => 'File tidak tersedia.'], 404);
-        }
-
-        try {
-            $content = $this->driveService->downloadFile($module->drive_file_id);
-
-            return response($content)
-                ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="'.$code.'.pdf"');
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Gagal preview file: '.$e->getMessage()], 500);
-        }
+        return response()->json(['error' => 'File tidak tersedia.'], 404);
     }
 
     /**
@@ -568,24 +500,13 @@ class ModuleController extends Controller
         $count = 0;
 
         foreach ($modules as $module) {
-            // Delete associated files from Google Drive
-            $driveFileIds = $module->revisions()->pluck('drive_file_id')
-                ->merge([$module->drive_file_id])
+            $localFilePaths = $module->revisions()->pluck('file_path')
+                ->merge([$module->file_path])
                 ->filter()
                 ->unique();
-
-            foreach ($driveFileIds as $fileId) {
-                try {
-                    $this->driveService->deleteFile($fileId);
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::warning("Gagal menghapus file Google Drive {$fileId} saat menghapus modul {$module->code}: " . $e->getMessage());
-                }
-            }
-
-            // Delete local cache if it exists
-            $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
-            if (file_exists($cachePath)) {
-                @unlink($cachePath);
+            
+            foreach ($localFilePaths as $filePath) {
+                Storage::disk('public')->delete($filePath);
             }
 
             $module->delete();
@@ -606,24 +527,13 @@ class ModuleController extends Controller
 
         $module = Module::where('code', $code)->firstOrFail();
 
-        // Delete associated files from Google Drive
-        $driveFileIds = $module->revisions()->pluck('drive_file_id')
-            ->merge([$module->drive_file_id])
+        $localFilePaths = $module->revisions()->pluck('file_path')
+            ->merge([$module->file_path])
             ->filter()
             ->unique();
-
-        foreach ($driveFileIds as $fileId) {
-            try {
-                $this->driveService->deleteFile($fileId);
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning("Gagal menghapus file Google Drive {$fileId} saat menghapus modul {$code}: " . $e->getMessage());
-            }
-        }
-
-        // Delete local cache if it exists
-        $cachePath = storage_path('app/pdf_cache/'.$module->code.'.pdf');
-        if (file_exists($cachePath)) {
-            @unlink($cachePath);
+        
+        foreach ($localFilePaths as $filePath) {
+            Storage::disk('public')->delete($filePath);
         }
 
         $module->delete();
@@ -636,7 +546,7 @@ class ModuleController extends Controller
      */
     public function update(Request $request, string $code)
     {
-        if (! in_array(Auth::user()->role, ['admin', 'staf pd', 'Staf PD'])) {
+        if (! in_array(strtolower(Auth::user()->role), ['admin', 'staf pd'])) {
             abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk mengubah modul.');
         }
 
@@ -645,89 +555,68 @@ class ModuleController extends Controller
         $request->validate([
             'code' => 'required|string|unique:modules,code,' . $module->id,
             'title' => 'required|string',
-            'program' => 'required|string',
             'language' => 'required|string',
             'description' => 'nullable|string',
             'file' => 'nullable|file|mimes:pdf|max:20480',
         ]);
 
         $newCode = strtoupper($request->input('code'));
-        $oldDriveFileId = $module->drive_file_id;
         $file = $request->file('file');
 
         $updateData = [
             'code' => $newCode,
             'title' => $request->input('title'),
-            'program' => $request->input('program'),
             'language' => $request->input('language'),
             'description' => $request->input('description'),
         ];
 
-        // Delete cache file if code changes or new file is uploaded
-        if ($newCode !== $module->code || $file) {
-            $cachePath = storage_path('app/pdf_cache/' . $module->code . '.pdf');
-            if (file_exists($cachePath)) {
-                @unlink($cachePath);
-            }
-            $newCachePath = storage_path('app/pdf_cache/' . $newCode . '.pdf');
-            if (file_exists($newCachePath)) {
-                @unlink($newCachePath);
+        if ($file || $newCode !== $module->code) {
+            if ($module->file_path) {
+                Storage::disk('public')->delete($module->file_path);
             }
         }
 
         if ($file) {
             $fileSizeStr = $this->formatBytes($file->getSize());
 
-            // Store temporarily
-            $tempPath = $file->store('temp_uploads', 'public');
-            $absolutePath = Storage::disk('public')->path($tempPath);
+            // Store locally
+            $filePath = $file->storeAs('modules', $newCode.'.pdf', 'public');
+            $absolutePath = Storage::disk('public')->path($filePath);
             $pageCount = $this->getPdfPageCount($absolutePath);
-
-            // Upload new file to Google Drive
-            try {
-                $driveFileId = $this->driveService->uploadFile($absolutePath, $newCode.'.pdf');
-            } catch (\Exception $e) {
-                Storage::disk('public')->delete($tempPath);
-                return back()->withErrors(['error' => 'Gagal mengunggah file baru ke Google Drive: '.$e->getMessage()]);
-            }
-
-            // Clean up temp file
-            Storage::disk('public')->delete($tempPath);
-
-            // Delete old file from Google Drive
-            if (!empty($oldDriveFileId)) {
-                try {
-                    $this->driveService->deleteFile($oldDriveFileId);
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::warning("Gagal menghapus file lama Google Drive {$oldDriveFileId} saat memperbarui modul {$code}: " . $e->getMessage());
-                }
-            }
 
             $updateData['file_name'] = $file->getClientOriginalName();
             $updateData['file_size'] = $fileSizeStr;
             $updateData['file_pages'] = $pageCount;
-            $updateData['drive_file_id'] = $driveFileId;
-            $updateData['file_path'] = null;
+            $updateData['file_path'] = $filePath;
+            $updateData['drive_file_id'] = null;
 
             // Update the latest revision record
             $latestRevision = $module->revisions()->first();
             if ($latestRevision) {
-                $oldRevFileId = $latestRevision->drive_file_id;
-                if (!empty($oldRevFileId) && $oldRevFileId !== $oldDriveFileId) {
-                    try {
-                        $this->driveService->deleteFile($oldRevFileId);
-                    } catch (\Exception $e) {
-                        \Illuminate\Support\Facades\Log::warning("Gagal menghapus file revisi lama Google Drive {$oldRevFileId}: " . $e->getMessage());
-                    }
+                if ($latestRevision->file_path) {
+                    Storage::disk('public')->delete($latestRevision->file_path);
                 }
 
                 $latestRevision->update([
                     'file_name' => $file->getClientOriginalName(),
                     'file_size' => $fileSizeStr,
                     'file_pages' => $pageCount,
-                    'drive_file_id' => $driveFileId,
-                    'file_path' => null,
+                    'file_path' => $filePath,
+                    'drive_file_id' => null,
                 ]);
+            }
+        } else if ($newCode !== $module->code) {
+            if ($module->file_path && Storage::disk('public')->exists($module->file_path)) {
+                $newFilePath = 'modules/' . $newCode . '.pdf';
+                Storage::disk('public')->move($module->file_path, $newFilePath);
+                $updateData['file_path'] = $newFilePath;
+
+                $latestRevision = $module->revisions()->first();
+                if ($latestRevision) {
+                    $latestRevision->update([
+                        'file_path' => $newFilePath,
+                    ]);
+                }
             }
         }
 
@@ -736,22 +625,13 @@ class ModuleController extends Controller
         return redirect()->route('database')->with('message', "Modul {$newCode} berhasil diperbarui.");
     }
 
-
     /**
      * Create a new revision of the specified module.
      */
     public function revision(Request $request, string $code)
     {
-        if (! in_array(Auth::user()->role, ['admin', 'staf pd', 'Staf PD'])) {
+        if (! in_array(strtolower(Auth::user()->role), ['admin', 'staf pd'])) {
             abort(403, 'Akses ditolak. Peran Anda tidak diizinkan untuk merevisi modul.');
-        }
-
-        $refreshToken = Setting::get('google_refresh_token') 
-            ?? config('services.google.refresh_token') 
-            ?? env('GOOGLE_REFRESH_TOKEN');
-
-        if (empty($refreshToken)) {
-            return back()->withErrors(['error' => 'Tidak dapat merevisi modul. Akun Google Drive belum terhubung. Silakan hubungi Administrator untuk menghubungkan Google Drive.']);
         }
 
         $request->validate([
@@ -766,22 +646,10 @@ class ModuleController extends Controller
         $file = $request->file('file');
         $fileSizeStr = $this->formatBytes($file->getSize());
 
-        // Store temporarily
-        $tempPath = $file->store('temp_uploads', 'public');
-        $absolutePath = Storage::disk('public')->path($tempPath);
+        // Store locally
+        $filePath = $file->storeAs('modules', $module->code . '-' . $newRevision . '.pdf', 'public');
+        $absolutePath = Storage::disk('public')->path($filePath);
         $pageCount = $this->getPdfPageCount($absolutePath);
-
-        // Upload to Google Drive (FATAL if fails)
-        try {
-            $driveFileId = $this->driveService->uploadFile($absolutePath, $module->code.'.pdf');
-        } catch (\Exception $e) {
-            // Clean up temp file
-            Storage::disk('public')->delete($tempPath);
-            return back()->withErrors(['error' => 'Gagal mengunggah ke Google Drive: '.$e->getMessage()]);
-        }
-
-        // Clean up temp file
-        Storage::disk('public')->delete($tempPath);
 
         // Save revision history
         ModuleRevision::create([
@@ -790,26 +658,65 @@ class ModuleController extends Controller
             'note' => $request->input('note'),
             'author_name' => Auth::user()->name ?? 'System Admin',
             'status' => 'Approved',
-            'file_path' => null,
+            'file_path' => $filePath,
             'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
-            'drive_file_id' => $driveFileId,
+            'drive_file_id' => null,
             'created_by' => Auth::id(),
         ]);
+
+        $mainFilePath = 'modules/' . $module->code . '.pdf';
+        if (Storage::disk('public')->exists($mainFilePath)) {
+            Storage::disk('public')->delete($mainFilePath);
+        }
+        Storage::disk('public')->copy($filePath, $mainFilePath);
 
         // Update module to new revision (old file stays in ModuleRevision history)
         $module->update([
             'current_revision' => $newRevision,
-            'file_path' => null,
+            'file_path' => $mainFilePath,
             'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
             'file_pages' => $pageCount,
-            'drive_file_id' => $driveFileId,
+            'drive_file_id' => null,
             'status' => 'Approved',
         ]);
+
         return redirect()->route('database')->with('message', "Revisi {$newRevision} untuk modul {$module->code} berhasil ditambahkan.");
     }
+
+    /**
+     * Download the PDF of a specific revision.
+     */
+    public function downloadRevision(int $id)
+    {
+        $revision = ModuleRevision::findOrFail($id);
+
+        if ($revision->file_path && Storage::disk('public')->exists($revision->file_path)) {
+            return Storage::disk('public')->download($revision->file_path, ($revision->file_name ?? "revision-{$revision->revision}").'.pdf');
+        }
+
+        return back()->withErrors(['error' => 'File revisi tidak tersedia.']);
+    }
+
+    /**
+     * Preview the PDF of a specific revision.
+     */
+    public function previewRevision(int $id)
+    {
+        $revision = ModuleRevision::findOrFail($id);
+
+        if ($revision->file_path && Storage::disk('public')->exists($revision->file_path)) {
+            return response()->file(
+                Storage::disk('public')->path($revision->file_path),
+                ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="revision-'.$revision->revision.'.pdf"']
+            );
+        }
+
+        return response()->json(['error' => 'File revisi tidak tersedia.'], 404);
+    }
+
     /**
      * Normalize header names for importing Excel sheets.
      */

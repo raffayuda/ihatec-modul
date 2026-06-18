@@ -146,11 +146,11 @@ class DashboardController extends Controller
      */
     private function stafDashboard(): array
     {
-        $draft = ModuleRequest::where('status', 'Baru')->count();
+        $draft = ModuleRequest::whereIn('status', ['Baru', 'Process'])->count();
         $drafting = ModuleRequest::where('status', 'Drafting')->count();
         $waitingApproval = ModuleRequest::where('status', 'Menunggu Approval')->count();
-        $approved = ModuleRequest::where('status', 'Selesai')->count();
-        $rejected = ModuleRequest::where('status', 'Ditolak')->count();
+        $approved = ModuleRequest::whereIn('status', ['Selesai', 'Done'])->count();
+        $rejected = ModuleRequest::whereIn('status', ['Ditolak', 'Batal', 'Cancel'])->count();
 
         // Recent requests submitted by staf (show all as staf processes all)
         $recentRequests = ModuleRequest::with('applicant')
@@ -226,9 +226,9 @@ class DashboardController extends Controller
 
         $myRequests = ModuleRequest::where('applicant_id', $userId);
         $total = (clone $myRequests)->count();
-        $inProgress = (clone $myRequests)->whereIn('status', ['Baru', 'Drafting', 'Menunggu Approval'])->count();
-        $approved = (clone $myRequests)->where('status', 'Selesai')->count();
-        $rejected = (clone $myRequests)->where('status', 'Ditolak')->count();
+        $inProgress = (clone $myRequests)->whereIn('status', ['Baru', 'Drafting', 'Menunggu Approval', 'Process', 'Hold'])->count();
+        $approved = (clone $myRequests)->whereIn('status', ['Selesai', 'Done'])->count();
+        $rejected = (clone $myRequests)->whereIn('status', ['Ditolak', 'Batal', 'Cancel'])->count();
 
         $recentRequests = (clone $myRequests)
             ->orderByDesc('created_at')

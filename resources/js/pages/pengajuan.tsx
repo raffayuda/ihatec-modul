@@ -4,6 +4,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
     Plus,
     Search,
@@ -27,6 +28,7 @@ import {
     X as XIcon,
     FileCheck,
     Loader2,
+    CheckSquare,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -47,7 +49,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Pengajuan Modul',
+        title: 'Permintaan Modul Khusus',
         href: '/pengajuan',
     },
 ];
@@ -99,11 +101,11 @@ interface SubmissionItem {
 
 interface Stats {
     total: number;
+    process: number;
     waiting: number;
-    drafting: number;
-    finished: number;
-    baru: number;
-    ditolak: number;
+    done: number;
+    hold: number;
+    cancel: number;
 }
 
 interface ChartDataItem {
@@ -136,12 +138,23 @@ interface PengajuanProps extends SharedData {
 
 const STATUS_COLORS: Record<string, string> = {
     Baru: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300',
-    Drafting: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
-    'Menunggu Approval': 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+    Drafting: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300',
+    'Menunggu Approval': 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300',
     Selesai: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
     Ditolak: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
     Batal: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
     Hold: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+};
+
+// Status display labels for Permintaan Modul Khusus (Kebutuhan Khusus)
+const STATUS_LABELS: Record<string, string> = {
+    Baru: 'Process',
+    Drafting: 'Process',
+    'Menunggu Approval': 'Menunggu Approval',
+    Selesai: 'Done',
+    Ditolak: 'Cancel',
+    Batal: 'Cancel',
+    Hold: 'Hold',
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -420,6 +433,7 @@ export default function Pengajuan() {
     const [deleteItem, setDeleteItem] = useState<SubmissionItem | null>(null);
     const [detailItem, setDetailItem] = useState<SubmissionItem | null>(null);
     const [uploadItem, setUploadItem] = useState<SubmissionItem | null>(null);
+    const [prosesItem, setProsesItem] = useState<SubmissionItem | null>(null);
 
     // Helper for validating needs date (14 days in future)
     const isDateValid = (dateStr: string) => {
@@ -434,7 +448,7 @@ export default function Pengajuan() {
     // Create form — using FormData compatible approach via router.post
     const [createFile, setCreateFile] = useState<File | null>(null);
     const [createData, setCreateData] = useState({
-        type: role === 'User' ? 'Kebutuhan Khusus' : 'Modul Baru',
+        type: 'Kebutuhan Khusus',
         title: '',
         unit: '',
         description: '',
@@ -459,7 +473,7 @@ export default function Pengajuan() {
     // Edit form
     const [editFile, setEditFile] = useState<File | null>(null);
     const editForm = useForm({
-        type: 'Modul Baru' as string,
+        type: 'Kebutuhan Khusus' as string,
         title: '',
         unit: '',
         description: '',
@@ -479,6 +493,15 @@ export default function Pengajuan() {
         pre_post_test: 'Tidak',
         keterangan_kebutuhan: '',
         // Admin processing fields
+        link_modul: '',
+        tanggal_realisasi: '',
+        tanggal_kebutuhan_baru: '',
+        reject_reason: '',
+    });
+
+    // Staf PD / Admin processing form
+    const prosesForm = useForm({
+        status: 'Baru' as string,
         link_modul: '',
         tanggal_realisasi: '',
         tanggal_kebutuhan_baru: '',
@@ -546,22 +569,51 @@ export default function Pengajuan() {
     const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Front-end validation for file upload in Revisi Modul
-        if (createData.type === 'Revisi Modul' && !createFile) {
-            setCreateErrors({
-                ...createErrors,
-                file: 'Dokumen PDF wajib dilampirkan untuk revisi modul.',
-            });
-            return;
-        }
+        // Front-end validation for Kebutuhan Khusus
+        if (createData.type === 'Kebutuhan Khusus') {
+            const errors: Record<string, string> = {};
+            
+            if (!createData.jenis_kebutuhan) {
+                errors.jenis_kebutuhan = 'Jenis Kebutuhan Modul wajib dipilih.';
+            }
+            if (!createData.language) {
+                errors.language = 'Bahasa Pengantar wajib dipilih.';
+            }
+            if (!createData.judul_program) {
+                errors.judul_program = 'Judul Program Pelatihan wajib diisi.';
+            }
+            if (!createData.description) {
+                errors.description = 'Detail Permintaan Modul Khusus wajib diisi.';
+            }
+            if (!createData.deadline) {
+                errors.deadline = 'Tanggal Kebutuhan wajib diisi.';
+            } else if (!isDateValid(createData.deadline)) {
+                errors.deadline = 'Tanggal kebutuhan khusus minimal harus 14 hari dari hari ini.';
+            }
 
-        // Front-end validation for deadline in Kebutuhan Khusus
-        if (createData.type === 'Kebutuhan Khusus' && !isDateValid(createData.deadline)) {
-            setCreateErrors({
-                ...createErrors,
-                deadline: 'Tanggal kebutuhan khusus minimal harus 14 hari dari hari ini.',
-            });
-            return;
+            if (createData.jenis_kebutuhan === 'Pelatihan Inhouse') {
+                if (!createData.nama_instansi) {
+                    errors.nama_instansi = 'Nama Instansi wajib diisi untuk Pelatihan Inhouse.';
+                }
+                if (!createData.training_days) {
+                    errors.training_days = 'Jumlah Hari Pelatihan wajib diisi untuk Pelatihan Inhouse.';
+                }
+                if (!createData.jam_khusus) {
+                    errors.jam_khusus = 'Request Jam Khusus Pelatihan wajib diisi untuk Pelatihan Inhouse.';
+                }
+                if (!createData.pre_post_test) {
+                    errors.pre_post_test = 'Permintaan Pre & Post Test wajib diisi untuk Pelatihan Inhouse.';
+                }
+            } else if (['Pelatihan Internal', 'Seminar'].includes(createData.jenis_kebutuhan)) {
+                if (!createData.keterangan_kebutuhan) {
+                    errors.keterangan_kebutuhan = 'Keterangan Kebutuhan wajib diisi untuk Pelatihan Internal / Seminar.';
+                }
+            }
+
+            if (Object.keys(errors).length > 0) {
+                setCreateErrors(errors);
+                return;
+            }
         }
 
         setCreateProcessing(true);
@@ -596,7 +648,7 @@ export default function Pengajuan() {
             onSuccess: () => {
                 setIsCreateOpen(false);
                 setCreateData({
-                    type: role === 'User' ? 'Kebutuhan Khusus' : 'Modul Baru',
+                    type: 'Kebutuhan Khusus',
                     title: '',
                     unit: '',
                     description: '',
@@ -676,10 +728,10 @@ export default function Pengajuan() {
             pre_post_test: item.pre_post_test ?? 'Tidak',
             keterangan_kebutuhan: item.keterangan_kebutuhan ?? '',
             // Admin processing fields
-            link_modul: item.link_modul ?? '',
-            tanggal_realisasi: item.tanggal_realisasi ?? '',
-            tanggal_kebutuhan_baru: item.tanggal_kebutuhan_baru ?? '',
-            reject_reason: item.rejectReason ?? '',
+            link_modul: item.link_modul || '',
+            tanggal_realisasi: item.tanggal_realisasi || '',
+            tanggal_kebutuhan_baru: item.tanggal_kebutuhan_baru || '',
+            reject_reason: item.rejectReason || '',
         });
         setEditFile(null);
         setEditItem(item);
@@ -689,51 +741,61 @@ export default function Pengajuan() {
         e.preventDefault();
         if (!editItem) return;
 
-        // Front-end validation for file upload in Revisi Modul
-        if (editForm.data.type === 'Revisi Modul' && !editFile && !editItem.fileName) {
-            editForm.setError('file', 'Dokumen PDF wajib dilampirkan untuk revisi modul.');
-            return;
-        }
+        editForm.clearErrors();
 
-        // Front-end validation for deadline in Kebutuhan Khusus
-        const isProcessor = ['Admin', 'Staf PD'].includes(role);
-        if (!isProcessor && editForm.data.type === 'Kebutuhan Khusus' && !isDateValid(editForm.data.deadline)) {
-            editForm.setError('deadline', 'Tanggal kebutuhan khusus minimal harus 14 hari dari hari ini.');
-            return;
-        }
-
-        // Front-end validation for processor panel (Kebutuhan Khusus)
-        if (isProcessor && editForm.data.type === 'Kebutuhan Khusus') {
-            editForm.clearErrors();
+        // Front-end validation for Kebutuhan Khusus detail edits
+        const isAdmin = role.toLowerCase() === 'admin';
+        if (!isAdmin && editForm.data.type === 'Kebutuhan Khusus') {
             let hasError = false;
-            if (editForm.data.status === 'Selesai') {
-                if (!editForm.data.link_modul) {
-                    editForm.setError('link_modul', 'Link Modul wajib diisi jika status Selesai.');
+            
+            if (!editForm.data.jenis_kebutuhan) {
+                editForm.setError('jenis_kebutuhan', 'Jenis Kebutuhan Modul wajib dipilih.');
+                hasError = true;
+            }
+            if (!editForm.data.language) {
+                editForm.setError('language', 'Bahasa Pengantar wajib dipilih.');
+                hasError = true;
+            }
+            if (!editForm.data.judul_program) {
+                editForm.setError('judul_program', 'Judul Program Pelatihan wajib diisi.');
+                hasError = true;
+            }
+            if (!editForm.data.description) {
+                editForm.setError('description', 'Detail Permintaan Modul Khusus wajib diisi.');
+                hasError = true;
+            }
+            if (!editForm.data.deadline) {
+                editForm.setError('deadline', 'Tanggal Kebutuhan wajib diisi.');
+                hasError = true;
+            } else if (!isDateValid(editForm.data.deadline)) {
+                editForm.setError('deadline', 'Tanggal kebutuhan khusus minimal harus 14 hari dari hari ini.');
+                hasError = true;
+            }
+
+            if (editForm.data.jenis_kebutuhan === 'Pelatihan Inhouse') {
+                if (!editForm.data.nama_instansi) {
+                    editForm.setError('nama_instansi', 'Nama Instansi wajib diisi untuk Pelatihan Inhouse.');
                     hasError = true;
                 }
-                if (!editForm.data.tanggal_realisasi) {
-                    editForm.setError('tanggal_realisasi', 'Tanggal Realisasi wajib diisi jika status Selesai.');
+                if (!editForm.data.training_days) {
+                    editForm.setError('training_days', 'Jumlah Hari Pelatihan wajib diisi untuk Pelatihan Inhouse.');
                     hasError = true;
                 }
-                if (!editForm.data.reject_reason) {
-                    editForm.setError('reject_reason', 'Keterangan wajib diisi.');
+                if (!editForm.data.jam_khusus) {
+                    editForm.setError('jam_khusus', 'Request Jam Khusus Pelatihan wajib diisi untuk Pelatihan Inhouse.');
                     hasError = true;
                 }
-            } else if (editForm.data.status === 'Hold') {
-                if (!editForm.data.tanggal_kebutuhan_baru) {
-                    editForm.setError('tanggal_kebutuhan_baru', 'Tanggal Kebutuhan Baru wajib diisi jika status Hold.');
+                if (!editForm.data.pre_post_test) {
+                    editForm.setError('pre_post_test', 'Permintaan Pre & Post Test wajib diisi untuk Pelatihan Inhouse.');
                     hasError = true;
                 }
-                if (!editForm.data.reject_reason) {
-                    editForm.setError('reject_reason', 'Keterangan wajib diisi.');
-                    hasError = true;
-                }
-            } else if (editForm.data.status === 'Batal') {
-                if (!editForm.data.reject_reason) {
-                    editForm.setError('reject_reason', 'Keterangan wajib diisi.');
+            } else if (['Pelatihan Internal', 'Seminar'].includes(editForm.data.jenis_kebutuhan)) {
+                if (!editForm.data.keterangan_kebutuhan) {
+                    editForm.setError('keterangan_kebutuhan', 'Keterangan Kebutuhan wajib diisi untuk Pelatihan Internal / Seminar.');
                     hasError = true;
                 }
             }
+
             if (hasError) return;
         }
 
@@ -755,6 +817,70 @@ export default function Pengajuan() {
         } else {
             editForm.put(route('pengajuan.update', editItem.dbId), {
                 onSuccess: () => setEditItem(null),
+            });
+        }
+    };
+
+    const openProses = (item: SubmissionItem) => {
+        prosesForm.setData({
+            status: ['Baru', 'Drafting'].includes(item.status) ? 'Baru' : item.status,
+            link_modul: item.link_modul || '',
+            tanggal_realisasi: item.tanggal_realisasi || '',
+            tanggal_kebutuhan_baru: item.tanggal_kebutuhan_baru || '',
+            reject_reason: item.rejectReason || '',
+        });
+        prosesForm.clearErrors();
+        setProsesItem(item);
+    };
+
+    const handleProses = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!prosesItem) return;
+
+        prosesForm.clearErrors();
+        let hasError = false;
+
+        if (prosesForm.data.status === 'Menunggu Approval') {
+            if (!prosesForm.data.link_modul) {
+                prosesForm.setError('link_modul', 'Link Modul wajib diisi jika status Done.');
+                hasError = true;
+            }
+            if (!prosesForm.data.tanggal_realisasi) {
+                prosesForm.setError('tanggal_realisasi', 'Tanggal Realisasi wajib diisi jika status Done.');
+                hasError = true;
+            }
+            if (!prosesForm.data.reject_reason) {
+                prosesForm.setError('reject_reason', 'Keterangan wajib diisi.');
+                hasError = true;
+            }
+        } else if (prosesForm.data.status === 'Hold') {
+            if (!prosesForm.data.tanggal_kebutuhan_baru) {
+                prosesForm.setError('tanggal_kebutuhan_baru', 'Tanggal Kebutuhan Baru wajib diisi jika status Hold.');
+                hasError = true;
+            }
+            if (!prosesForm.data.reject_reason) {
+                prosesForm.setError('reject_reason', 'Keterangan wajib diisi.');
+                hasError = true;
+            }
+        } else if (prosesForm.data.status === 'Batal') {
+            if (!prosesForm.data.reject_reason) {
+                prosesForm.setError('reject_reason', 'Keterangan wajib diisi.');
+                hasError = true;
+            }
+        }
+
+        if (hasError) return;
+
+        prosesForm.put(route('pengajuan.update', prosesItem.dbId), {
+            onSuccess: () => setProsesItem(null),
+        });
+    };
+
+    const handleCancelByUser = (item: SubmissionItem) => {
+        if (confirm('Yakin ingin membatalkan pengajuan ini?')) {
+            router.put(route('pengajuan.update', item.dbId), {
+                status: 'Batal',
+                reject_reason: 'Dibatalkan oleh Pengaju',
             });
         }
     };
@@ -783,20 +909,20 @@ export default function Pengajuan() {
         });
     };
 
-    const canEdit = (status: string) => ['Baru', 'Drafting'].includes(status);
+    const canEdit = (status: string) => status === 'Baru' || status === 'Drafting';
     const canDelete = (status: string) => status === 'Baru';
-    const canSubmit = (status: string) => ['Baru', 'Drafting'].includes(status);
+    const canSubmit = (status: string) => status === 'Baru' || status === 'Drafting';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Pengajuan Modul" />
+            <Head title="Permintaan Modul Khusus" />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-6 bg-neutral-50/60 dark:bg-neutral-900/10">
                 {/* Header */}
                 <div className="flex flex-col gap-1">
-                    <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">Pengajuan Modul</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">Permintaan Modul Khusus</h1>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                        {role === 'User' ? 'Pantau dan ajukan permintaan modul pelatihan.' : 'Kelola seluruh pengajuan modul dari pengguna.'}
+                        {role === 'User' ? 'Ajukan dan pantau permintaan modul khusus Anda.' : 'Kelola seluruh permintaan modul khusus dari pengguna.'}
                     </p>
                 </div>
 
@@ -864,12 +990,12 @@ export default function Pengajuan() {
                         {/* Metrics */}
                         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
                             {[
-                                { label: 'Total', value: stats.total, icon: FileText, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50 dark:text-blue-400' },
-                                { label: 'Baru', value: stats.baru, icon: Plus, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/50 dark:text-blue-400' },
-                                { label: 'Drafting', value: stats.drafting, icon: Edit3, color: 'text-neutral-500 bg-neutral-100 dark:bg-neutral-800' },
-                                { label: 'Menunggu', value: stats.waiting, icon: Clock, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-400' },
-                                { label: 'Selesai', value: stats.finished, icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 dark:text-emerald-400' },
-                                { label: 'Ditolak', value: stats.ditolak, icon: XCircle, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/50 dark:text-rose-400' },
+                                { label: 'Total', value: stats.total, icon: FileText, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50 dark:text-blue-400 border border-blue-200 dark:border-blue-900' },
+                                { label: 'Process', value: stats.process, icon: RefreshCw, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/50 dark:text-blue-400 border border-blue-200 dark:border-blue-900' },
+                                { label: 'Menunggu', value: stats.waiting, icon: Clock, color: 'text-purple-650 bg-purple-50 dark:bg-purple-950/50 dark:text-purple-400 border border-purple-200 dark:border-purple-900' },
+                                { label: 'Done', value: stats.done, icon: CheckCircle2, color: 'text-emerald-650 bg-emerald-50 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900' },
+                                { label: 'Hold', value: stats.hold, icon: AlertTriangle, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-900' },
+                                { label: 'Cancel', value: stats.cancel, icon: XCircle, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-900' },
                             ].map((m) => (
                                 <Card key={m.label} className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                                     <CardContent className="flex items-start gap-2 p-4">
@@ -884,7 +1010,7 @@ export default function Pengajuan() {
                                 </Card>
                             ))}
                         </div>
-
+ 
                         {/* Table Card */}
                         <Card className="overflow-hidden border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                             {/* Filters */}
@@ -900,26 +1026,38 @@ export default function Pengajuan() {
                                     />
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
-                                        <option value="Semua Status">Semua Status</option>
-                                        <option value="Baru">Baru</option>
-                                        <option value="Drafting">Drafting</option>
-                                        <option value="Menunggu Approval">Menunggu Approval</option>
-                                        <option value="Selesai">Selesai</option>
-                                        <option value="Ditolak">Ditolak</option>
-                                    </select>
-                                    <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
-                                        <option value="Semua Tipe">Semua Tipe</option>
-                                        <option value="Modul Baru">Modul Baru</option>
-                                        <option value="Revisi Modul">Revisi Modul</option>
-                                        <option value="Kebutuhan Khusus">Kebutuhan Khusus</option>
-                                    </select>
+                                    <div className="w-40">
+                                        <SearchableSelect
+                                            value={statusFilter}
+                                            onChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
+                                            options={[
+                                                { value: 'Semua Status', label: 'Semua Status' },
+                                                { value: 'Baru', label: 'Process' },
+                                                { value: 'Menunggu Approval', label: 'Menunggu Approval' },
+                                                { value: 'Selesai', label: 'Done' },
+                                                { value: 'Hold', label: 'Hold' },
+                                                { value: 'Batal', label: 'Cancel' }
+                                            ]}
+                                        />
+                                    </div>
+                                    <div className="w-44">
+                                        <SearchableSelect
+                                            value={typeFilter}
+                                            onChange={(val) => { setTypeFilter(val); setCurrentPage(1); }}
+                                            options={[
+                                                'Semua Tipe',
+                                                'Kebutuhan Khusus'
+                                            ]}
+                                        />
+                                    </div>
                                     <Button onClick={handleResetFilters} variant="outline" size="sm" className="h-9 rounded-lg border-neutral-200 px-3 text-xs font-semibold dark:border-neutral-800">
                                         <RefreshCw className="mr-1.5 size-3.5" /> Reset
                                     </Button>
-                                    <Button onClick={() => setIsCreateOpen(true)} size="sm" className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">
-                                        <Plus className="mr-1.5 size-4" /> Ajukan Modul
-                                    </Button>
+                                    {role !== 'Manager PD' && (
+                                        <Button onClick={() => setIsCreateOpen(true)} size="sm" className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">
+                                            <Plus className="mr-1.5 size-4" /> Ajukan Permintaan
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
 
@@ -1019,7 +1157,7 @@ export default function Pengajuan() {
                                                     </td>
                                                     <td className="px-5 py-4">
                                                         <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[item.status] ?? ''}`}>
-                                                            {item.status}
+                                                            {STATUS_LABELS[item.status] ?? item.status}
                                                         </Badge>
                                                     </td>
                                                     <td className="px-5 py-4 text-center" onClick={(e) => e.stopPropagation()}>
@@ -1033,22 +1171,31 @@ export default function Pengajuan() {
                                                                 <DropdownMenuItem onClick={() => setDetailItem(item)} className="cursor-pointer font-medium">
                                                                     <ArrowUpRight className="mr-2 size-3.5" /> Lihat Detail
                                                                 </DropdownMenuItem>
-                                                                {item.type !== 'Kebutuhan Khusus' && (
-                                                                    <DropdownMenuItem onClick={() => { setUploadItem(item); setStandaloneFile(null); }} className="cursor-pointer font-medium text-blue-600">
-                                                                        <Upload className="mr-2 size-3.5" /> Upload / Ganti File
+                                                                {item.status === 'Selesai' && item.link_modul && (
+                                                                    <DropdownMenuItem onClick={() => window.open(item.link_modul!, '_blank')} className="cursor-pointer font-medium text-emerald-600">
+                                                                        <ArrowUpRight className="mr-2 size-3.5" /> Lihat Modul
                                                                     </DropdownMenuItem>
                                                                 )}
-                                                                {canSubmit(item.status) && (
-                                                                    <DropdownMenuItem onClick={() => handleSubmitForApproval(item)} className="cursor-pointer font-medium text-amber-600">
-                                                                        <Send className="mr-2 size-3.5" /> Kirim ke Approval
+                                                                {/* Staf PD & Admin Actions */}
+                                                                {['Staf PD', 'Admin'].includes(role) && (
+                                                                    <DropdownMenuItem onClick={() => openProses(item)} className="cursor-pointer font-medium text-purple-600">
+                                                                        <CheckSquare className="mr-2 size-3.5" /> Proses Pengajuan
                                                                     </DropdownMenuItem>
                                                                 )}
-                                                                {canEdit(item.status) && (
-                                                                    <DropdownMenuItem onClick={() => openEdit(item)} className="cursor-pointer font-medium">
+                                                                {/* User / Admin Edit Actions */}
+                                                                {((role === 'User' && canEdit(item.status)) || role === 'Admin') && (
+                                                                    <DropdownMenuItem onClick={() => openEdit(item)} className="cursor-pointer font-medium text-blue-600">
                                                                         <Edit3 className="mr-2 size-3.5" /> Edit Pengajuan
                                                                     </DropdownMenuItem>
                                                                 )}
-                                                                {canDelete(item.status) && (
+                                                                {/* User Cancel Action */}
+                                                                {role === 'User' && canEdit(item.status) && (
+                                                                    <DropdownMenuItem onClick={() => handleCancelByUser(item)} className="cursor-pointer font-medium text-rose-600">
+                                                                        <XIcon className="mr-2 size-3.5" /> Batalkan Pengajuan
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                {/* Admin Delete Action */}
+                                                                {role === 'Admin' && (
                                                                     <DropdownMenuItem onClick={() => setDeleteItem(item)} className="cursor-pointer font-medium text-rose-600">
                                                                         <Trash2 className="mr-2 size-3.5" /> Hapus
                                                                     </DropdownMenuItem>
@@ -1164,7 +1311,7 @@ export default function Pengajuan() {
                                                     </div>
                                                     <div className="flex justify-between text-[10px]">
                                                         <span className="font-semibold text-neutral-400">Status</span>
-                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300">{selectedSubmission.status}</span>
+                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300">{STATUS_LABELS[selectedSubmission.status] ?? selectedSubmission.status}</span>
                                                     </div>
                                                     <div className="flex justify-between text-[10px]">
                                                         <span className="font-semibold text-neutral-400">Pengaju</span>
@@ -1274,16 +1421,11 @@ export default function Pengajuan() {
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tipe Modul *</label>
-                                <select
-                                    value={createData.type}
-                                    onChange={(e) => setCreateData({ ...createData, type: e.target.value })}
-                                    disabled={role === 'User'}
-                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 disabled:opacity-75 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
-                                >
-                                    {role !== 'User' && <option value="Modul Baru">Modul Baru</option>}
-                                    {role !== 'User' && <option value="Revisi Modul">Revisi Modul</option>}
-                                    <option value="Kebutuhan Khusus">Kebutuhan Khusus</option>
-                                </select>
+                                <SearchableSelect value={createData.type}
+                                    onChange={(val) => setCreateData({ ...createData, type: val })}
+                                    disabled={true}
+                                    options={['Kebutuhan Khusus']}
+                                />
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tanggal Kebutuhan *</label>
@@ -1298,11 +1440,7 @@ export default function Pengajuan() {
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Prioritas *</label>
-                                <select value={createData.priority} onChange={(e) => setCreateData({ ...createData, priority: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
-                                    <option value="High">High</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="Low">Low</option>
-                                </select>
+                                <SearchableSelect value={createData.priority} onChange={(val) => setCreateData({ ...createData, priority: val })} options={['High', 'Medium', 'Low']} />
                             </div>
                         </div>
 
@@ -1313,12 +1451,7 @@ export default function Pengajuan() {
                                 
                                 <div>
                                     <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Kategori / Jenis Pelatihan *</label>
-                                    <select value={createData.program} onChange={(e) => setCreateData({ ...createData, program: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required={createData.type === 'Modul Baru'}>
-                                        <option value="">-- Pilih Jenis Pelatihan --</option>
-                                        {trainingTypeList.map((type) => (
-                                            <option key={type} value={type}>{type}</option>
-                                        ))}
-                                    </select>
+                                    <SearchableSelect value={createData.program} onChange={(val) => setCreateData({ ...createData, program: val })} options={trainingTypeList} nullLabel="-- Pilih Jenis Pelatihan --" required={createData.type === 'Modul Baru'} />
                                 </div>
 
                                 <div>
@@ -1330,10 +1463,7 @@ export default function Pengajuan() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Bahasa Pelatihan *</label>
-                                        <select value={createData.language} onChange={(e) => setCreateData({ ...createData, language: e.target.value })} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
-                                            <option value="Indonesia">Indonesia</option>
-                                            <option value="English">English</option>
-                                        </select>
+                                        <SearchableSelect value={createData.language} onChange={(val) => setCreateData({ ...createData, language: val })} options={['Indonesia', 'English']} />
                                     </div>
                                     <div>
                                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jumlah Hari Pelatihan</label>
@@ -1355,12 +1485,7 @@ export default function Pengajuan() {
                                 
                                 <div>
                                     <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Pilih Modul Existing *</label>
-                                    <select value={createData.related_module_id} onChange={(e) => handleRelatedModuleChange(e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required={createData.type === 'Revisi Modul'}>
-                                        <option value="">-- Pilih Modul --</option>
-                                        {availableModules.map((m) => (
-                                            <option key={m.id} value={m.id}>{m.code} — {m.title} (Rev. {m.revision})</option>
-                                        ))}
-                                    </select>
+                                    <SearchableSelect value={createData.related_module_id} onChange={(val) => handleRelatedModuleChange(val)} options={availableModules.map(m => ({ value: String(m.id), label: `${m.code} — ${m.title} (Rev. ${m.revision})` }))} nullLabel="-- Pilih Modul --" required={createData.type === 'Revisi Modul'} />
                                 </div>
 
                                 {createData.related_module_id && (
@@ -1396,32 +1521,24 @@ export default function Pengajuan() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jenis Kebutuhan *</label>
-                                        <select
+                                        <SearchableSelect
                                             value={createData.jenis_kebutuhan}
-                                            onChange={(e) => setCreateData({ ...createData, jenis_kebutuhan: e.target.value, nama_instansi: e.target.value !== 'Pelatihan Inhouse' ? '' : createData.nama_instansi })}
-                                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                            onChange={(val) => setCreateData({ ...createData, jenis_kebutuhan: val, nama_instansi: val !== 'Pelatihan Inhouse' ? '' : createData.nama_instansi })}
+                                            options={jenisKebutuhanList}
+                                            nullLabel="-- Pilih Jenis --"
                                             required
-                                        >
-                                            <option value="">-- Pilih Jenis --</option>
-                                            {jenisKebutuhanList.map((jk) => (
-                                                <option key={jk} value={jk}>{jk}</option>
-                                            ))}
-                                        </select>
+                                        />
                                     </div>
                                     
                                     <div>
                                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Bahasa Pengantar *</label>
-                                        <select
+                                        <SearchableSelect
                                             value={createData.language}
-                                            onChange={(e) => setCreateData({ ...createData, language: e.target.value })}
-                                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                            onChange={(val) => setCreateData({ ...createData, language: val })}
+                                            options={bahasaPengantarList}
+                                            nullLabel="-- Pilih Bahasa --"
                                             required
-                                        >
-                                            <option value="">-- Pilih Bahasa --</option>
-                                            {bahasaPengantarList.map((bp) => (
-                                                <option key={bp} value={bp}>{bp}</option>
-                                            ))}
-                                        </select>
+                                        />
                                     </div>
                                 </div>
 
@@ -1466,15 +1583,12 @@ export default function Pengajuan() {
                                     </div>
                                     <div>
                                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Pre & Post Test *</label>
-                                        <select
+                                        <SearchableSelect
                                             value={createData.pre_post_test}
-                                            onChange={(e) => setCreateData({ ...createData, pre_post_test: e.target.value })}
-                                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                            onChange={(val) => setCreateData({ ...createData, pre_post_test: val })}
+                                            options={['Ya', 'Tidak']}
                                             required
-                                        >
-                                            <option value="Ya">Ya</option>
-                                            <option value="Tidak">Tidak</option>
-                                        </select>
+                                        />
                                     </div>
                                 </div>
 
@@ -1561,16 +1675,16 @@ export default function Pengajuan() {
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tipe Modul *</label>
-                                <select
+                                <SearchableSelect
                                     value={editForm.data.type}
-                                    onChange={(e) => editForm.setData('type', e.target.value)}
+                                    onChange={(val) => editForm.setData('type', val)}
                                     disabled={role === 'User'}
-                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 disabled:opacity-75 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
-                                >
-                                    {role !== 'User' && <option value="Modul Baru">Modul Baru</option>}
-                                    {role !== 'User' && <option value="Revisi Modul">Revisi Modul</option>}
-                                    <option value="Kebutuhan Khusus">Kebutuhan Khusus</option>
-                                </select>
+                                    options={
+                                        role !== 'User'
+                                            ? ['Modul Baru', 'Revisi Modul', 'Kebutuhan Khusus']
+                                            : ['Kebutuhan Khusus']
+                                    }
+                                />
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Tanggal Kebutuhan *</label>
@@ -1585,11 +1699,7 @@ export default function Pengajuan() {
                             </div>
                             <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Prioritas *</label>
-                                <select value={editForm.data.priority} onChange={(e) => editForm.setData('priority', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
-                                    <option value="High">High</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="Low">Low</option>
-                                </select>
+                                <SearchableSelect value={editForm.data.priority} onChange={(val) => editForm.setData('priority', val)} options={['High', 'Medium', 'Low']} />
                             </div>
                         </div>
 
@@ -1600,12 +1710,7 @@ export default function Pengajuan() {
                                 
                                 <div>
                                     <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Kategori / Jenis Pelatihan *</label>
-                                    <select value={editForm.data.program} onChange={(e) => editForm.setData('program', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required={editForm.data.type === 'Modul Baru'}>
-                                        <option value="">-- Pilih Jenis Pelatihan --</option>
-                                        {trainingTypeList.map((type) => (
-                                            <option key={type} value={type}>{type}</option>
-                                        ))}
-                                    </select>
+                                    <SearchableSelect value={editForm.data.program} onChange={(val) => editForm.setData('program', val)} options={trainingTypeList} nullLabel="-- Pilih Jenis Pelatihan --" required={editForm.data.type === 'Modul Baru'} />
                                 </div>
 
                                 <div>
@@ -1617,10 +1722,7 @@ export default function Pengajuan() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Bahasa Pelatihan *</label>
-                                        <select value={editForm.data.language} onChange={(e) => editForm.setData('language', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
-                                            <option value="Indonesia">Indonesia</option>
-                                            <option value="English">English</option>
-                                        </select>
+                                        <SearchableSelect value={editForm.data.language} onChange={(val) => editForm.setData('language', val)} options={['Indonesia', 'English']} />
                                     </div>
                                     <div>
                                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jumlah Hari Pelatihan</label>
@@ -1642,12 +1744,13 @@ export default function Pengajuan() {
                                 
                                 <div>
                                     <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Pilih Modul Existing *</label>
-                                    <select value={editForm.data.related_module_id} onChange={(e) => handleEditRelatedModuleChange(e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" required={editForm.data.type === 'Revisi Modul'}>
-                                        <option value="">-- Pilih Modul --</option>
-                                        {availableModules.map((m) => (
-                                            <option key={m.id} value={m.id}>{m.code} — {m.title} (Rev. {m.revision})</option>
-                                        ))}
-                                    </select>
+                                    <SearchableSelect
+                                        value={editForm.data.related_module_id}
+                                        onChange={(val) => handleEditRelatedModuleChange(val)}
+                                        options={availableModules.map(m => ({ value: String(m.id), label: `${m.code} — ${m.title} (Rev. ${m.revision})` }))}
+                                        nullLabel="-- Pilih Modul --"
+                                        required={editForm.data.type === 'Revisi Modul'}
+                                    />
                                 </div>
 
                                 {editForm.data.related_module_id && (
@@ -1684,34 +1787,24 @@ export default function Pengajuan() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jenis Kebutuhan *</label>
-                                            <select
+                                            <SearchableSelect
                                                 value={editForm.data.jenis_kebutuhan}
-                                                onChange={(e) => editForm.setData((data) => ({ ...data, jenis_kebutuhan: e.target.value, nama_instansi: e.target.value !== 'Pelatihan Inhouse' ? '' : data.nama_instansi }))}
-                                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                onChange={(val) => editForm.setData((data) => ({ ...data, jenis_kebutuhan: val, nama_instansi: val !== 'Pelatihan Inhouse' ? '' : data.nama_instansi }))}
+                                                options={jenisKebutuhanList}
+                                                nullLabel="-- Pilih Jenis --"
                                                 required
-                                                disabled={isProcessor} // disable input if processing
-                                            >
-                                                <option value="">-- Pilih Jenis --</option>
-                                                {jenisKebutuhanList.map((jk) => (
-                                                    <option key={jk} value={jk}>{jk}</option>
-                                                ))}
-                                            </select>
+                                            />
                                         </div>
                                         
                                         <div>
                                             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Bahasa Pengantar *</label>
-                                            <select
+                                            <SearchableSelect
                                                 value={editForm.data.language}
-                                                onChange={(e) => editForm.setData('language', e.target.value)}
-                                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                onChange={(val) => editForm.setData('language', val)}
+                                                options={bahasaPengantarList}
+                                                nullLabel="-- Pilih Bahasa --"
                                                 required
-                                                disabled={isProcessor}
-                                            >
-                                                <option value="">-- Pilih Bahasa --</option>
-                                                {bahasaPengantarList.map((bp) => (
-                                                    <option key={bp} value={bp}>{bp}</option>
-                                                ))}
-                                            </select>
+                                            />
                                         </div>
                                     </div>
 
@@ -1725,7 +1818,6 @@ export default function Pengajuan() {
                                                 className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                                                 placeholder="e.g. PT Maju Bersama"
                                                 required
-                                                disabled={isProcessor}
                                             />
                                         </div>
                                     )}
@@ -1739,7 +1831,6 @@ export default function Pengajuan() {
                                             className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                                             placeholder="e.g. Inhouse Training ISO 9001:2015"
                                             required
-                                            disabled={isProcessor}
                                         />
                                         {editForm.errors.title && <p className="mt-1 text-xs text-rose-500">{editForm.errors.title}</p>}
                                     </div>
@@ -1754,21 +1845,16 @@ export default function Pengajuan() {
                                                 className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                                                 placeholder="e.g. 16 Jam Pelatihan"
                                                 required
-                                                disabled={isProcessor}
                                             />
                                         </div>
                                         <div>
                                             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Pre & Post Test *</label>
-                                            <select
+                                            <SearchableSelect
                                                 value={editForm.data.pre_post_test}
-                                                onChange={(e) => editForm.setData('pre_post_test', e.target.value)}
-                                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                onChange={(val) => editForm.setData('pre_post_test', val)}
+                                                options={['Ya', 'Tidak']}
                                                 required
-                                                disabled={isProcessor}
-                                            >
-                                                <option value="Ya">Ya</option>
-                                                <option value="Tidak">Tidak</option>
-                                            </select>
+                                            />
                                         </div>
                                     </div>
 
@@ -1781,89 +1867,9 @@ export default function Pengajuan() {
                                             className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                                             placeholder="Jelaskan detail kebutuhan modul atau program yang diminta..."
                                             required
-                                            disabled={isProcessor}
                                         />
                                     </div>
                                 </div>
-
-                                {/* Processing panel by Admin or Staf PD */}
-                                {isProcessor && (
-                                    <div className="space-y-3 p-3.5 border border-purple-200 dark:border-purple-900/40 rounded-xl bg-purple-50/20 dark:bg-purple-950/5">
-                                        <div className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1">Penyelesaian Pengajuan (Admin / Staf PD)</div>
-                                        
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold text-purple-600 dark:text-purple-400">Status Proses *</label>
-                                                <select
-                                                    value={editForm.data.status}
-                                                    onChange={(e) => editForm.setData('status', e.target.value)}
-                                                    className="w-full rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-purple-500 dark:border-purple-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                                    required
-                                                >
-                                                    <option value="Baru">Baru</option>
-                                                    <option value="Drafting">Drafting</option>
-                                                    <option value="Menunggu Approval">Menunggu Approval</option>
-                                                    <option value="Selesai">Selesai (Done)</option>
-                                                    <option value="Batal">Batal (Cancel)</option>
-                                                    <option value="Hold">Hold</option>
-                                                </select>
-                                                {editForm.errors.status && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.status}</p>}
-                                            </div>
-                                            
-                                            <div>
-                                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Tanggal Realisasi {editForm.data.status === 'Selesai' && <span className="text-rose-500">*</span>}</label>
-                                                <input
-                                                    type="date"
-                                                    value={editForm.data.tanggal_realisasi}
-                                                    onChange={(e) => editForm.setData('tanggal_realisasi', e.target.value)}
-                                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                                    required={editForm.data.status === 'Selesai'}
-                                                />
-                                                {editForm.errors.tanggal_realisasi && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.tanggal_realisasi}</p>}
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Link Modul / Dokumen {editForm.data.status === 'Selesai' && <span className="text-rose-500">*</span>}</label>
-                                                <input
-                                                    type="url"
-                                                    value={editForm.data.link_modul}
-                                                    onChange={(e) => editForm.setData('link_modul', e.target.value)}
-                                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                                    placeholder="https://drive.google.com/..."
-                                                    required={editForm.data.status === 'Selesai'}
-                                                />
-                                                {editForm.errors.link_modul && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.link_modul}</p>}
-                                            </div>
-                                            
-                                            <div>
-                                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Tanggal Kebutuhan Baru {editForm.data.status === 'Hold' && <span className="text-rose-500">*</span>}</label>
-                                                <input
-                                                    type="date"
-                                                    value={editForm.data.tanggal_kebutuhan_baru}
-                                                    onChange={(e) => editForm.setData('tanggal_kebutuhan_baru', e.target.value)}
-                                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                                    required={editForm.data.status === 'Hold'}
-                                                />
-                                                {editForm.errors.tanggal_kebutuhan_baru && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.tanggal_kebutuhan_baru}</p>}
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Keterangan Proses / Alasan Hold/Cancel <span className="text-rose-500">*</span></label>
-                                            <textarea
-                                                value={editForm.data.reject_reason}
-                                                onChange={(e) => editForm.setData('reject_reason', e.target.value)}
-                                                rows={2}
-                                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                                placeholder="Keterangan tambahan dari admin mengenai hasil pemrosesan..."
-                                                required
-                                            />
-                                            {editForm.errors.reject_reason && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.reject_reason}</p>}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         )}
 
@@ -1888,6 +1894,111 @@ export default function Pengajuan() {
                             <Button type="button" variant="outline" onClick={() => setEditItem(null)}>Batal</Button>
                             <Button type="submit" disabled={editForm.processing} className="bg-blue-600 text-white hover:bg-blue-700">
                                 {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── PROSES DIALOG ── */}
+            <Dialog open={!!prosesItem} onOpenChange={(open) => { if (!open) setProsesItem(null); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Proses Pengajuan</DialogTitle>
+                        <DialogDescription>
+                            Tentukan status dan lengkapi detail penyelesaian untuk pengajuan <span className="font-bold">{prosesItem?.id}</span>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleProses} className="mt-2 space-y-4">
+                        <div className="space-y-3 p-3.5 border border-purple-250 dark:border-purple-900/40 rounded-xl bg-purple-50/10 dark:bg-purple-950/5">
+                            <div>
+                                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 font-sans">Status *</label>
+                                <SearchableSelect
+                                    value={prosesForm.data.status}
+                                    onChange={(val) => {
+                                        prosesForm.setData('status', val);
+                                        prosesForm.clearErrors();
+                                    }}
+                                    options={[
+                                        { value: 'Baru', label: 'Process' },
+                                        { value: 'Menunggu Approval', label: 'Done' },
+                                        { value: 'Hold', label: 'Hold' },
+                                        { value: 'Batal', label: 'Cancel' }
+                                    ]}
+                                    required
+                                />
+                                {prosesForm.errors.status && <p className="mt-1 text-[10px] text-rose-500 font-sans">{prosesForm.errors.status}</p>}
+                            </div>
+
+                            {/* Link Modul - Visible only if Menunggu Approval */}
+                            {prosesForm.data.status === 'Menunggu Approval' && (
+                                <div>
+                                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Link Modul *</label>
+                                    <input
+                                        type="url"
+                                        value={prosesForm.data.link_modul}
+                                        onChange={(e) => prosesForm.setData('link_modul', e.target.value)}
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        placeholder="https://drive.google.com/..."
+                                        required
+                                    />
+                                    {prosesForm.errors.link_modul && <p className="mt-1 text-[10px] text-rose-500 font-sans">{prosesForm.errors.link_modul}</p>}
+                                </div>
+                            )}
+
+                            {/* Tanggal Realisasi - Visible only if Menunggu Approval */}
+                            {prosesForm.data.status === 'Menunggu Approval' && (
+                                <div>
+                                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Tanggal Realisasi *</label>
+                                    <input
+                                        type="date"
+                                        value={prosesForm.data.tanggal_realisasi}
+                                        onChange={(e) => prosesForm.setData('tanggal_realisasi', e.target.value)}
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        required
+                                    />
+                                    {prosesForm.errors.tanggal_realisasi && <p className="mt-1 text-[10px] text-rose-500 font-sans">{prosesForm.errors.tanggal_realisasi}</p>}
+                                </div>
+                            )}
+
+                            {/* Tanggal Kebutuhan Baru - Visible only if Hold */}
+                            {prosesForm.data.status === 'Hold' && (
+                                <div>
+                                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Tanggal Kebutuhan Baru *</label>
+                                    <input
+                                        type="date"
+                                        value={prosesForm.data.tanggal_kebutuhan_baru}
+                                        onChange={(e) => prosesForm.setData('tanggal_kebutuhan_baru', e.target.value)}
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        required
+                                    />
+                                    {prosesForm.errors.tanggal_kebutuhan_baru && <p className="mt-1 text-[10px] text-rose-500 font-sans">{prosesForm.errors.tanggal_kebutuhan_baru}</p>}
+                                </div>
+                            )}
+
+                            {/* Keterangan Proses / Alasan - Visible if Menunggu Approval, Hold, or Batal */}
+                            {['Menunggu Approval', 'Hold', 'Batal'].includes(prosesForm.data.status) && (
+                                <div>
+                                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">
+                                        Keterangan {prosesForm.data.status !== 'Baru' && <span className="text-rose-500">*</span>}
+                                    </label>
+                                    <textarea
+                                        value={prosesForm.data.reject_reason}
+                                        onChange={(e) => prosesForm.setData('reject_reason', e.target.value)}
+                                        rows={3}
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        placeholder="Keterangan hasil pemrosesan..."
+                                        required
+                                    />
+                                    {prosesForm.errors.reject_reason && <p className="mt-1 text-[10px] text-rose-500 font-sans">{prosesForm.errors.reject_reason}</p>}
+                                </div>
+                            )}
+                        </div>
+
+                        <DialogFooter className="pt-2">
+                            <Button type="button" variant="outline" onClick={() => setProsesItem(null)}>Batal</Button>
+                            <Button type="submit" disabled={prosesForm.processing} className="bg-purple-650 text-white hover:bg-purple-700">
+                                {prosesForm.processing ? 'Menyimpan...' : 'Simpan Proses'}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -2073,7 +2184,7 @@ export default function Pengajuan() {
                                                 )}
                                             </div>
 
-                                            {detailItem.rejectReason && (
+                                            {detailItem.rejectReason && detailItem.status !== 'Baru' && detailItem.status !== 'Drafting' && detailItem.status !== 'Menunggu Approval' && (
                                                 <div className="pt-2 border-t border-purple-100 dark:border-purple-900/20">
                                                     <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-purple-500 dark:text-purple-400 font-sans">Keterangan Proses / Alasan</p>
                                                     <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal whitespace-pre-line">{detailItem.rejectReason}</p>
@@ -2114,9 +2225,11 @@ export default function Pengajuan() {
                                 </div>
                             )}
 
-                            {detailItem.rejectReason && detailItem.type !== 'Kebutuhan Khusus' && (
+                            {['Ditolak', 'Batal'].includes(detailItem.status) && detailItem.rejectReason && detailItem.type !== 'Kebutuhan Khusus' && (
                                 <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-3.5 dark:border-rose-900/40 dark:bg-rose-950/20">
-                                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 font-sans">Alasan Penolakan dari Manager</p>
+                                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 font-sans">
+                                        {detailItem.status === 'Batal' ? 'Alasan Pembatalan' : 'Alasan Penolakan dari Manager'}
+                                    </p>
                                     <p className="text-xs leading-relaxed text-rose-600 dark:text-rose-300 font-medium whitespace-pre-line">{detailItem.rejectReason}</p>
                                 </div>
                             )}

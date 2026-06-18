@@ -3,83 +3,106 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { 
-    BarChart3, 
-    CheckSquare, 
-    Database, 
-    FileText, 
-    Grid, 
-    Layers, 
-    LayoutGrid, 
-    Settings, 
-    Users, 
-    History, 
-    FlaskConical,
-    FilePlus,
-    RotateCcw,
-    ClipboardList,
+import {
+    BarChart3,
     Bell,
+    BookOpen,
+    CheckSquare,
     Cloud,
+    Database,
+    FileText,
+    FilePlus,
+    FileEdit,
+    FlaskConical,
+    Globe,
+    GraduationCap,
+    Grid,
+    LayoutGrid,
+    Layers,
+    Settings,
+    Users,
+    ShieldCheck,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
     const page = usePage<SharedData>();
     const role = page.props.auth?.user?.role || 'User';
+    const roleLower = role.trim().toLowerCase();
 
-    // Normalize role to lowercase for consistent comparisons
-    const roleLower = role.toLowerCase();
-
-    // ── Admin Menu ──────────────────────────────────────────────────────────
-    const adminItems: NavItem[] = [
-        { title: 'Dashboard Admin', url: '/dashboard', icon: LayoutGrid },
+    // ── Shared sub-items for Role & Master Data dropdown ────────────────────
+    const masterDataChildren: NavItem[] = [
         { title: 'Manajemen User', url: '/manajemen-user', icon: Users },
-        { title: 'Pengajuan Modul', url: '/pengajuan', icon: FileText },
+        { title: 'Jenis Kebutuhan Modul', url: '/master-data/jenis-kebutuhan', icon: BookOpen },
+        { title: 'Kode Pelatihan', url: '/master-data/kode-pelatihan', icon: Layers },
+        { title: 'Jenis Modul', url: '/master-data/jenis-modul', icon: GraduationCap },
+        { title: 'Bahasa Pengantar', url: '/master-data/bahasa-pengantar', icon: Globe },
+        { title: 'Tipe Pelatihan', url: '/master-data/tipe-pelatihan', icon: Layers },
+        { title: 'Tipe Sertifikat di Sihalal', url: '/master-data/tipe-sertifikat-sihalal', icon: ShieldCheck },
+        { title: 'Jenis Sertifikat', url: '/master-data/jenis-sertifikat', icon: BookOpen },
+        { title: 'PIC Periksa LK', url: '/master-data/pic-periksa-lk', icon: Users },
+        { title: 'Kode Program', url: '/master-data/kode-program', icon: Database },
+    ];
+
+    // ── Admin ────────────────────────────────────────────────────────────────
+    const adminItems: NavItem[] = [
+        { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
+        {
+            title: 'Role & Master Data',
+            url: '/master-data',
+            icon: ShieldCheck,
+            children: masterDataChildren,
+        },
+        { title: 'Permintaan Modul Khusus', url: '/pengajuan', icon: FileText },
+        { title: 'Perubahan Modul', url: '/perubahan-modul', icon: FileEdit },
         { title: 'Approval Modul', url: '/approval', icon: CheckSquare },
         { title: 'Database Modul', url: '/database', icon: Database },
+        { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
         { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
-        { title: 'Manajemen Modul', url: '/master-data', icon: Layers },
-        // { title: 'Audit Log', url: '/audit-log', icon: History },
         { title: 'Report', url: '/report', icon: BarChart3 },
+        { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
         { title: 'Integrasi Drive', url: '/admin/drive-integration', icon: Cloud },
         { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
-    // ── Manager PD Menu ─────────────────────────────────────────────────────
+    // ── Manager PD ───────────────────────────────────────────────────────────
     const managerItems: NavItem[] = [
-        { title: 'Dashboard Manager PD', url: '/dashboard', icon: LayoutGrid },
+        { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
         { title: 'Approval Modul', url: '/approval', icon: CheckSquare },
         { title: 'Database Modul', url: '/database', icon: Database },
-        { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
-        { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
         { title: 'Report', url: '/report', icon: BarChart3 },
+        { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
         { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
-    // ── Staf PD Menu ────────────────────────────────────────────────────────
+    // ── Staf PD ──────────────────────────────────────────────────────────────
     const stafPdItems: NavItem[] = [
-        { title: 'Dashboard Staf PD', url: '/dashboard', icon: LayoutGrid },
-        { title: 'Pengajuan Modul', url: '/pengajuan', icon: FilePlus },
+        { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
+        { title: 'Permintaan Modul Khusus', url: '/pengajuan', icon: FileText },
+        { title: 'Perubahan Modul', url: '/perubahan-modul', icon: FileEdit },
         { title: 'Database Modul', url: '/database', icon: Database },
-        { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
         { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
+        { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
+        { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
         { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
-    // ── Tim Training Menu ───────────────────────────────────────────────────
+    // ── Tim Training ─────────────────────────────────────────────────────────
     const timTrainingItems: NavItem[] = [
-        { title: 'Dashboard Tim Training', url: '/dashboard', icon: LayoutGrid },
+        { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
         { title: 'Database Modul', url: '/database', icon: Database },
-        { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
         { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
+        { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
         { title: 'Report', url: '/report', icon: BarChart3 },
+        { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
         { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
-    // ── User (Pengaju) Menu ─────────────────────────────────────────────────
+    // ── User (Pengaju) ───────────────────────────────────────────────────────
     const userItems: NavItem[] = [
         { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
-        { title: 'Pengajuan Modul', url: '/pengajuan', icon: ClipboardList },
+        { title: 'Permintaan Modul Khusus', url: '/pengajuan', icon: FilePlus },
+        { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
         { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
@@ -97,13 +120,6 @@ export function AppSidebar() {
         allItems = userItems;
     }
 
-    // Group: "Menu Utama" vs "Master Data" vs "Laporan & Lainnya"
-    const masterDataTitles = ['Manajemen User', 'Manajemen Modul', 'Integrasi Drive'];
-    const lainnyaTitles = ['Report', 'Pengaturan'];
-    const menuUtamaItems = allItems.filter((item) => !lainnyaTitles.includes(item.title) && !masterDataTitles.includes(item.title));
-    const masterDataItems = allItems.filter((item) => masterDataTitles.includes(item.title));
-    const lainnyaItems = allItems.filter((item) => lainnyaTitles.includes(item.title));
-
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -119,11 +135,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent className="gap-0 py-2">
-                {masterDataItems.length > 0 && (
-                    <NavMain label="Master Data" items={masterDataItems} />
-                )}
-                <NavMain label="Menu Utama" items={menuUtamaItems} />
-                <NavMain label="Laporan & Lainnya" items={lainnyaItems} />
+                <NavMain items={allItems} />
             </SidebarContent>
 
             <SidebarFooter className="gap-4">

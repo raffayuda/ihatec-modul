@@ -50,6 +50,13 @@ class ModuleRequest extends Model
         'link_modul',
         'tanggal_realisasi',
         'tanggal_kebutuhan_baru',
+
+        // Perubahan Modul row-based fields
+        'jenis_modul',
+        'modul_rows',
+        'program_rows',
+        'approved_by',
+        'approved_at',
     ];
 
     /**
@@ -110,7 +117,7 @@ class ModuleRequest extends Model
     {
         if ($type === 'Kebutuhan Khusus') {
             $year = now()->year;
-            $romanMonth = self::romanMonth(now()->month);
+            $month = str_pad(now()->month, 2, '0', STR_PAD_LEFT);
             
             $lastRequest = static::where('type', 'Kebutuhan Khusus')
                 ->where('request_number', 'like', "%/Modul Khusus/PD/%/{$year}")
@@ -125,22 +132,25 @@ class ModuleRequest extends Model
                 $newNumber = 1;
             }
             
-            return str_pad($newNumber, 3, '0', STR_PAD_LEFT) . "/Modul Khusus/PD/{$romanMonth}/{$year}";
+            return str_pad($newNumber, 3, '0', STR_PAD_LEFT) . "/Modul Khusus/PD/{$month}/{$year}";
         }
 
         $year = now()->year;
-        $prefix = "PMD-{$year}-";
-        $lastRequest = static::where('request_number', 'like', $prefix.'%')
+        $romanMonth = self::romanMonth(now()->month);
+
+        $lastRequest = static::whereIn('type', ['Modul Baru', 'Revisi Modul'])
+            ->where('request_number', 'like', "%/Modul/PD/%/{$year}")
             ->orderByDesc('id')
             ->first();
 
         if ($lastRequest) {
-            $lastNumber = (int) substr($lastRequest->request_number, -4);
+            $parts = explode('/', $lastRequest->request_number);
+            $lastNumber = (int) $parts[0];
             $newNumber = $lastNumber + 1;
         } else {
             $newNumber = 1;
         }
 
-        return $prefix.str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+        return str_pad($newNumber, 3, '0', STR_PAD_LEFT) . "/Modul/PD/{$romanMonth}/{$year}";
     }
 }

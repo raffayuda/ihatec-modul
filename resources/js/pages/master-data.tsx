@@ -4,6 +4,7 @@ import { Head, usePage, Link, router } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
     Layers,
     Database,
@@ -33,7 +34,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -45,7 +46,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 interface MasterItem {
     id: string;
     name: string;
-    category: 'Jenis Kebutuhan Modul' | 'Kode Pelatihan' | 'Jenis Modul' | 'Bahasa Pengantar';
+    category:
+        | 'Jenis Kebutuhan Modul'
+        | 'Kode Pelatihan'
+        | 'Jenis Modul'
+        | 'Bahasa Pengantar'
+        | 'Tipe Pelatihan'
+        | 'Tipe Sertifikat di Sihalal'
+        | 'Jenis Sertifikat'
+        | 'PIC Periksa LK'
+        | 'Kode Program';
     code: string | null;
     status: 'Aktif' | 'Nonaktif';
     updatedAt: string;
@@ -91,8 +101,27 @@ export default function MasterData() {
         setDataList(initialDataList);
     }, [initialDataList]);
 
-    // Active Category Filter Tab
-    const [selectedTab, setSelectedTab] = useState<string>('Jenis Kebutuhan Modul');
+    // Active Category Filter Tab — read from URL ?tab= param
+    const getInitialTab = () => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get('tab');
+            const tabMap: Record<string, string> = {
+                'jenis-kebutuhan': 'Jenis Kebutuhan Modul',
+                'kode-pelatihan': 'Kode Pelatihan',
+                'jenis-modul': 'Jenis Modul',
+                'bahasa-pengantar': 'Bahasa Pengantar',
+                'tipe-pelatihan': 'Tipe Pelatihan',
+                'tipe-sertifikat-sihalal': 'Tipe Sertifikat di Sihalal',
+                'jenis-sertifikat': 'Jenis Sertifikat',
+                'pic-periksa-lk': 'PIC Periksa LK',
+                'kode-program': 'Kode Program',
+            };
+            if (tabParam && tabMap[tabParam]) return tabMap[tabParam];
+        }
+        return 'Jenis Kebutuhan Modul';
+    };
+    const [selectedTab, setSelectedTab] = useState<string>(getInitialTab);
 
     // Search and filter fields
     const [searchQuery, setSearchQuery] = useState('');
@@ -104,6 +133,7 @@ export default function MasterData() {
     const [newName, setNewName] = useState('');
     const [newCategory, setNewCategory] = useState<MasterItem['category']>('Jenis Kebutuhan Modul');
     const [newCode, setNewCode] = useState('');
+    const [newCode2, setNewCode2] = useState(''); // for Kode Program: second field = Nama Program
     const [newStatus, setNewStatus] = useState<'Aktif' | 'Nonaktif'>('Aktif');
 
     // Dialog Modal Edit State
@@ -112,10 +142,12 @@ export default function MasterData() {
     const [editName, setEditName] = useState('');
     const [editCategory, setEditCategory] = useState<MasterItem['category']>('Jenis Kebutuhan Modul');
     const [editCode, setEditCode] = useState('');
+    const [editCode2, setEditCode2] = useState(''); // for Kode Program: second field = Nama Program
     const [editStatus, setEditStatus] = useState<'Aktif' | 'Nonaktif'>('Aktif');
 
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+    const [pageSize, setPageSize] = useState('10');
 
     const [localToast, setLocalToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -131,15 +163,20 @@ export default function MasterData() {
         }
     }, [flash]);
 
-    // Dynamic category counts
+    // Dynamic category counts — all 9 categories
     const categoryCounts = useMemo(() => {
         const counts: Record<string, number> = {
             'Jenis Kebutuhan Modul': 0,
             'Kode Pelatihan': 0,
             'Jenis Modul': 0,
-            'Bahasa Pengantar': 0
+            'Bahasa Pengantar': 0,
+            'Tipe Pelatihan': 0,
+            'Tipe Sertifikat di Sihalal': 0,
+            'Jenis Sertifikat': 0,
+            'PIC Periksa LK': 0,
+            'Kode Program': 0,
         };
-        dataList.forEach(item => {
+        dataList.forEach((item) => {
             if (counts[item.category] !== undefined) {
                 counts[item.category]++;
             }
@@ -148,8 +185,21 @@ export default function MasterData() {
     }, [dataList]);
 
     const activeCount = useMemo(() => {
-        return dataList.filter(item => item.status === 'Aktif' && ['Jenis Kebutuhan Modul', 'Kode Pelatihan', 'Jenis Modul', 'Bahasa Pengantar'].includes(item.category)).length;
+        return dataList.filter((item) => item.status === 'Aktif').length;
     }, [dataList]);
+
+    // Whether current tab has a 'code' column (Kode column shown for these)
+    const hasCodeColumn = ['Kode Pelatihan', 'Kode Program'].includes(selectedTab);
+    // Label for columns
+    const getColumnLabels = () => {
+        if (selectedTab === 'Kode Pelatihan') return { col1: 'Nama Pelatihan', col2: 'Kode Pelatihan' };
+        if (selectedTab === 'Kode Program') return { col1: 'Kode Program', col2: 'Nama Program' };
+        return { col1: selectedTab, col2: null };
+    };
+    const colLabels = getColumnLabels();
+
+    // Whether current tab supports CSV import/export
+    const supportsImport = ['Kode Pelatihan', 'Kode Program'].includes(selectedTab);
 
     // Filter dataList
     const filteredData = useMemo(() => {
@@ -202,28 +252,26 @@ export default function MasterData() {
         e.preventDefault();
         if (!newName.trim()) return;
 
-        router.post('/master-data', {
-            name: newName,
-            category: newCategory,
-            code: newCode.trim().toUpperCase() || null,
-            status: newStatus,
-        }, {
+        // For Kode Program: name = Nama Program, code = Kode Program
+        const payload = selectedTab === 'Kode Program'
+            ? { name: newCode2.trim(), category: newCategory, code: newName.trim().toUpperCase() || null, status: newStatus }
+            : { name: newName, category: newCategory, code: newCode.trim().toUpperCase() || null, status: newStatus };
+
+        router.post('/master-data', payload, {
             onSuccess: () => {
                 setIsAddModalOpen(false);
-
-                // Append to history log
                 const newHistoryLog: ChangeHistoryItem = {
                     id: String(Date.now()),
                     text: `Tambah data "${newCategory} — ${newName}"`,
                     author: user?.name?.split(' ')[0] || 'Admin',
                     date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-                    time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                    time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
                 };
-                setHistory(prev => [newHistoryLog, ...prev]);
-
+                setHistory((prev) => [newHistoryLog, ...prev]);
                 setNewName('');
                 setNewCode('');
-            }
+                setNewCode2('');
+            },
         });
     };
 
@@ -232,34 +280,37 @@ export default function MasterData() {
         e.preventDefault();
         if (!editingItem || !editName.trim()) return;
 
-        router.put(`/master-data/${editingItem.id}`, {
-            name: editName,
-            category: editCategory,
-            code: editCode.trim().toUpperCase() || null,
-            status: editStatus,
-        }, {
+        const payload = selectedTab === 'Kode Program'
+            ? { name: editCode2.trim(), category: editCategory, code: editName.trim().toUpperCase() || null, status: editStatus }
+            : { name: editName, category: editCategory, code: editCode.trim().toUpperCase() || null, status: editStatus };
+
+        router.put(`/master-data/${editingItem.id}`, payload, {
             onSuccess: () => {
                 setIsEditModalOpen(false);
-
-                // Append to history log
                 const newHistoryLog: ChangeHistoryItem = {
                     id: String(Date.now()),
                     text: `Edit data "${editCategory} — ${editName}"`,
                     author: user?.name?.split(' ')[0] || 'Admin',
                     date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-                    time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                    time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
                 };
-                setHistory(prev => [newHistoryLog, ...prev]);
-            }
+                setHistory((prev) => [newHistoryLog, ...prev]);
+            },
         });
     };
 
     // Open Edit modal
     const handleOpenEdit = (item: MasterItem) => {
         setEditingItem(item);
-        setEditName(item.name);
+        // For Kode Program: code field = Kode Program, name field = Nama Program
+        if (selectedTab === 'Kode Program') {
+            setEditName(item.code || '');
+            setEditCode2(item.name);
+        } else {
+            setEditName(item.name);
+            setEditCode(item.code || '');
+        }
         setEditCategory(item.category);
-        setEditCode(item.code || '');
         setEditStatus(item.status);
         setIsEditModalOpen(true);
     };
@@ -335,26 +386,31 @@ export default function MasterData() {
         );
     }
 
-    // Tab items matching requirements
-    const tabItems = [
-        { name: 'Jenis Kebutuhan Modul', icon: BookOpen },
-        { name: 'Kode Pelatihan', icon: Layers },
-        { name: 'Jenis Modul', icon: GraduationCap },
-        { name: 'Bahasa Pengantar', icon: Globe }
-    ];
+    // Tab config (used for category counts in sidebar — tabs themselves removed from UI)
+    const ALL_CATEGORIES = [
+        'Jenis Kebutuhan Modul',
+        'Kode Pelatihan',
+        'Jenis Modul',
+        'Bahasa Pengantar',
+        'Tipe Pelatihan',
+        'Tipe Sertifikat di Sihalal',
+        'Jenis Sertifikat',
+        'PIC Periksa LK',
+        'Kode Program',
+    ] as const;
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Manajemen Modul" />
+        <AppLayout breadcrumbs={[{ title: selectedTab, href: `/master-data?tab=${selectedTab.toLowerCase().replace(/ /g, '-')}` }]}>
+            <Head title={selectedTab} />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-6 bg-neutral-50/60 dark:bg-neutral-900/10">
                 {/* Header */}
                 <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-                        Manajemen Modul
+                        DATABASE {selectedTab.toUpperCase()}
                     </h1>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                        Kelola data referensi utama kebutuhan, kode, jenis, dan bahasa pengantar modul pelatihan.
+                        Kelola data referensi <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedTab}</span> untuk modul pelatihan.
                     </p>
                 </div>
 
@@ -435,30 +491,8 @@ export default function MasterData() {
                     </Card>
                 </div>
 
-                {/* Sub-menu Tabs Selection */}
-                <div className="flex flex-wrap items-center gap-2 border-b pb-3 border-neutral-200 dark:border-neutral-800 text-xs font-semibold">
-                    {tabItems.map((tab) => {
-                        const Icon = tab.icon;
-                        const labelName = tab.name.toUpperCase();
-                        return (
-                            <button
-                                key={tab.name}
-                                onClick={() => {
-                                    setSelectedTab(tab.name);
-                                    setSelectedIds([]);
-                                }}
-                                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all border ${
-                                    selectedTab === tab.name
-                                        ? 'bg-blue-600 border-blue-600 text-white dark:bg-blue-500 dark:border-blue-500'
-                                        : 'bg-white border-neutral-200 hover:bg-neutral-50 text-neutral-600 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-850'
-                                }`}
-                            >
-                                <Icon className="size-3.5" />
-                                <span>DATABASE {labelName}</span>
-                            </button>
-                        );
-                    })}
-                </div>
+                {/* ── Tab bar removed — navigation via sidebar ── */}
+
 
                 {/* Split Column Layout */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
@@ -499,6 +533,9 @@ export default function MasterData() {
                                         <Button
                                             onClick={() => {
                                                 setNewCategory(selectedTab as MasterItem['category']);
+                                                setNewName('');
+                                                setNewCode('');
+                                                setNewCode2('');
                                                 setIsAddModalOpen(true);
                                             }}
                                             size="sm"
@@ -508,8 +545,8 @@ export default function MasterData() {
                                             <span>Tambah Data</span>
                                         </Button>
 
-                                        {/* Excel Template & Import actions shown only for Kode Pelatihan */}
-                                        {selectedTab === 'Kode Pelatihan' && (
+                                        {/* Excel Template & Import actions for supported tabs */}
+                                        {supportsImport && (
                                             <div className="flex items-center gap-2">
                                                 <a
                                                     href="/master-data/template"
@@ -540,15 +577,11 @@ export default function MasterData() {
                                 {/* Bottom Row: Filters */}
                                 <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/60">
                                     <div className="flex flex-wrap items-center gap-2.5">
-                                        <select
+                                        <SearchableSelect
                                             value={statusFilter}
-                                            onChange={(e) => setStatusFilter(e.target.value)}
-                                            className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm"
-                                        >
-                                            <option value="Semua Status">Semua Status</option>
-                                            <option value="Aktif">Aktif</option>
-                                            <option value="Nonaktif">Nonaktif</option>
-                                        </select>
+                                            onChange={val => setStatusFilter(val)}
+                                            options={['Semua Status', 'Aktif', 'Nonaktif']}
+                                        />
                                     </div>
 
                                     <Button
@@ -577,15 +610,13 @@ export default function MasterData() {
                                                 />
                                             </th>
                                             <th className="px-6 py-3.5 w-16">No</th>
-                                            {selectedTab === 'Kode Pelatihan' ? (
+                                            {hasCodeColumn ? (
                                                 <>
-                                                    <th className="px-6 py-3.5">Nama Pelatihan</th>
-                                                    <th className="px-6 py-3.5">Kode Pelatihan</th>
+                                                    <th className="px-6 py-3.5">{colLabels.col1}</th>
+                                                    <th className="px-6 py-3.5">{colLabels.col2}</th>
                                                 </>
                                             ) : (
-                                                <th className="px-6 py-3.5">
-                                                    {selectedTab}
-                                                </th>
+                                                <th className="px-6 py-3.5">{selectedTab}</th>
                                             )}
                                             <th className="px-6 py-3.5 w-24">Status</th>
                                             <th className="px-6 py-3.5 w-36">Updated At</th>
@@ -614,11 +645,11 @@ export default function MasterData() {
                                                         {index + 1}
                                                     </td>
                                                     <td className="px-6 py-4 font-semibold text-neutral-900 dark:text-neutral-100">
-                                                        {item.name}
+                                                        {selectedTab === 'Kode Program' ? item.code : item.name}
                                                     </td>
-                                                    {selectedTab === 'Kode Pelatihan' && (
-                                                        <td className="px-6 py-4 text-neutral-700 dark:text-neutral-300 font-bold">
-                                                            {item.code || '-'}
+                                                    {hasCodeColumn && (
+                                                        <td className="px-6 py-4 text-neutral-700 dark:text-neutral-300 font-medium">
+                                                            {selectedTab === 'Kode Program' ? item.name : (item.code || '-')}
                                                         </td>
                                                     )}
                                                     <td className="px-6 py-4">
@@ -664,14 +695,17 @@ export default function MasterData() {
                                     Menampilkan {filteredData.length > 0 ? 1 : 0}-{filteredData.length} dari {filteredData.length} data
                                 </span>
                                 <div className="flex items-center gap-4">
-                                    <select
-                                        className="h-8 rounded-lg border border-neutral-200 bg-white px-2 text-xs outline-none text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
-                                        defaultValue="10"
-                                    >
-                                        <option value="10">10 / halaman</option>
-                                        <option value="20">20 / halaman</option>
-                                        <option value="50">50 / halaman</option>
-                                    </select>
+                                    <div className="w-32">
+                                        <SearchableSelect
+                                            value={pageSize}
+                                            onChange={(val) => setPageSize(val)}
+                                            options={[
+                                                { value: '10', label: '10 / halaman' },
+                                                { value: '20', label: '20 / halaman' },
+                                                { value: '50', label: '50 / halaman' }
+                                            ]}
+                                        />
+                                    </div>
                                     <div className="flex items-center gap-1.5">
                                         <button className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400"><ChevronLeft className="size-3.5" /></button>
                                         <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border bg-blue-600 border-blue-600 text-white dark:bg-blue-500 dark:border-blue-500">1</button>
@@ -814,81 +848,79 @@ export default function MasterData() {
                     </DialogHeader>
 
                     <form onSubmit={handleAddData} className="space-y-4 py-2 text-xs">
-                        {/* Nama Data */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                Nama Data
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                value={newName}
-                                onChange={(e) => setNewName(e.target.value)}
-                                placeholder="Contoh: Pelatihan Internal, Indonesia, Modul..."
-                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
-                            />
-                        </div>
 
-                        {/* Kategori & Kode */}
-                        <div className="grid grid-cols-2 gap-3">
+                        {/* Kode Program: dual-field */}
+                        {newCategory === 'Kode Program' ? (
+                            <>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">Kode Program *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newName}
+                                        onChange={(e) => setNewName(e.target.value)}
+                                        placeholder="Contoh: PD-001, TR-2026..."
+                                        className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">Nama Program *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newCode2}
+                                        onChange={(e) => setNewCode2(e.target.value)}
+                                        placeholder="Contoh: Program Pelatihan Halal..."
+                                        className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                                    />
+                                </div>
+                            </>
+                        ) : (
                             <div className="space-y-1.5">
                                 <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                    Kategori
-                                </label>
-                                <select
-                                    value={newCategory}
-                                    onChange={(e) => setNewCategory(e.target.value as MasterItem['category'])}
-                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                >
-                                    <option value="Jenis Kebutuhan Modul">Jenis Kebutuhan Modul</option>
-                                    <option value="Kode Pelatihan">Kode Pelatihan</option>
-                                    <option value="Jenis Modul">Jenis Modul</option>
-                                    <option value="Bahasa Pengantar">Bahasa Pengantar</option>
-                                </select>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                    Kode Data (Khusus Kode Pelatihan)
+                                    {newCategory === 'Kode Pelatihan' ? 'Nama Pelatihan' : newCategory} *
                                 </label>
                                 <input
                                     type="text"
-                                    required={newCategory === 'Kode Pelatihan'}
-                                    value={newCode}
-                                    onChange={(e) => setNewCode(e.target.value)}
-                                    placeholder="Contoh: JK-001, ILN.1.8..."
+                                    required
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    placeholder={newCategory === 'Kode Pelatihan' ? 'Contoh: Interpretasi Sistem ISO 17025...' : `Contoh: ${newCategory}...`}
                                     className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                                 />
                             </div>
-                        </div>
+                        )}
+
+                        {/* Kode field: shown only for Kode Pelatihan */}
+                        {newCategory === 'Kode Pelatihan' && (
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">Kode Pelatihan *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newCode}
+                                    onChange={(e) => setNewCode(e.target.value)}
+                                    placeholder="Contoh: ILN.1.8, SJPH..."
+                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                                />
+                            </div>
+                        )}
 
                         {/* Status */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                Status
-                            </label>
-                            <select
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">Status</label>
+                            <SearchableSelect
                                 value={newStatus}
-                                onChange={(e) => setNewStatus(e.target.value as 'Aktif' | 'Nonaktif')}
-                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                            >
-                                <option value="Aktif">Aktif</option>
-                                <option value="Nonaktif">Nonaktif</option>
-                            </select>
+                                onChange={val => setNewStatus(val as 'Aktif' | 'Nonaktif')}
+                                options={['Aktif', 'Nonaktif']}
+                            />
                         </div>
 
                         <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() => setIsAddModalOpen(false)}
-                                className="rounded-lg h-9 px-4 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-500 dark:text-neutral-400"
-                            >
+                            <Button type="button" variant="ghost" onClick={() => setIsAddModalOpen(false)} className="rounded-lg h-9 px-4 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-500 dark:text-neutral-400">
                                 Batal
                             </Button>
-                            <Button
-                                type="submit"
-                                className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold"
-                            >
+                            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold">
                                 Simpan Data
                             </Button>
                         </DialogFooter>
@@ -910,81 +942,79 @@ export default function MasterData() {
                     </DialogHeader>
 
                     <form onSubmit={handleEditData} className="space-y-4 py-2 text-xs">
-                        {/* Nama Data */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                Nama Data
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                placeholder="Contoh: Pelatihan Internal, Indonesia, Modul..."
-                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
-                            />
-                        </div>
 
-                        {/* Kategori & Kode */}
-                        <div className="grid grid-cols-2 gap-3">
+                        {/* Kode Program: dual-field */}
+                        {editCategory === 'Kode Program' ? (
+                            <>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">Kode Program *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                        placeholder="Contoh: PD-001, TR-2026..."
+                                        className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">Nama Program *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editCode2}
+                                        onChange={(e) => setEditCode2(e.target.value)}
+                                        placeholder="Contoh: Program Pelatihan Halal..."
+                                        className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                                    />
+                                </div>
+                            </>
+                        ) : (
                             <div className="space-y-1.5">
                                 <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                    Kategori
-                                </label>
-                                <select
-                                    value={editCategory}
-                                    onChange={(e) => setEditCategory(e.target.value as MasterItem['category'])}
-                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                >
-                                    <option value="Jenis Kebutuhan Modul">Jenis Kebutuhan Modul</option>
-                                    <option value="Kode Pelatihan">Kode Pelatihan</option>
-                                    <option value="Jenis Modul">Jenis Modul</option>
-                                    <option value="Bahasa Pengantar">Bahasa Pengantar</option>
-                                </select>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                    Kode Data (Khusus Kode Pelatihan)
+                                    {editCategory === 'Kode Pelatihan' ? 'Nama Pelatihan' : editCategory} *
                                 </label>
                                 <input
                                     type="text"
-                                    required={editCategory === 'Kode Pelatihan'}
-                                    value={editCode}
-                                    onChange={(e) => setEditCode(e.target.value)}
-                                    placeholder="Contoh: JK-001, ILN.1.8..."
+                                    required
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    placeholder={editCategory === 'Kode Pelatihan' ? 'Contoh: Interpretasi Sistem ISO 17025...' : `Contoh: ${editCategory}...`}
                                     className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                                 />
                             </div>
-                        </div>
+                        )}
+
+                        {/* Kode field: shown only for Kode Pelatihan */}
+                        {editCategory === 'Kode Pelatihan' && (
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">Kode Pelatihan *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={editCode}
+                                    onChange={(e) => setEditCode(e.target.value)}
+                                    placeholder="Contoh: ILN.1.8, SJPH..."
+                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                                />
+                            </div>
+                        )}
 
                         {/* Status */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                Status
-                            </label>
-                            <select
+                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">Status</label>
+                            <SearchableSelect
                                 value={editStatus}
-                                onChange={(e) => setEditStatus(e.target.value as 'Aktif' | 'Nonaktif')}
-                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                            >
-                                <option value="Aktif">Aktif</option>
-                                <option value="Nonaktif">Nonaktif</option>
-                            </select>
+                                onChange={val => setEditStatus(val as 'Aktif' | 'Nonaktif')}
+                                options={['Aktif', 'Nonaktif']}
+                            />
                         </div>
 
                         <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() => setIsEditModalOpen(false)}
-                                className="rounded-lg h-9 px-4 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-500 dark:text-neutral-400"
-                            >
+                            <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)} className="rounded-lg h-9 px-4 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-500 dark:text-neutral-400">
                                 Batal
                             </Button>
-                            <Button
-                                type="submit"
-                                className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold"
-                            >
+                            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold">
                                 Perbarui Data
                             </Button>
                         </DialogFooter>

@@ -59,6 +59,11 @@ class DatabaseSeeder extends Seeder
             ['category' => 'Kode Pelatihan', 'name' => 'Sistem Jaminan Produk Halal (SJPH)', 'code' => 'SJPH', 'status' => 'Aktif'],
             ['category' => 'Kode Pelatihan', 'name' => 'Auditor Halal', 'code' => 'AUD.HALAL', 'status' => 'Aktif'],
             ['category' => 'Kode Pelatihan', 'name' => 'Cara Produksi Pangan Olahan yang Baik', 'code' => 'CPPOB.02', 'status' => 'Aktif'],
+            ['category' => 'Kode Pelatihan', 'name' => 'Pelatihan Penyelia Halal Berbasis SKKNI', 'code' => '1.11', 'status' => 'Aktif'],
+            ['category' => 'Kode Pelatihan', 'name' => 'Pelatihan Auditor Halal', 'code' => '1.12', 'status' => 'Aktif'],
+            ['category' => 'Kode Pelatihan', 'name' => 'Pelatihan Penyelia Halal Internasional', 'code' => '1.13', 'status' => 'Aktif'],
+            ['category' => 'Kode Pelatihan', 'name' => 'Pelatihan K3 Laboratorium', 'code' => '2.01', 'status' => 'Aktif'],
+            ['category' => 'Kode Pelatihan', 'name' => 'Pelatihan ISO 17025', 'code' => '2.02', 'status' => 'Aktif'],
         ];
 
         foreach ($masterData as $md) {
@@ -272,12 +277,54 @@ class DatabaseSeeder extends Seeder
                 'program' => 'K3 & Keamanan',
                 'current_revision' => '1.3',
                 'language' => 'Indonesia',
-                'status' => 'Revisi',
+                'status' => 'Approved',
                 'file_size' => '2.50 MB',
                 'file_pages' => 25,
                 'description' => 'Pedoman keselamatan penggunaan bahan kimia berbahaya, penanganan kecelakaan kerja, dan penggunaan alat pelindung diri.',
                 'revisions' => [
-                    ['revision' => '1.3', 'date' => '18 Mei 2024 10:05 WIB', 'author_name' => 'Budi Santoso', 'note' => 'Penambahan panduan MSDS format GHS terbaru.', 'status' => 'Draft'],
+                    ['revision' => '1.3', 'date' => '18 Mei 2024 10:05 WIB', 'author_name' => 'Budi Santoso', 'note' => 'Penambahan panduan MSDS format GHS terbaru.', 'status' => 'Approved'],
+                ],
+            ],
+            [
+                'code' => 'M.01',
+                'title' => 'Pengantar Penyelia',
+                'program' => 'Regulasi & Kepatuhan',
+                'current_revision' => '00',
+                'language' => 'Indonesia',
+                'status' => 'Approved',
+                'file_size' => '1.20 MB',
+                'file_pages' => 10,
+                'description' => 'Materi pengantar penyelia halal.',
+                'revisions' => [
+                    ['revision' => '00', 'date' => '26 Jun 2026 09:00 WIB', 'author_name' => 'Dewi Lestari', 'note' => 'Versi awal.', 'status' => 'Approved'],
+                ],
+            ],
+            [
+                'code' => 'LK 01',
+                'title' => 'Pengawasan',
+                'program' => 'Teknis Laboratorium',
+                'current_revision' => '00',
+                'language' => 'Indonesia',
+                'status' => 'Approved',
+                'file_size' => '1.50 MB',
+                'file_pages' => 12,
+                'description' => 'Lembar kerja pengawasan penyelia halal.',
+                'revisions' => [
+                    ['revision' => '00', 'date' => '26 Jun 2026 09:00 WIB', 'author_name' => 'Dewi Lestari', 'note' => 'Versi awal.', 'status' => 'Approved'],
+                ],
+            ],
+            [
+                'code' => 'P.01',
+                'title' => 'Post Test',
+                'program' => 'K3 & Keamanan',
+                'current_revision' => '00',
+                'language' => 'Indonesia',
+                'status' => 'Approved',
+                'file_size' => '0.50 MB',
+                'file_pages' => 5,
+                'description' => 'Soal post test penyelia halal.',
+                'revisions' => [
+                    ['revision' => '00', 'date' => '26 Jun 2026 09:00 WIB', 'author_name' => 'Dewi Lestari', 'note' => 'Versi awal.', 'status' => 'Approved'],
                 ],
             ],
         ];
@@ -436,6 +483,24 @@ class DatabaseSeeder extends Seeder
                 'request_number' => "PMD-{$year}-{$number}",
                 'updated_at' => $req['created_at'],
             ]));
+        }
+
+        // === Seed Training Module Formulas ===
+        $formulaSpecs = [
+            '1.11 - Pelatihan Penyelia Halal Berbasis SKKNI' => ['M.01', 'LK 01', 'P.01'],
+            '2.02 - Pelatihan ISO 17025' => ['ILN.1.8', 'LAB.SAFE'],
+        ];
+
+        foreach ($formulaSpecs as $trainingCode => $moduleCodes) {
+            foreach ($moduleCodes as $mCode) {
+                $mod = Module::where('code', $mCode)->first();
+                if ($mod) {
+                    \App\Models\TrainingModule::create([
+                        'training_code' => $trainingCode,
+                        'module_id' => $mod->id,
+                    ]);
+                }
+            }
         }
     }
 }

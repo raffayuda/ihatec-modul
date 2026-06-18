@@ -11,7 +11,7 @@ use Illuminate\Http\RedirectResponse;
 class MasterDataController extends Controller
 {
     /**
-     * Display master data configuration page.
+     * Display master data overview (landing page).
      */
     public function index(): Response
     {
@@ -27,6 +27,75 @@ class MasterDataController extends Controller
         });
 
         return Inertia::render('master-data', [
+            'dataList' => $dataList,
+        ]);
+    }
+
+    // ── Individual category page methods ──────────────────────────────────────
+
+    public function jenisKebutuhan(): Response
+    {
+        return $this->renderCategory('Jenis Kebutuhan Modul', 'master-data/jenis-kebutuhan');
+    }
+
+    public function kodePelatihan(): Response
+    {
+        return $this->renderCategory('Kode Pelatihan', 'master-data/kode-pelatihan');
+    }
+
+    public function jenisModul(): Response
+    {
+        return $this->renderCategory('Jenis Modul', 'master-data/jenis-modul');
+    }
+
+    public function bahasaPengantar(): Response
+    {
+        return $this->renderCategory('Bahasa Pengantar', 'master-data/bahasa-pengantar');
+    }
+
+    public function tipePelatihan(): Response
+    {
+        return $this->renderCategory('Tipe Pelatihan', 'master-data/tipe-pelatihan');
+    }
+
+    public function tipeSertifikatSihalal(): Response
+    {
+        return $this->renderCategory('Tipe Sertifikat di Sihalal', 'master-data/tipe-sertifikat-sihalal');
+    }
+
+    public function jenisSertifikat(): Response
+    {
+        return $this->renderCategory('Jenis Sertifikat', 'master-data/jenis-sertifikat');
+    }
+
+    public function picPeriksaLk(): Response
+    {
+        return $this->renderCategory('PIC Periksa LK', 'master-data/pic-periksa-lk');
+    }
+
+    public function kodeProgram(): Response
+    {
+        return $this->renderCategory('Kode Program', 'master-data/kode-program');
+    }
+
+    /**
+     * Render a category-filtered master data page.
+     */
+    private function renderCategory(string $category, string $component): Response
+    {
+        $dataList = MasterData::where('category', $category)
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(fn ($item) => [
+                'id' => (string) $item->id,
+                'name' => $item->name,
+                'category' => $item->category,
+                'code' => $item->code,
+                'status' => $item->status,
+                'updatedAt' => $item->updated_at ? $item->updated_at->format('d M Y H:i') : '-',
+            ]);
+
+        return Inertia::render($component, [
             'dataList' => $dataList,
         ]);
     }

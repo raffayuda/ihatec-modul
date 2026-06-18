@@ -108,13 +108,6 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     </Button>
                 </div>
 
-                {/* Redirect link */}
-                <div className="text-center text-xs font-semibold text-neutral-400 pt-3 border-t border-white/5">
-                    Belum memiliki akun?{' '}
-                    <TextLink href={route('register')} className="text-blue-400 hover:text-blue-300 font-bold transition-colors" tabIndex={5}>
-                        Daftar Demo
-                    </TextLink>
-                </div>
             </form>
 
             {status && <div className="mt-4 text-center text-xs font-bold text-green-600 dark:text-green-400">{status}</div>}

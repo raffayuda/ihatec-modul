@@ -34,6 +34,7 @@ import {
     CartesianGrid
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
     Dialog,
     DialogContent,
@@ -139,6 +140,7 @@ export default function AuditLog() {
     const [featureFilter, setFeatureFilter] = useState('Semua Modul / Fitur');
     const [severityFilter, setSeverityFilter] = useState('Semua Severity');
     const [dateRangeText, setDateRangeText] = useState('10 Mei 2024 - 17 Mei 2024');
+    const [pageSize, setPageSize] = useState('10');
 
     const [selectedEvent, setSelectedEvent] = useState<LogEvent | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -316,42 +318,48 @@ export default function AuditLog() {
 
                                 {/* Select filter group */}
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <select
-                                        value={userFilter}
-                                        onChange={(e) => setUserFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
-                                        <option value="Semua User">Semua User</option>
-                                        <option value="Andi Pratama">Andi Pratama</option>
-                                        <option value="Dewi Lestari">Dewi Lestari</option>
-                                        <option value="Rudi Santoso">Rudi Santoso</option>
-                                        <option value="Rina Asriyani">Rina Asriyani</option>
-                                    </select>
+                                    <div className="w-40">
+                                        <SearchableSelect
+                                            value={userFilter}
+                                            onChange={(val) => setUserFilter(val)}
+                                            options={[
+                                                "Semua User",
+                                                "Andi Pratama",
+                                                "Dewi Lestari",
+                                                "Rudi Santoso",
+                                                "Rina Asriyani"
+                                            ]}
+                                        />
+                                    </div>
 
-                                    <select
-                                        value={featureFilter}
-                                        onChange={(e) => setFeatureFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
-                                        <option value="Semua Modul / Fitur">Semua Modul / Fitur</option>
-                                        <option value="Authentifikasi">Authentifikasi</option>
-                                        <option value="Manajemen User">Manajemen User</option>
-                                        <option value="Database Modul">Database Modul</option>
-                                        <option value="Report">Report</option>
-                                        <option value="Role & Permission">Role & Permission</option>
-                                    </select>
+                                    <div className="w-48">
+                                        <SearchableSelect
+                                            value={featureFilter}
+                                            onChange={(val) => setFeatureFilter(val)}
+                                            options={[
+                                                "Semua Modul / Fitur",
+                                                "Authentifikasi",
+                                                "Manajemen User",
+                                                "Database Modul",
+                                                "Report",
+                                                "Role & Permission"
+                                            ]}
+                                        />
+                                    </div>
 
-                                    <select
-                                        value={severityFilter}
-                                        onChange={(e) => setSeverityFilter(e.target.value)}
-                                        className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                                    >
-                                        <option value="Semua Severity">Semua Severity</option>
-                                        <option value="Success">Success</option>
-                                        <option value="Info">Info</option>
-                                        <option value="Warning">Warning</option>
-                                        <option value="Critical">Critical</option>
-                                    </select>
+                                    <div className="w-40">
+                                        <SearchableSelect
+                                            value={severityFilter}
+                                            onChange={(val) => setSeverityFilter(val)}
+                                            options={[
+                                                "Semua Severity",
+                                                "Success",
+                                                "Info",
+                                                "Warning",
+                                                "Critical"
+                                            ]}
+                                        />
+                                    </div>
 
                                     <div className="relative flex items-center h-9 border border-neutral-200 dark:border-neutral-800 rounded-lg bg-white dark:bg-neutral-900 px-3 text-xs text-neutral-600 dark:text-neutral-400 gap-1.5 cursor-pointer">
                                         <Calendar className="size-3.5" />
@@ -474,14 +482,17 @@ export default function AuditLog() {
                                     Menampilkan 1-{filteredEvents.length} dari 324 event
                                 </span>
                                 <div className="flex items-center gap-4">
-                                    <select
-                                        className="h-8 rounded-lg border border-neutral-200 bg-white px-2 text-xs outline-none text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
-                                        defaultValue="10"
-                                    >
-                                        <option value="10">10 / halaman</option>
-                                        <option value="20">20 / halaman</option>
-                                        <option value="50">50 / halaman</option>
-                                    </select>
+                                    <div className="w-32">
+                                        <SearchableSelect
+                                            value={pageSize}
+                                            onChange={(val) => setPageSize(val)}
+                                            options={[
+                                                { value: '10', label: '10 / halaman' },
+                                                { value: '20', label: '20 / halaman' },
+                                                { value: '50', label: '50 / halaman' }
+                                            ]}
+                                        />
+                                    </div>
                                     <div className="flex items-center gap-1.5">
                                         <button className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400"><ChevronLeft className="size-3.5" /></button>
                                         <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border bg-blue-600 border-blue-600 text-white dark:bg-blue-500 dark:border-blue-500">1</button>

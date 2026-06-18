@@ -38,6 +38,7 @@ import {
     Label
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 interface ReportProps extends SharedData {
     metrics?: {
@@ -297,40 +298,46 @@ export default function Report() {
                                 <span>{dateRangeText}</span>
                             </div>
 
-                            <select
-                                value={unitFilter}
-                                onChange={(e) => handleUnitFilterChange(e.target.value)}
-                                className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                            >
-                                <option value="Semua Unit">Semua Unit</option>
-                                <option value="IT & Digital">IT & Digital</option>
-                                <option value="Pengembangan SDM">Pengembangan SDM</option>
-                                <option value="Keuangan">Keuangan</option>
-                                <option value="Operasional">Operasional</option>
-                                <option value="Teknis Laboratorium">Teknis Laboratorium</option>
-                                <option value="Pemasaran">Pemasaran</option>
-                            </select>
+                            <div className="w-48">
+                                <SearchableSelect
+                                    value={unitFilter}
+                                    onChange={(val) => handleUnitFilterChange(val)}
+                                    options={[
+                                        "Semua Unit",
+                                        "IT & Digital",
+                                        "Pengembangan SDM",
+                                        "Keuangan",
+                                        "Operasional",
+                                        "Teknis Laboratorium",
+                                        "Pemasaran"
+                                    ]}
+                                />
+                            </div>
 
-                            <select
-                                value={typeFilter}
-                                onChange={(e) => handleTypeFilterChange(e.target.value)}
-                                className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                            >
-                                <option value="Semua Jenis Report">Semua Jenis Report</option>
-                                <option value="Laporan Modul">Laporan Modul</option>
-                                <option value="Laporan Performa">Laporan Performa</option>
-                            </select>
+                            <div className="w-48">
+                                <SearchableSelect
+                                    value={typeFilter}
+                                    onChange={(val) => handleTypeFilterChange(val)}
+                                    options={[
+                                        "Semua Jenis Report",
+                                        "Laporan Modul",
+                                        "Laporan Performa"
+                                    ]}
+                                />
+                            </div>
 
-                            <select
-                                value={formatFilter}
-                                onChange={(e) => setFormatFilter(e.target.value)}
-                                className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none"
-                            >
-                                <option value="Semua Format">Semua Format</option>
-                                <option value="PDF">PDF</option>
-                                <option value="Excel">Excel</option>
-                                <option value="CSV">CSV</option>
-                            </select>
+                            <div className="w-40">
+                                <SearchableSelect
+                                    value={formatFilter}
+                                    onChange={(val) => setFormatFilter(val)}
+                                    options={[
+                                        "Semua Format",
+                                        "PDF",
+                                        "Excel",
+                                        "CSV"
+                                    ]}
+                                />
+                            </div>
                         </div>
 
                         {/* Generate Trigger */}

@@ -1,8 +1,18 @@
 <x-mail::message>
-@if($moduleRequest->type === 'Kebutuhan Khusus' && $moduleRequest->status === 'Selesai')
+@if($moduleRequest->type === 'Kebutuhan Khusus')
 Dear user,
 
-Pengajuan modul dengan {{ $moduleRequest->request_number }} telah selesai, silahkan klik link [{{ url('/pengajuan') }}]({{ url('/pengajuan') }}) untuk info detailnya.
+@if($moduleRequest->status === 'Selesai')
+Pengajuan modul dengan {{ $moduleRequest->request_number }} telah selesai. Silakan klik detail pengajuan untuk melihat link modul.
+@elseif($moduleRequest->status === 'Hold')
+Pengajuan modul dengan {{ $moduleRequest->request_number }} ditunda. Silakan lihat detail untuk mengetahui keterangan dan tanggal kebutuhan baru.
+@elseif(in_array($moduleRequest->status, ['Batal', 'Ditolak']))
+Pengajuan modul dengan {{ $moduleRequest->request_number }} dibatalkan. Silakan lihat detail untuk mengetahui alasannya.
+@endif
+
+<x-mail::button :url="url('/pengajuan')">
+Lihat Detail Pengajuan
+</x-mail::button>
 @else
 # Pengajuan Modul Telah Diproses
 

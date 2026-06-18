@@ -79,6 +79,10 @@ class Module extends Model
      */
     public static function incrementRevision(string $current): string
     {
+        if ($current === '0.0' || $current === '00' || $current === '0') {
+            return '1.0';
+        }
+
         [$major, $minor] = explode('.', $current.'.0');
 
         return $major.'.'.((int) $minor + 1);

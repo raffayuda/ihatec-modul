@@ -4,6 +4,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
     Plus,
     Search,
@@ -391,20 +392,28 @@ export default function ManajemenUser() {
                                 {/* Bottom Row: Filters */}
                                 <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/60">
                                     <div className="flex flex-wrap items-center gap-2.5">
-                                        <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm">
-                                            <option value="Semua Role">Semua Role</option>
-                                            <option value="admin">Administrator</option>
-                                            <option value="manager PD">Manager PD</option>
-                                            <option value="Staf PD">Staf PD</option>
-                                            <option value="tim training">Tim Training</option>
-                                            <option value="User">User</option>
-                                        </select>
-                                        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm">
-                                            <option value="Semua Status">Semua Status</option>
-                                            <option value="Aktif">Aktif</option>
-                                            <option value="Pending">Pending</option>
-                                            <option value="Nonaktif">Nonaktif</option>
-                                        </select>
+                                        <SearchableSelect
+                                            value={roleFilter}
+                                            onChange={val => { setRoleFilter(val); setCurrentPage(1); }}
+                                            options={[
+                                                { value: 'Semua Role', label: 'Semua Role' },
+                                                { value: 'admin', label: 'Administrator' },
+                                                { value: 'manager PD', label: 'Manager PD' },
+                                                { value: 'Staf PD', label: 'Staf PD' },
+                                                { value: 'tim training', label: 'Tim Training' },
+                                                { value: 'User', label: 'User' }
+                                            ]}
+                                        />
+                                        <SearchableSelect
+                                            value={statusFilter}
+                                            onChange={val => { setStatusFilter(val); setCurrentPage(1); }}
+                                            options={[
+                                                { value: 'Semua Status', label: 'Semua Status' },
+                                                { value: 'Aktif', label: 'Aktif' },
+                                                { value: 'Pending', label: 'Pending' },
+                                                { value: 'Nonaktif', label: 'Nonaktif' }
+                                            ]}
+                                        />
                                     </div>
 
                                     <Button onClick={handleResetFilters} variant="outline" size="sm" className="h-9 px-3 rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 text-xs text-neutral-600 dark:text-neutral-300 font-semibold shadow-sm">
@@ -612,21 +621,25 @@ export default function ManajemenUser() {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1">Role</label>
-                                <select value={data.role} onChange={(e) => setData('role', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
-                                    <option value="admin">Administrator</option>
-                                    <option value="manager PD">Manager PD</option>
-                                    <option value="Staf PD">Staf PD</option>
-                                    <option value="tim training">Tim Training</option>
-                                    <option value="User">User</option>
-                                </select>
+                                <SearchableSelect
+                                    value={data.role}
+                                    onChange={val => setData('role', val)}
+                                    options={[
+                                        { value: 'admin', label: 'Administrator' },
+                                        { value: 'manager PD', label: 'Manager PD' },
+                                        { value: 'Staf PD', label: 'Staf PD' },
+                                        { value: 'tim training', label: 'Tim Training' },
+                                        { value: 'User', label: 'User' }
+                                    ]}
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1">Status</label>
-                                <select value={data.status} onChange={(e) => setData('status', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
-                                    <option value="Aktif">Aktif</option>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Nonaktif">Nonaktif</option>
-                                </select>
+                                <SearchableSelect
+                                    value={data.status}
+                                    onChange={val => setData('status', val)}
+                                    options={['Aktif', 'Pending', 'Nonaktif']}
+                                />
                             </div>
                         </div>
                         <DialogFooter>
@@ -664,21 +677,25 @@ export default function ManajemenUser() {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1">Role</label>
-                                <select value={editForm.data.role} onChange={(e) => editForm.setData('role', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
-                                    <option value="admin">Administrator</option>
-                                    <option value="manager PD">Manager PD</option>
-                                    <option value="Staf PD">Staf PD</option>
-                                    <option value="tim training">Tim Training</option>
-                                    <option value="User">User</option>
-                                </select>
+                                <SearchableSelect
+                                    value={editForm.data.role}
+                                    onChange={val => editForm.setData('role', val)}
+                                    options={[
+                                        { value: 'admin', label: 'Administrator' },
+                                        { value: 'manager PD', label: 'Manager PD' },
+                                        { value: 'Staf PD', label: 'Staf PD' },
+                                        { value: 'tim training', label: 'Tim Training' },
+                                        { value: 'User', label: 'User' }
+                                    ]}
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1">Status</label>
-                                <select value={editForm.data.status} onChange={(e) => editForm.setData('status', e.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
-                                    <option value="Aktif">Aktif</option>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Nonaktif">Nonaktif</option>
-                                </select>
+                                <SearchableSelect
+                                    value={editForm.data.status}
+                                    onChange={val => editForm.setData('status', val)}
+                                    options={['Aktif', 'Pending', 'Nonaktif']}
+                                />
                             </div>
                         </div>
                         <DialogFooter>

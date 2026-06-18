@@ -48,6 +48,7 @@ import {
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { PieChart, Pie, Cell, Label } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -103,6 +104,7 @@ interface ModuleItem {
     filePages: number;
     description: string;
     revisionsHistory: Array<{
+        id: number;
         version: string;
         date: string;
         author: string;
@@ -270,6 +272,10 @@ export default function DatabaseModul({
     // Selected Module for Right Column Preview
     const [selectedModuleId, setSelectedModuleId] = useState<string>('');
 
+    // History modal states
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [historyModule, setHistoryModule] = useState<ModuleItem | null>(null);
+
     // If selectedModuleId is empty, use the first module code if any
     const activeSelectedId = useMemo(() => {
         if (selectedModuleId) return selectedModuleId;
@@ -283,7 +289,7 @@ export default function DatabaseModul({
     const { data, setData, post, processing, errors, reset } = useForm({
         code: '',
         title: '',
-        program: 'Regulasi & Kepatuhan',
+        program: 'Modul',
         language: 'Indonesia',
         description: '',
         file: null as File | null,
@@ -332,7 +338,7 @@ export default function DatabaseModul({
     const editForm = useForm({
         code: '',
         title: '',
-        program: 'Regulasi & Kepatuhan',
+        program: 'Modul',
         language: 'Indonesia',
         description: '',
         file: null as File | null,
@@ -470,22 +476,18 @@ export default function DatabaseModul({
     };
 
     const chartConfig = {
-        regulasi: { label: 'Regulasi & Kepatuhan', color: '#3b82f6' },
-        teknisLab: { label: 'Teknis Laboratorium', color: '#a855f7' },
-        sertifikasi: { label: 'Sertifikasi & Auditor', color: '#ec4899' },
-        manajerial: { label: 'Manajerial & Kepemimpinan', color: '#f59e0b' },
-        teknisProd: { label: 'Teknis Produksi', color: '#10b981' },
-        lainnya: { label: 'Lainnya', color: '#38bdf8' },
+        modul: { label: 'Modul', color: '#3b82f6' },
+        lembarKerja: { label: 'Lembar Kerja', color: '#a855f7' },
+        postTest: { label: 'Post Test', color: '#ec4899' },
+        lainnya: { label: 'Lainnya', color: '#6b7280' },
     } satisfies ChartConfig;
 
     const categoryChartData = useMemo(() => {
         return categories.length > 0 ? categories : [
-            { name: 'Regulasi & Kepatuhan', value: 0, fill: '#3b82f6' },
-            { name: 'Teknis Laboratorium', value: 0, fill: '#a855f7' },
-            { name: 'Sertifikasi & Auditor', value: 0, fill: '#ec4899' },
-            { name: 'Manajerial & Kepemimpinan', value: 0, fill: '#f59e0b' },
-            { name: 'Teknis Produksi', value: 0, fill: '#10b981' },
-            { name: 'Lainnya', value: 0, fill: '#38bdf8' },
+            { name: 'Modul', value: 0, fill: '#3b82f6' },
+            { name: 'Lembar Kerja', value: 0, fill: '#a855f7' },
+            { name: 'Post Test', value: 0, fill: '#ec4899' },
+            { name: 'Lainnya', value: 0, fill: '#6b7280' },
         ];
     }, [categories]);
 
@@ -533,65 +535,8 @@ export default function DatabaseModul({
                     </div>
                 )}
 
-                {/* Metrics Indicator Row */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {/* Total Modul */}
-                    <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                        <CardContent className="flex items-center gap-4 p-5">
-                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
-                                <BookOpen className="size-6" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Total Modul</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{metrics.total}</span>
-                                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500 mt-1">
-                                    <span>↑ 18 dari bulan lalu</span>
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Modul Approved */}
-                    <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                        <CardContent className="flex items-center gap-4 p-5">
-                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
-                                <ShieldCheck className="size-6" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Modul Approved</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{metrics.approved}</span>
-                                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500 mt-1">
-                                    <span>↑ 22 dari bulan lalu</span>
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Revisi Aktif */}
-                    <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                        <CardContent className="flex items-center gap-4 p-5">
-                            <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400">
-                                <Clock className="size-6" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">Revisi Aktif</span>
-                                <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">{metrics.revisi}</span>
-                                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-500 mt-1">
-                                    <span>↑ 6 dari bulan lalu</span>
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Dashboard Split Column Area */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-                    
-                    {/* Main content Area (Left 3 columns) */}
-                    <div className="lg:col-span-3 space-y-6">
-                        
-                        {/* Filter Bar and Data Table card */}
-                        <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm overflow-hidden">
+                {/* Filter Bar and Data Table card */}
+                <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm overflow-hidden">
                             {/* Filter items */}
                             <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/10 space-y-4">
                                 {/* Top Row: Search & Primary Actions */}
@@ -603,7 +548,7 @@ export default function DatabaseModul({
                                             type="text"
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder="Cari kode modul, judul, program..."
+                                            placeholder="Cari kode modul, judul, jenis..."
                                             className="h-10 w-full rounded-xl border border-neutral-200 bg-white dark:bg-neutral-900 pl-10 pr-4 text-xs text-neutral-900 dark:text-neutral-100 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 shadow-sm transition-all"
                                         />
                                     </div>
@@ -662,61 +607,51 @@ export default function DatabaseModul({
                                 {/* Bottom Row: Specific Filters */}
                                 <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/60">
                                     <div className="flex flex-wrap items-center gap-2.5">
-                                        {/* Jenis / Program Filter */}
-                                        <select
-                                            value={typeFilter}
-                                            onChange={(e) => setTypeFilter(e.target.value)}
-                                            className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm"
-                                        >
-                                            <option value="Semua Jenis">Semua Jenis</option>
-                                            <option value="Regulasi & Kepatuhan">Regulasi & Kepatuhan</option>
-                                            <option value="Teknis Laboratorium">Teknis Laboratorium</option>
-                                            <option value="Sertifikasi & Auditor">Sertifikasi & Auditor</option>
-                                            <option value="Manajerial & Kepemimpinan">Manajerial & Kepemimpinan</option>
-                                            <option value="Teknis Produksi">Teknis Produksi</option>
-                                            <option value="Supply Chain & Logistik">Supply Chain & Logistik</option>
-                                            <option value="K3 & Keamanan">K3 & Keamanan</option>
-                                            <option value="Pengembangan SDM">Pengembangan SDM</option>
-                                        </select>
+                                        {/* Jenis Modul Filter */}
+                                        <div className="w-40">
+                                            <SearchableSelect
+                                                value={typeFilter}
+                                                onChange={(val) => setTypeFilter(val)}
+                                                options={["Semua Jenis", "Modul", "Lembar Kerja", "Post Test"]}
+                                            />
+                                        </div>
 
                                         {/* Language Filter */}
-                                        <select
-                                            value={langFilter}
-                                            onChange={(e) => setLangFilter(e.target.value)}
-                                            className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm"
-                                        >
-                                            <option value="Semua Bahasa">Semua Bahasa</option>
-                                            <option value="Indonesia">Indonesia</option>
-                                            <option value="English">English</option>
-                                        </select>
+                                        <div className="w-40">
+                                            <SearchableSelect
+                                                value={langFilter}
+                                                onChange={(val) => setLangFilter(val)}
+                                                options={["Semua Bahasa", "Indonesia", "English"]}
+                                            />
+                                        </div>
 
                                         {/* Status Filter */}
-                                        <select
-                                            value={statusFilter}
-                                            onChange={(e) => setStatusFilter(e.target.value)}
-                                            className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm"
-                                        >
-                                            <option value="Semua Status">Semua Status</option>
-                                            <option value="Approved">Approved</option>
-                                            <option value="Revisi">Revisi</option>
-                                        </select>
+                                        <div className="w-40">
+                                            <SearchableSelect
+                                                value={statusFilter}
+                                                onChange={(val) => setStatusFilter(val)}
+                                                options={["Semua Status", "Approved", "Revisi"]}
+                                            />
+                                        </div>
 
                                         {/* Revision filter */}
-                                        <select
-                                            value={revFilter}
-                                            onChange={(e) => setRevFilter(e.target.value)}
-                                            className="h-9 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 outline-none shadow-sm"
-                                        >
-                                            <option value="Semua Revisi">Semua Revisi</option>
-                                            <option value="1.0">Revisi 1.0</option>
-                                            <option value="1.1">Revisi 1.1</option>
-                                            <option value="1.2">Revisi 1.2</option>
-                                            <option value="1.3">Revisi 1.3</option>
-                                            <option value="2.0">Revisi 2.0</option>
-                                            <option value="2.1">Revisi 2.1</option>
-                                            <option value="2.2">Revisi 2.2</option>
-                                            <option value="3.0">Revisi 3.0</option>
-                                        </select>
+                                        <div className="w-40">
+                                            <SearchableSelect
+                                                value={revFilter}
+                                                onChange={(val) => setRevFilter(val)}
+                                                options={[
+                                                    "Semua Revisi",
+                                                    "1.0",
+                                                    "1.1",
+                                                    "1.2",
+                                                    "1.3",
+                                                    "2.0",
+                                                    "2.1",
+                                                    "2.2",
+                                                    "3.0"
+                                                ]}
+                                            />
+                                        </div>
                                     </div>
 
                                     <Button
@@ -746,7 +681,7 @@ export default function DatabaseModul({
                                             </th>
                                             <th className="px-4 py-3.5">Kode Modul</th>
                                             <th className="px-4 py-3.5">Judul Modul</th>
-                                            <th className="px-4 py-3.5">Program / Jenis Pelatihan</th>
+                                            <th className="px-4 py-3.5">Jenis Modul</th>
                                             <th className="px-4 py-3.5">Revisi</th>
                                             <th className="px-4 py-3.5">Bahasa</th>
                                             <th className="px-4 py-3.5">Updated At</th>
@@ -815,9 +750,10 @@ export default function DatabaseModul({
                                                         <div className="flex items-center justify-center gap-1.5">
                                                             <button
                                                                 onClick={() => {
-                                                                    setSelectedModuleId(item.id);
+                                                                    window.open(`/database/${item.id}/preview`, '_blank', 'noopener,noreferrer');
                                                                 }}
                                                                 className="flex size-7 items-center justify-center rounded hover:bg-neutral-100 text-neutral-500 dark:hover:bg-neutral-800 dark:text-neutral-400"
+                                                                title="Preview PDF"
                                                             >
                                                                 <Eye className="size-3.5" />
                                                             </button>
@@ -829,6 +765,25 @@ export default function DatabaseModul({
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end" className="w-40 text-xs">
                                                                     <DropdownMenuItem className="cursor-pointer font-medium" onClick={() => window.location.href = `/database/${item.id}/download`}>Unduh PDF</DropdownMenuItem>
+                                                                    <DropdownMenuItem 
+                                                                        className="cursor-pointer font-medium"
+                                                                        onClick={() => {
+                                                                            setHistoryModule(item);
+                                                                            setIsHistoryModalOpen(true);
+                                                                        }}
+                                                                    >
+                                                                        Riwayat Revisi
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem 
+                                                                        className="cursor-pointer font-medium"
+                                                                        onClick={() => {
+                                                                            const shareableUrl = `${window.location.origin}/database/${item.id}/preview`;
+                                                                            navigator.clipboard.writeText(shareableUrl);
+                                                                            setLocalToast({ message: 'Link preview modul berhasil disalin ke clipboard!', type: 'success' });
+                                                                        }}
+                                                                    >
+                                                                        Salin Link Modul
+                                                                    </DropdownMenuItem>
                                                                     {(role === 'admin' || role === 'Staf PD') && (
                                                                         <>
                                                                             <DropdownMenuItem 
@@ -891,18 +846,20 @@ export default function DatabaseModul({
                                     Menampilkan {filteredModules.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(currentPage * itemsPerPage, filteredModules.length)} dari {filteredModules.length} modul
                                 </span>
                                 <div className="flex items-center gap-4">
-                                    <select
-                                        value={itemsPerPage}
-                                        onChange={(e) => {
-                                            setItemsPerPage(Number(e.target.value));
-                                            setCurrentPage(1);
-                                        }}
-                                        className="h-8 rounded-lg border border-neutral-200 bg-white px-2 text-xs outline-none text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
-                                    >
-                                        <option value="10">10 / halaman</option>
-                                        <option value="20">20 / halaman</option>
-                                        <option value="50">50 / halaman</option>
-                                    </select>
+                                    <div className="w-32">
+                                        <SearchableSelect
+                                            value={String(itemsPerPage)}
+                                            onChange={(val) => {
+                                                setItemsPerPage(Number(val));
+                                                setCurrentPage(1);
+                                            }}
+                                            options={[
+                                                { value: '10', label: '10 / halaman' },
+                                                { value: '20', label: '20 / halaman' },
+                                                { value: '50', label: '50 / halaman' }
+                                            ]}
+                                        />
+                                    </div>
                                     <div className="flex items-center gap-1.5">
                                         <button 
                                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -985,272 +942,6 @@ export default function DatabaseModul({
                                 </div>
                             </div>
                         </Card>
-
-                        {/* Bottom Grid for Kategori & Popular lists */}
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                            
-                            {/* Kategori Modul Donut */}
-                            <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                                <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800 flex justify-between items-center bg-neutral-50/10">
-                                    <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Kategori Modul</h3>
-                                    <button className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-                                        Lihat Semua
-                                    </button>
-                                </div>
-                                <CardContent className="p-5 flex flex-col sm:flex-row items-center justify-center gap-6">
-                                    <div className="relative flex h-28 w-28 flex-shrink-0 items-center justify-center">
-                                        <ChartContainer config={chartConfig} className="h-28 w-28 flex-shrink-0">
-                                            <PieChart>
-                                                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                                                <Pie
-                                                    data={categoryChartData}
-                                                    dataKey="value"
-                                                    nameKey="name"
-                                                    innerRadius={28}
-                                                    outerRadius={38}
-                                                    strokeWidth={0}
-                                                >
-                                                    {categoryChartData.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                                    ))}
-                                                    <Label
-                                                        content={({ viewBox }) => {
-                                                            if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                                                                return (
-                                                                    <g>
-                                                                        <text
-                                                                            x={viewBox.cx}
-                                                                            y={viewBox.cy}
-                                                                            textAnchor="middle"
-                                                                            dominantBaseline="middle"
-                                                                            className="fill-foreground text-lg font-extrabold text-neutral-800 dark:fill-neutral-100"
-                                                                        >
-                                                                            {totalCategoryModules}
-                                                                        </text>
-                                                                        <text
-                                                                            x={viewBox.cx}
-                                                                            y={(viewBox.cy || 0) + 12}
-                                                                            textAnchor="middle"
-                                                                            dominantBaseline="middle"
-                                                                            className="fill-muted-foreground text-[7px] font-bold text-neutral-400 dark:fill-neutral-500 uppercase tracking-wider"
-                                                                        >
-                                                                            Total Modul
-                                                                        </text>
-                                                                    </g>
-                                                                )
-                                                            }
-                                                        }}
-                                                    />
-                                                </Pie>
-                                            </PieChart>
-                                        </ChartContainer>
-                                    </div>
-
-                                    {/* Legends list */}
-                                    <div className="flex-1 space-y-2 text-[10px] w-full font-semibold">
-                                        {categoryChartData.map((cat, idx) => (
-                                            <div key={idx} className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="size-2 rounded-full" style={{ backgroundColor: cat.fill }}></span>
-                                                    <span className="text-neutral-500 dark:text-neutral-400">{cat.name}</span>
-                                                </div>
-                                                <span className="text-neutral-800 dark:text-neutral-200">
-                                                    {cat.value} <span className="text-neutral-400 font-normal text-[9px] ml-1">({totalCategoryModules > 0 ? ((cat.value / totalCategoryModules) * 100).toFixed(1) : 0}%)</span>
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Top Modul Diakses */}
-                            <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950 flex flex-col justify-between">
-                                <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800 flex justify-between items-center bg-neutral-50/10">
-                                    <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Top Modul Diakses</h3>
-                                    <button className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-                                        Lihat Semua
-                                    </button>
-                                </div>
-                                <CardContent className="p-5 flex-1 flex flex-col justify-between gap-3 text-xs font-medium">
-                                    <div className="space-y-3">
-                                        {popular.length > 0 ? (
-                                            popular.map((item, idx) => (
-                                                <div key={item.id} className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className={`flex size-5 items-center justify-center rounded text-white font-extrabold text-[10px] ${
-                                                            idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-neutral-400' : idx === 2 ? 'bg-amber-700' : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-850 dark:text-neutral-400'
-                                                        }`}>{idx + 1}</span>
-                                                        <span className="text-neutral-800 dark:text-neutral-200 truncate max-w-[220px]">{item.id} - {item.title}</span>
-                                                    </div>
-                                                    <span className="text-neutral-550 dark:text-neutral-400 font-semibold flex items-center gap-1"><Eye className="size-3" /> {item.views.toLocaleString('id-ID')}</span>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="text-center py-4 text-neutral-400">Belum ada modul diakses.</div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                        </div>
-
-                    </div>
-
-                    {/* Right Hand Sidebar (Left 1 column space) */}
-                    <div className="space-y-6 lg:col-span-1">
-                        
-                        {/* Preview Dokumen panel */}
-                        <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950 flex flex-col justify-between">
-                            <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800 bg-neutral-50/10">
-                                <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Preview Dokumen</h3>
-                            </div>
-                            
-                            {selectedModule ? (
-                                <CardContent className="p-5 flex flex-col gap-5 text-xs flex-1 justify-between">
-                                    
-                                    {/* Cover Card Mockup & Specs */}
-                                    <div className="space-y-4">
-                                        <div className="flex gap-4">
-                                            {/* Cover Card */}
-                                            <PdfThumbnail 
-                                                url={`/database/${selectedModule.id}/preview`} 
-                                                fallback={
-                                                    <div className="w-24 h-32 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex flex-col p-2.5 items-center justify-between relative shadow-sm hover:shadow-md transition-shadow">
-                                                        <div className="flex justify-between w-full items-center">
-                                                            <span className="text-[7px] font-bold text-neutral-400 uppercase leading-none tracking-wider">Module</span>
-                                                            <BookOpen className="size-3 text-neutral-400" />
-                                                        </div>
-                                                        <div className="flex flex-col items-center text-center gap-1">
-                                                            <span className="text-[6px] font-extrabold text-neutral-900 dark:text-neutral-100 leading-tight uppercase line-clamp-3">
-                                                                {selectedModule.title}
-                                                            </span>
-                                                            <span className="text-[5px] text-neutral-400">Revisi {selectedModule.revision}</span>
-                                                        </div>
-                                                        <div className="flex justify-between w-full items-center border-t pt-1.5 dark:border-neutral-850">
-                                                            <span className="text-[5px] font-semibold text-neutral-400">{selectedModule.id}</span>
-                                                            <Badge className="font-extrabold rounded px-1.5 py-0.2 text-[5px] bg-rose-50 text-rose-600 leading-none">PDF</Badge>
-                                                        </div>
-                                                    </div>
-                                                }
-                                            />
-
-                                            {/* Specs */}
-                                            <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-neutral-900 dark:text-neutral-100 text-xs truncate leading-snug" title={selectedModule.title}>
-                                                        {selectedModule.title}
-                                                    </span>
-                                                </div>
-                                                <div className="space-y-1 mt-2">
-                                                    <div className="flex justify-between text-[10px]">
-                                                        <span className="font-semibold text-neutral-400">Kode Modul</span>
-                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300">{selectedModule.id}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-[10px]">
-                                                        <span className="font-semibold text-neutral-400">Revisi</span>
-                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300">{selectedModule.revision}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-[10px]">
-                                                        <span className="font-semibold text-neutral-400">Bahasa</span>
-                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300">{selectedModule.language}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-[10px]">
-                                                        <span className="font-semibold text-neutral-400">Ukuran File</span>
-                                                        <span className="font-bold text-neutral-700 dark:text-neutral-300">{selectedModule.fileSize} (PDF)</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex justify-between text-[10px] items-center pt-2 border-t dark:border-neutral-800">
-                                            <span className="font-semibold text-neutral-400">Terakhir Approved</span>
-                                            <span className="font-bold text-neutral-700 dark:text-neutral-300">{selectedModule.updatedAt} WIB</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Action buttons */}
-                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t dark:border-neutral-800">
-                                        <Button 
-                                            size="sm" 
-                                            variant="outline" 
-                                            className="h-9 rounded-lg text-xs font-semibold border-neutral-200 dark:border-neutral-800 text-neutral-600"
-                                            onClick={() => window.open(`/database/${selectedModule.id}/preview`, '_blank', 'noopener,noreferrer')}
-                                        >
-                                            Lihat Detail
-                                        </Button>
-                                        <Button 
-                                            size="sm" 
-                                            className="h-9 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-sm"
-                                            onClick={() => window.location.href = `/database/${selectedModule.id}/download`}
-                                        >
-                                            <span>Download PDF</span>
-                                            <Download className="size-3.5" />
-                                        </Button>
-                                    </div>
-
-                                </CardContent>
-                            ) : (
-                                <div className="p-8 text-center text-neutral-400 text-xs flex-1 flex items-center justify-center">
-                                    Pilih modul di tabel untuk melihat preview.
-                                </div>
-                            )}
-                        </Card>
-
-                        {/* Riwayat Revisi Timeline */}
-                        <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950 flex flex-col justify-between">
-                            <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
-                                <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Riwayat Revisi</h3>
-                            </div>
-                            <CardContent className="p-5 flex flex-col gap-4">
-                                {selectedModule && selectedModule.revisionsHistory ? (
-                                    <div className="relative pl-6 border-l border-neutral-100 dark:border-neutral-800 space-y-5 text-xs">
-                                        {selectedModule.revisionsHistory.map((historyItem, index) => (
-                                            <div key={index} className="relative">
-                                                {/* Colored Timeline Node Indicator */}
-                                                <span className={`absolute -left-[30px] top-1 flex size-4.5 items-center justify-center rounded-full ring-4 ring-white dark:ring-neutral-950 ${
-                                                    index === 0
-                                                        ? 'bg-emerald-500 text-white font-extrabold text-[8px]'
-                                                        : index === 1
-                                                        ? 'bg-amber-500 text-white font-extrabold text-[8px]'
-                                                        : index === 2
-                                                        ? 'bg-blue-500 text-white font-extrabold text-[8px]'
-                                                        : 'bg-neutral-400 text-white font-extrabold text-[8px]'
-                                                }`}>
-                                                    {index === 0 ? '✓' : ''}
-                                                </span>
-
-                                                <div className="flex flex-col gap-0.5">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-extrabold text-neutral-900 dark:text-neutral-100 text-xs">{historyItem.version}</span>
-                                                        {index === 0 && (
-                                                            <Badge className="font-semibold rounded border-0 px-1 py-0.2 text-[8px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400 leading-none">Current</Badge>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-medium">{historyItem.date}</span>
-                                                    <span className="font-semibold text-neutral-700 dark:text-neutral-300 mt-1">Approved oleh: {historyItem.author}</span>
-                                                    <span className="text-neutral-500 dark:text-neutral-400 text-[10px] mt-0.5 leading-relaxed">{historyItem.note}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center text-neutral-400 text-xs">
-                                        Tidak ada riwayat revisi.
-                                    </div>
-                                )}
-                                
-                                <div className="pt-2 border-t">
-                                    <Button variant="ghost" className="w-full text-center hover:bg-neutral-50 text-neutral-500 text-xs font-semibold dark:hover:bg-neutral-900 dark:text-neutral-400 h-8">
-                                        Lihat Semua Riwayat
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                    </div>
-
-                </div>
-
             </div>
 
             {/* Modal: Import Excel */}
@@ -1395,35 +1086,23 @@ export default function DatabaseModul({
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                    Program / Jenis Pelatihan
+                                    Jenis Modul
                                 </label>
-                                <select
+                                <SearchableSelect
                                     value={data.program}
-                                    onChange={(e) => setData('program', e.target.value)}
-                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                >
-                                    <option value="Regulasi & Kepatuhan">Regulasi & Kepatuhan</option>
-                                    <option value="Teknis Laboratorium">Teknis Laboratorium</option>
-                                    <option value="Sertifikasi & Auditor">Sertifikasi & Auditor</option>
-                                    <option value="Manajerial & Kepemimpinan">Manajerial & Kepemimpinan</option>
-                                    <option value="Teknis Produksi">Teknis Produksi</option>
-                                    <option value="Supply Chain & Logistik">Supply Chain & Logistik</option>
-                                    <option value="K3 & Keamanan">K3 & Keamanan</option>
-                                    <option value="Pengembangan SDM">Pengembangan SDM</option>
-                                </select>
+                                    onChange={(val) => setData('program', val)}
+                                    options={["Modul", "Lembar Kerja", "Post Test"]}
+                                />
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
                                     Bahasa
                                 </label>
-                                <select
+                                <SearchableSelect
                                     value={data.language}
-                                    onChange={(e) => setData('language', e.target.value)}
-                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                >
-                                    <option value="Indonesia">Indonesia</option>
-                                    <option value="English">English</option>
-                                </select>
+                                    onChange={(val) => setData('language', val)}
+                                    options={["Indonesia", "English"]}
+                                />
                             </div>
                         </div>
 
@@ -1632,35 +1311,23 @@ export default function DatabaseModul({
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                    Program / Jenis Pelatihan
+                                    Jenis Modul
                                 </label>
-                                <select
+                                <SearchableSelect
                                     value={editForm.data.program}
-                                    onChange={(e) => editForm.setData('program', e.target.value)}
-                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                >
-                                    <option value="Regulasi & Kepatuhan">Regulasi & Kepatuhan</option>
-                                    <option value="Teknis Laboratorium">Teknis Laboratorium</option>
-                                    <option value="Sertifikasi & Auditor">Sertifikasi & Auditor</option>
-                                    <option value="Manajerial & Kepemimpinan">Manajerial & Kepemimpinan</option>
-                                    <option value="Teknis Produksi">Teknis Produksi</option>
-                                    <option value="Supply Chain & Logistik">Supply Chain & Logistik</option>
-                                    <option value="K3 & Keamanan">K3 & Keamanan</option>
-                                    <option value="Pengembangan SDM">Pengembangan SDM</option>
-                                </select>
+                                    onChange={(val) => editForm.setData('program', val)}
+                                    options={["Modul", "Lembar Kerja", "Post Test"]}
+                                />
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
                                     Bahasa
                                 </label>
-                                <select
+                                <SearchableSelect
                                     value={editForm.data.language}
-                                    onChange={(e) => editForm.setData('language', e.target.value)}
-                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                >
-                                    <option value="Indonesia">Indonesia</option>
-                                    <option value="English">English</option>
-                                </select>
+                                    onChange={(val) => editForm.setData('language', val)}
+                                    options={["Indonesia", "English"]}
+                                />
                             </div>
                         </div>
 
@@ -1750,6 +1417,105 @@ export default function DatabaseModul({
                             className="bg-rose-600 hover:bg-rose-700 text-white dark:bg-rose-600 dark:hover:bg-rose-700 rounded-lg h-9 px-4 text-xs font-semibold"
                         >
                             Hapus Semua Terpilih
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: Riwayat Revisi */}
+            <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+                <DialogContent className="max-w-md bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                            <History className="size-5 text-blue-600 dark:text-blue-400" />
+                            <span>Riwayat Revisi Modul</span>
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-neutral-400 dark:text-neutral-500">
+                            Berikut adalah daftar riwayat revisi dan catatan perubahan untuk modul <span className="font-bold">{historyModule?.id} - {historyModule?.title}</span>.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-4 max-h-[350px] overflow-y-auto pr-1">
+                        {historyModule && historyModule.revisionsHistory && historyModule.revisionsHistory.length > 0 ? (
+                            <div className="relative pl-6 border-l border-neutral-100 dark:border-neutral-800 space-y-6 text-xs">
+                                {historyModule.revisionsHistory.map((historyItem, index) => (
+                                    <div key={index} className="relative">
+                                        {/* Colored Timeline Node Indicator */}
+                                        <span className={`absolute -left-[30px] top-1 flex size-4.5 items-center justify-center rounded-full ring-4 ring-white dark:ring-neutral-950 ${
+                                            index === 0
+                                                ? 'bg-emerald-500 text-white font-extrabold text-[8px]'
+                                                : index === 1
+                                                ? 'bg-amber-500 text-white font-extrabold text-[8px]'
+                                                : index === 2
+                                                ? 'bg-blue-500 text-white font-extrabold text-[8px]'
+                                                : 'bg-neutral-400 text-white font-extrabold text-[8px]'
+                                        }`}>
+                                            {index === 0 ? '✓' : ''}
+                                        </span>
+
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-extrabold text-neutral-900 dark:text-neutral-100 text-xs">Revisi {historyItem.version}</span>
+                                                {index === 0 && (
+                                                    <Badge className="font-semibold rounded border-0 px-1 py-0.2 text-[8px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400 leading-none">Terbaru</Badge>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-medium">{historyItem.date}</span>
+                                            <span className="font-semibold text-neutral-700 dark:text-neutral-300 mt-1">Disetujui oleh: {historyItem.author}</span>
+                                            {historyItem.note && (
+                                                <div className="mt-1 bg-neutral-50 dark:bg-neutral-900/50 p-2 rounded border border-neutral-100 dark:border-neutral-800 text-neutral-550 dark:text-neutral-400 text-[10px] leading-relaxed">
+                                                    {historyItem.note}
+                                                </div>
+                                            )}
+                                            <div className="flex gap-2 mt-2">
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="outline" 
+                                                    className="h-7 rounded text-[10px] px-2.5 font-semibold text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-800"
+                                                    onClick={() => window.open(`/database/revision/${historyItem.id}/preview`, '_blank', 'noopener,noreferrer')}
+                                                >
+                                                    Lihat PDF
+                                                </Button>
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="outline" 
+                                                    className="h-7 rounded text-[10px] px-2.5 font-semibold text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-800 flex items-center gap-1"
+                                                    onClick={() => window.location.href = `/database/revision/${historyItem.id}/download`}
+                                                >
+                                                    <span>Download</span>
+                                                    <Download className="size-3" />
+                                                </Button>
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="outline" 
+                                                    className="h-7 rounded text-[10px] px-2.5 font-semibold text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-800"
+                                                    onClick={() => {
+                                                        const revisionUrl = `${window.location.origin}/database/revision/${historyItem.id}/preview`;
+                                                        navigator.clipboard.writeText(revisionUrl);
+                                                        setLocalToast({ message: 'Link preview revisi berhasil disalin!', type: 'success' });
+                                                    }}
+                                                >
+                                                    Salin Link
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center text-neutral-400 text-xs py-6">
+                                Tidak ada riwayat revisi untuk modul ini.
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="mt-2">
+                        <Button
+                            type="button"
+                            onClick={() => setIsHistoryModalOpen(false)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg h-9 px-4 text-xs font-semibold w-full sm:w-auto"
+                        >
+                            Tutup
                         </Button>
                     </DialogFooter>
                 </DialogContent>

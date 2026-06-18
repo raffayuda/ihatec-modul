@@ -23,6 +23,8 @@ import {
     History,
     ListChecks,
     Paperclip,
+    ExternalLink,
+    Calendar,
 } from 'lucide-react';
 import {
     Dialog,
@@ -34,6 +36,7 @@ import {
 } from '@/components/ui/dialog';
 import { Link } from '@inertiajs/react';
 import React, { useState, useMemo, useEffect } from 'react';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -69,6 +72,9 @@ interface ApprovalItem {
     relatedModuleCode?: string | null;
     relatedModuleTitle?: string | null;
     relatedModuleRevision?: string | null;
+    link_modul?: string | null;
+    tanggal_realisasi?: string | null;
+    tanggal_realisasi_formatted?: string | null;
 }
 
 interface ApprovalStats {
@@ -95,6 +101,8 @@ const PRIORITY_COLORS: Record<string, string> = {
 const TYPE_COLORS: Record<string, string> = {
     'Modul Baru': 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300',
     'Revisi Modul': 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300',
+    'Program Baru': 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300',
+    'Revisi Program': 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300',
     'Kebutuhan Khusus': 'bg-teal-50 text-teal-600 dark:bg-teal-950/40 dark:text-teal-300',
 };
 
@@ -171,22 +179,9 @@ export default function Approval() {
     };
 
     const handleApprove = (item: ApprovalItem) => {
-        if (item.type === 'Kebutuhan Khusus') {
-            processForm.setData({
-                status: 'Selesai',
-                link_modul: '',
-                tanggal_realisasi: '',
-                reject_reason: '',
-                tanggal_kebutuhan_baru: '',
-            });
-            processForm.clearErrors();
-            setProcessKhususItem(item);
-            setSelectedItem(null);
-        } else {
-            router.post(route('approval.approve', item.dbId), {}, {
-                onSuccess: () => setSelectedItem(null),
-            });
-        }
+        router.post(route('approval.approve', item.dbId), {}, {
+            onSuccess: () => setSelectedItem(null),
+        });
     };
 
     const handleReject = (e: React.FormEvent) => {
@@ -365,18 +360,32 @@ export default function Approval() {
                             />
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
-                                <option value="Semua Tipe">Semua Tipe</option>
-                                <option value="Modul Baru">Modul Baru</option>
-                                <option value="Revisi Modul">Revisi Modul</option>
-                                <option value="Kebutuhan Khusus">Kebutuhan Khusus</option>
-                            </select>
-                            <select value={priorityFilter} onChange={(e) => { setPriorityFilter(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-700 outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
-                                <option value="Semua Prioritas">Semua Prioritas</option>
-                                <option value="High">High</option>
-                                <option value="Medium">Medium</option>
-                                <option value="Low">Low</option>
-                            </select>
+                             <div className="w-44">
+                                 <SearchableSelect
+                                     value={typeFilter}
+                                     onChange={(val) => { setTypeFilter(val); setCurrentPage(1); }}
+                                     options={[
+                                         "Semua Tipe",
+                                         "Modul Baru",
+                                         "Revisi Modul",
+                                         "Program Baru",
+                                         "Revisi Program",
+                                         "Kebutuhan Khusus"
+                                     ]}
+                                 />
+                             </div>
+                             <div className="w-40">
+                                 <SearchableSelect
+                                     value={priorityFilter}
+                                     onChange={(val) => { setPriorityFilter(val); setCurrentPage(1); }}
+                                     options={[
+                                         "Semua Prioritas",
+                                         "High",
+                                         "Medium",
+                                         "Low"
+                                     ]}
+                                 />
+                             </div>
                             <Button onClick={handleReset} variant="outline" size="sm" className="h-9 rounded-lg border-neutral-200 px-3 text-xs font-semibold dark:border-neutral-800">
                                 <RefreshCw className="mr-1.5 size-3.5" /> Reset
                             </Button>
@@ -438,8 +447,33 @@ export default function Approval() {
                                             </td>
                                             {/* Dokumen column */}
                                             <td className="px-5 py-4">
-                                                {item.fileName ? (
-                                                    <div className="flex items-center gap-1.5">
+                                                {item.type === 'Kebutuhan Khusus' ? (
+                                                    item.link_modul ? (
+                                                        <div className="flex items-center gap-1.5 font-sans">
+                                                            <div className="flex size-6 items-center justify-center rounded bg-teal-50 text-teal-600 dark:bg-teal-950/30 dark:text-teal-400">
+                                                                <Paperclip className="size-3.5" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="max-w-[80px] truncate text-[10px] font-semibold text-neutral-700 dark:text-neutral-300">Link Modul</p>
+                                                                {item.tanggal_realisasi_formatted && (
+                                                                    <p className="text-[9px] text-neutral-450 dark:text-neutral-555">{item.tanggal_realisasi_formatted}</p>
+                                                                )}
+                                                            </div>
+                                                            <a
+                                                                href={item.link_modul}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex size-5 items-center justify-center rounded text-teal-600 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-950/30"
+                                                                title="Buka Link Modul"
+                                                            >
+                                                                <ExternalLink className="size-3" />
+                                                            </a>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[10px] italic text-neutral-350 dark:text-neutral-600">Belum ada link</span>
+                                                    )
+                                                ) : item.fileName ? (
+                                                    <div className="flex items-center gap-1.5 font-sans">
                                                         <div className="flex size-6 items-center justify-center rounded bg-red-50 text-red-500 dark:bg-red-950/30">
                                                             <FileText className="size-3.5" />
                                                         </div>
@@ -469,7 +503,8 @@ export default function Approval() {
                                             <td className="px-5 py-4">
                                                 <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${
                                                     item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                                                    : item.status === 'Ditolak' ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
+                                                    : (item.status === 'Ditolak' || item.status === 'Batal') ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
+                                                    : item.status === 'Menunggu Approval' ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300'
                                                     : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
                                                 }`}>
                                                     {item.status}
@@ -650,61 +685,115 @@ export default function Approval() {
 
                                     {selectedItem.description && (
                                         <div>
-                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Deskripsi Kebutuhan</p>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans font-semibold">Deskripsi Kebutuhan</p>
                                             <p className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">{selectedItem.description}</p>
+                                        </div>
+                                    )}
+
+                                    {selectedItem.rejectReason && (selectedItem.status === 'Menunggu Approval' || selectedItem.status === 'Selesai') && (
+                                        <div className="pt-2 border-t border-teal-100 dark:border-teal-900/20 font-sans">
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 font-semibold">Keterangan Proses / Catatan Staf PD</p>
+                                            <p className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">{selectedItem.rejectReason}</p>
                                         </div>
                                     )}
                                 </div>
                             )}
 
-                            {/* File PDF section */}
-                            <div>
-                                <p className="mb-1.5 text-xs font-semibold text-neutral-400 font-sans">Dokumen PDF</p>
-                                {selectedItem.fileName ? (
-                                    <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-                                        <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500 dark:bg-red-950/30">
-                                            <FileText className="size-5" />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-xs font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.fileName}</p>
-                                            {selectedItem.fileSize && (
-                                                <p className="text-[10px] text-neutral-400">{selectedItem.fileSize} · PDF</p>
-                                            )}
-                                        </div>
-                                        {selectedItem.fileUrl && (
-                                            <div className="flex items-center gap-1.5">
+                            {/* File / Link section */}
+                            {selectedItem.type === 'Kebutuhan Khusus' ? (
+                                <div className="space-y-4">
+                                    <div>
+                                        <p className="mb-1.5 text-xs font-semibold text-neutral-400 font-sans">Link Modul yang Diajukan</p>
+                                        {selectedItem.link_modul ? (
+                                            <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900 font-sans">
+                                                <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950/30 dark:text-teal-400">
+                                                    <Paperclip className="size-5" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-xs font-semibold text-neutral-800 dark:text-neutral-200">Link Modul Pelatihan</p>
+                                                    <p className="truncate text-[10px] text-neutral-450 dark:text-neutral-500 select-all">{selectedItem.link_modul}</p>
+                                                </div>
                                                 <a
-                                                    href={selectedItem.fileUrl}
+                                                    href={selectedItem.link_modul}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-blue-50 hover:text-blue-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-blue-400"
-                                                    title="Preview PDF"
+                                                    className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-teal-50 hover:text-teal-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-teal-400 dark:hover:bg-teal-950/30"
+                                                    title="Buka Link Modul"
                                                 >
-                                                    <Eye className="size-3.5" />
+                                                    <ExternalLink className="size-3.5" />
                                                 </a>
-                                                <a
-                                                    href={selectedItem.fileUrl}
-                                                    download
-                                                    className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-emerald-50 hover:text-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-emerald-400"
-                                                    title="Download PDF"
-                                                >
-                                                    <Download className="size-3.5" />
-                                                </a>
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/30 p-4 text-center dark:border-neutral-800 font-sans">
+                                                <Paperclip className="mx-auto mb-1 size-5 text-neutral-350" />
+                                                <p className="text-xs text-neutral-450">Belum ada link modul yang dilampirkan.</p>
                                             </div>
                                         )}
                                     </div>
-                                ) : (
-                                    <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/30 p-4 text-center dark:border-neutral-800">
-                                        <Paperclip className="mx-auto mb-1 size-5 text-neutral-300" />
-                                        <p className="text-xs text-neutral-400">Tidak ada dokumen yang dilampirkan.</p>
-                                    </div>
-                                )}
-                            </div>
+
+                                    {selectedItem.tanggal_realisasi_formatted && selectedItem.tanggal_realisasi_formatted !== '-' && (
+                                        <div>
+                                            <p className="mb-1.5 text-xs font-semibold text-neutral-400 font-sans">Rencana Realisasi</p>
+                                            <div className="flex items-center gap-2.5 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900 font-sans">
+                                                <Calendar className="size-4 text-neutral-500 dark:text-neutral-400" />
+                                                <span className="text-xs font-semibold text-neutral-850 dark:text-neutral-250">
+                                                    {selectedItem.tanggal_realisasi_formatted}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div>
+                                    <p className="mb-1.5 text-xs font-semibold text-neutral-400 font-sans">Dokumen PDF</p>
+                                    {selectedItem.fileName ? (
+                                        <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900 font-sans">
+                                            <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500 dark:bg-red-950/30">
+                                                <FileText className="size-5" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-xs font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.fileName}</p>
+                                                {selectedItem.fileSize && (
+                                                    <p className="text-[10px] text-neutral-400">{selectedItem.fileSize} · PDF</p>
+                                                )}
+                                            </div>
+                                            {selectedItem.fileUrl && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <a
+                                                        href={selectedItem.fileUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-blue-50 hover:text-blue-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-blue-400"
+                                                        title="Preview PDF"
+                                                    >
+                                                        <Eye className="size-3.5" />
+                                                    </a>
+                                                    <a
+                                                        href={selectedItem.fileUrl}
+                                                        download
+                                                        className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-emerald-50 hover:text-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-emerald-450"
+                                                        title="Download PDF"
+                                                    >
+                                                        <Download className="size-3.5" />
+                                                    </a>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/30 p-4 text-center dark:border-neutral-800 font-sans">
+                                            <Paperclip className="mx-auto mb-1 size-5 text-neutral-350" />
+                                            <p className="text-xs text-neutral-455">Tidak ada dokumen yang dilampirkan.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Reject reason (history) */}
-                            {selectedItem.rejectReason && (
-                                <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 dark:border-rose-900/40 dark:bg-rose-950/20">
-                                    <p className="mb-1 text-xs font-bold text-rose-700 dark:text-rose-400">Alasan Penolakan</p>
+                            {['Ditolak', 'Batal'].includes(selectedItem.status) && selectedItem.rejectReason && (
+                                <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 dark:border-rose-900/40 dark:bg-rose-950/20 font-sans">
+                                    <p className="mb-1 text-xs font-bold text-rose-700 dark:text-rose-400">
+                                        {selectedItem.status === 'Batal' ? 'Alasan Pembatalan' : 'Alasan Penolakan'}
+                                    </p>
                                     <p className="text-xs leading-relaxed text-rose-600 dark:text-rose-300">{selectedItem.rejectReason}</p>
                                     {selectedItem.processedBy && (
                                         <p className="mt-1 text-[10px] text-rose-400">Oleh {selectedItem.processedBy} · {selectedItem.processedAt}</p>
@@ -793,16 +882,16 @@ export default function Approval() {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold text-purple-600 dark:text-purple-400 font-sans">Status Proses *</label>
-                                    <select
+                                    <SearchableSelect
                                         value={processForm.data.status}
-                                        onChange={(e) => processForm.setData('status', e.target.value)}
-                                        className="w-full rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-purple-500 dark:border-purple-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                        onChange={(val) => processForm.setData('status', val)}
+                                        options={[
+                                            { value: 'Selesai', label: 'Selesai (Done)' },
+                                            { value: 'Batal', label: 'Batal (Cancel)' },
+                                            { value: 'Hold', label: 'Hold' }
+                                        ]}
                                         required
-                                    >
-                                        <option value="Selesai">Selesai (Done)</option>
-                                        <option value="Batal">Batal (Cancel)</option>
-                                        <option value="Hold">Hold</option>
-                                    </select>
+                                    />
                                     {processForm.errors.status && <p className="mt-1 text-[10px] text-rose-500 font-sans">{processForm.errors.status}</p>}
                                 </div>
                                 

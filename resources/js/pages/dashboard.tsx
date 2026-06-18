@@ -23,7 +23,7 @@ import {
     UserCheck,
     Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Cell, Label, Pie, PieChart } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
@@ -114,6 +114,21 @@ export default function Dashboard() {
     const roleLower = role.toLowerCase();
     const [currentPage, setCurrentPage] = useState<number>(1);
     const itemsPerPage = 5;
+
+    const [greeting, setGreeting] = useState('Selamat Datang');
+
+    useEffect(() => {
+        const hour = new Date().getHours();
+        if (hour >= 4 && hour < 11) {
+            setGreeting('Selamat Pagi');
+        } else if (hour >= 11 && hour < 15) {
+            setGreeting('Selamat Siang');
+        } else if (hour >= 15 && hour < 18) {
+            setGreeting('Selamat Sore');
+        } else {
+            setGreeting('Selamat Malam');
+        }
+    }, []);
 
     // Paginate requests
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -222,7 +237,7 @@ export default function Dashboard() {
                 {/* Header */}
                 <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-                        Selamat Datang, {user?.name ?? 'Pengguna'} 👋
+                        {greeting}, {user?.name ?? 'Pengguna'} 👋
                     </h1>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">
                         {roleLower === 'admin' && 'Pantau seluruh aktivitas sistem manajemen modul pelatihan.'}

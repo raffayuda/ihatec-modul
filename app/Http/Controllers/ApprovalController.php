@@ -46,7 +46,7 @@ class ApprovalController extends Controller
 
         // History (already processed)
         $history = ModuleRequest::with(['applicant', 'processor', 'relatedModule'])
-            ->whereIn('status', ['Selesai', 'Ditolak'])
+            ->whereIn('status', ['Selesai', 'Ditolak', 'Disetujui', 'Batal', 'Hold'])
             ->orderByDesc('processed_at')
             ->limit(50)
             ->get()
@@ -55,8 +55,8 @@ class ApprovalController extends Controller
         // Stats
         $stats = [
             'pending' => ModuleRequest::where('status', 'Menunggu Approval')->count(),
-            'approved' => ModuleRequest::where('status', 'Selesai')->count(),
-            'rejected' => ModuleRequest::where('status', 'Ditolak')->count(),
+            'approved' => ModuleRequest::whereIn('status', ['Selesai', 'Disetujui'])->count(),
+            'rejected' => ModuleRequest::whereIn('status', ['Ditolak', 'Batal'])->count(),
             'total' => ModuleRequest::count(),
         ];
 
@@ -106,27 +106,8 @@ class ApprovalController extends Controller
 
         // ── 8.3: Kebutuhan Khusus ───────────────────────────────────────────
         if ($moduleRequest->type === 'Kebutuhan Khusus') {
-            $validated = $request->validate([
-                'status' => 'required|in:Selesai,Batal,Hold',
-                'link_modul' => 'required_if:status,Selesai|nullable|url|max:255',
-                'tanggal_realisasi' => 'required_if:status,Selesai|nullable|date',
-                'reject_reason' => 'required|string|max:1000', // Keterangan
-                'tanggal_kebutuhan_baru' => 'required_if:status,Hold|nullable|date',
-            ], [
-                'status.required' => 'Status proses wajib dipilih.',
-                'link_modul.required_if' => 'Link Modul wajib diisi jika status Selesai.',
-                'link_modul.url' => 'Link Modul harus berupa URL yang valid.',
-                'tanggal_realisasi.required_if' => 'Tanggal Realisasi wajib diisi jika status Selesai.',
-                'reject_reason.required' => 'Keterangan wajib diisi.',
-                'tanggal_kebutuhan_baru.required_if' => 'Tanggal Kebutuhan Baru wajib diisi jika status Hold.',
-            ]);
-
             $moduleRequest->update([
-                'status' => $validated['status'],
-                'link_modul' => $validated['link_modul'] ?? null,
-                'tanggal_realisasi' => $validated['tanggal_realisasi'] ?? null,
-                'reject_reason' => $validated['reject_reason'],
-                'tanggal_kebutuhan_baru' => $validated['tanggal_kebutuhan_baru'] ?? null,
+                'status' => 'Selesai',
                 'processed_by' => $user->id,
                 'processed_at' => now(),
             ]);
@@ -149,7 +130,7 @@ class ApprovalController extends Controller
                 Log::error('Gagal mengirim email notifikasi approval Kebutuhan Khusus: ' . $e->getMessage());
             }
 
-            return redirect()->route('approval')->with('message', "Pengajuan {$moduleRequest->request_number} berhasil diproses dengan status {$validated['status']}.");
+            return redirect()->route('approval')->with('message', "Pengajuan {$moduleRequest->request_number} berhasil disetujui.");
         }
 
         // ── 8.1: Modul Baru → create entry in modules ───────────────────────
@@ -184,7 +165,7 @@ class ApprovalController extends Controller
                 'language' => $moduleRequest->language ?? 'Indonesia',
                 'description' => $moduleRequest->description,
                 'status' => 'Approved',
-                'current_revision' => '1.0',
+                'current_revision' => '0.0',
                 'file_path' => null, // No local copy
                 'file_name' => $moduleRequest->file_name,
                 'file_size' => $newFileSize ?? $moduleRequest->file_size,
@@ -199,7 +180,7 @@ class ApprovalController extends Controller
             // Create initial revision record (history entry)
             ModuleRevision::create([
                 'module_id' => $module->id,
-                'revision' => '1.0',
+                'revision' => '0.0',
                 'note' => 'Rilis pertama — approved oleh '.$user->name,
                 'reason' => $moduleRequest->description,
                 'author_name' => $moduleRequest->applicant?->name ?? 'Sistem',
@@ -416,6 +397,9 @@ class ApprovalController extends Controller
             'relatedModuleCode' => $req->relatedModule?->code,
             'relatedModuleTitle' => $req->relatedModule?->title,
             'relatedModuleRevision' => $req->relatedModule?->current_revision,
+            'link_modul' => $req->link_modul,
+            'tanggal_realisasi' => $req->tanggal_realisasi?->format('Y-m-d') ?? '',
+            'tanggal_realisasi_formatted' => $req->tanggal_realisasi?->format('d M Y') ?? '-',
         ];
     }
 

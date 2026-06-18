@@ -27,6 +27,7 @@ import {
     ArrowUpRight,
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -90,9 +91,7 @@ export default function DriveIntegration() {
         }
     };
 
-    const handleFolderSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const selectedId = e.target.value;
-        
+    const handleFolderSelect = (selectedId: string) => {
         if (selectedId === '') {
             folderForm.setData({
                 folder_id: '',
@@ -293,23 +292,20 @@ export default function DriveIntegration() {
                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                             <div className="md:col-span-3">
                                                 <label className="block text-[10px] font-bold uppercase tracking-wider text-neutral-450 dark:text-neutral-500 mb-1.5">Pilih dari Google Drive Anda</label>
-                                                <select 
+                                                <SearchableSelect
                                                     value={folderForm.data.folder_id}
                                                     onChange={handleFolderSelect}
-                                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 h-9"
-                                                >
-                                                    <option value="">Folder Utama (Root / My Drive)</option>
-                                                    {activeFolderId && !folders.some(f => f.id === activeFolderId) && (
-                                                        <option value={activeFolderId}>
-                                                            ⚠️ {activeFolderName} (Dihapus/Tidak ditemukan di Drive)
-                                                        </option>
-                                                    )}
-                                                    {folders.map(folder => (
-                                                        <option key={folder.id} value={folder.id}>
-                                                            📁 {folder.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                    options={[
+                                                        { value: '', label: 'Folder Utama (Root / My Drive)' },
+                                                        ...(activeFolderId && !folders.some(f => f.id === activeFolderId) ? [
+                                                            { value: activeFolderId, label: `⚠️ ${activeFolderName} (Dihapus/Tidak ditemukan di Drive)` }
+                                                        ] : []),
+                                                        ...folders.map(folder => ({
+                                                            value: folder.id,
+                                                            label: `📁 ${folder.name}`
+                                                        }))
+                                                    ]}
+                                                />
                                             </div>
                                             <div className="flex items-end">
                                                 <Button 
@@ -401,18 +397,17 @@ export default function DriveIntegration() {
                                     <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400">
                                         Lokasi Folder (Parent)
                                     </label>
-                                    <select
+                                    <SearchableSelect
                                         value={createFolderForm.data.parent_folder_id}
-                                        onChange={(e) => createFolderForm.setData('parent_folder_id', e.target.value)}
-                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 h-9"
-                                    >
-                                        <option value="">Folder Utama (Root / My Drive)</option>
-                                        {folders.map(folder => (
-                                            <option key={folder.id} value={folder.id}>
-                                                📁 {folder.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => createFolderForm.setData('parent_folder_id', val)}
+                                        options={[
+                                            { value: '', label: 'Folder Utama (Root / My Drive)' },
+                                            ...folders.map(folder => ({
+                                                value: folder.id,
+                                                label: `📁 ${folder.name}`
+                                            }))
+                                        ]}
+                                    />
                                     {createFolderForm.errors.parent_folder_id && (
                                         <p className="mt-1 text-xs text-rose-500">{createFolderForm.errors.parent_folder_id}</p>
                                     )}
