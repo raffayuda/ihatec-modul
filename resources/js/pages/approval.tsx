@@ -45,6 +45,31 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+interface ModulRow {
+    id: string;
+    jenisModulPelatihan: string;
+    kodeModul: string;
+    namaModul: string;
+    sebelumPerubahan: string;
+    setelahPerubahan: string;
+    alasanPerubahan: string;
+    kodeRevisi: string;
+    tanggalBerlaku: string;
+    linkModul: string;
+}
+
+interface ProgramRow {
+    id: string;
+    kodeProgram: string;
+    namaProgram: string;
+    sebelumPerubahan: string;
+    setelahPerubahan: string;
+    alasanPerubahan: string;
+    kodeRevisi: string;
+    tanggalBerlaku: string;
+    linkProgram: string;
+}
+
 interface ApprovalItem {
     id: string;
     dbId: number;
@@ -75,6 +100,16 @@ interface ApprovalItem {
     link_modul?: string | null;
     tanggal_realisasi?: string | null;
     tanggal_realisasi_formatted?: string | null;
+    jenisKebutuhanPelatihan?: string;
+    keteranganKebutuhan?: string;
+    jenisModul?: string[];
+    modulRows?: ModulRow[];
+    programRows?: ProgramRow[];
+    jenis_kebutuhan?: string | null;
+    nama_instansi?: string | null;
+    judul_program?: string | null;
+    jam_khusus?: string | null;
+    pre_post_test?: string | null;
 }
 
 interface ApprovalStats {
@@ -570,7 +605,7 @@ export default function Approval() {
 
             {/* ── DETAIL DIALOG ── */}
             <Dialog open={!!selectedItem} onOpenChange={(open) => { if (!open) setSelectedItem(null); }}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className={selectedItem && ['Modul Baru', 'Revisi Modul', 'Program Baru', 'Revisi Program'].includes(selectedItem.type) ? "max-w-6xl w-[95vw] max-h-[92vh] overflow-y-auto" : "max-w-lg"}>
                     <DialogHeader>
                         <DialogTitle className="pr-6">{selectedItem?.title}</DialogTitle>
                         <DialogDescription className="font-mono text-[11px]">{selectedItem?.id}</DialogDescription>
@@ -593,21 +628,13 @@ export default function Approval() {
                                     <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${TYPE_COLORS[selectedItem.type] ?? ''}`}>{selectedItem.type}</Badge>
                                 </div>
                                 <div>
-                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Tanggal Kebutuhan</p>
-                                    <p className="font-semibold text-xs text-neutral-800 dark:text-neutral-200">{selectedItem.deadline}</p>
-                                </div>
-                                <div>
                                     <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Prioritas</p>
                                     <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[selectedItem.priority] ?? ''}`}>{selectedItem.priority}</Badge>
-                                </div>
-                                <div>
-                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Unit Kerja</p>
-                                    <p className="font-semibold text-xs text-neutral-800 dark:text-neutral-200">{selectedItem.unit}</p>
                                 </div>
                             </div>
 
                             {/* ── CONDITIONAL SECTION: MODUL BARU ── */}
-                            {selectedItem.type === 'Modul Baru' && (
+                            {selectedItem.type === 'Modul Baru' && !((selectedItem.modulRows && selectedItem.modulRows.length > 0) || (selectedItem.programRows && selectedItem.programRows.length > 0)) && (
                                 <div className="space-y-3 p-3.5 border border-blue-100 dark:border-blue-900/40 rounded-xl bg-blue-50/20 dark:bg-blue-950/5">
                                     <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">Detail Modul Baru</div>
                                     
@@ -634,7 +661,7 @@ export default function Approval() {
 
                                     {selectedItem.description && (
                                         <div>
-                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Deskripsi / Permintaan Khusus</p>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans font-semibold">Deskripsi / Permintaan Khusus</p>
                                             <p className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">{selectedItem.description}</p>
                                         </div>
                                     )}
@@ -642,7 +669,7 @@ export default function Approval() {
                             )}
 
                             {/* ── CONDITIONAL SECTION: REVISI MODUL ── */}
-                            {selectedItem.type === 'Revisi Modul' && (
+                            {selectedItem.type === 'Revisi Modul' && !((selectedItem.modulRows && selectedItem.modulRows.length > 0) || (selectedItem.programRows && selectedItem.programRows.length > 0)) && (
                                 <div className="space-y-3 p-3.5 border border-violet-100 dark:border-violet-900/40 rounded-xl bg-violet-50/20 dark:bg-violet-950/5">
                                     <div className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider mb-1">Detail Modul Existing / Revisi</div>
                                     
@@ -675,18 +702,42 @@ export default function Approval() {
 
                             {/* ── CONDITIONAL SECTION: KEBUTUHAN KHUSUS ── */}
                             {selectedItem.type === 'Kebutuhan Khusus' && (
-                                <div className="space-y-3 p-3.5 border border-teal-100 dark:border-teal-900/40 rounded-xl bg-teal-50/20 dark:bg-teal-950/5">
+                                <div className="space-y-3 p-3.5 border border-teal-100 dark:border-teal-900/40 rounded-xl bg-teal-50/10 dark:bg-teal-950/5">
                                     <div className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-1">Detail Kebutuhan Khusus</div>
                                     
-                                    <div>
-                                        <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Judul Permintaan</p>
-                                        <p className="text-xs font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.title}</p>
+                                    <div className="grid grid-cols-2 gap-3 text-xs">
+                                        <div>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Jenis Kebutuhan</p>
+                                            <p className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.jenis_kebutuhan ?? '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Bahasa Pengantar</p>
+                                            <p className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.language ?? 'Indonesia'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Jam Khusus / Jumlah Jam</p>
+                                            <p className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.jam_khusus ?? '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Pre & Post Test</p>
+                                            <p className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.pre_post_test ?? 'Tidak'}</p>
+                                        </div>
+                                        {selectedItem.jenis_kebutuhan === 'Pelatihan Inhouse' && selectedItem.nama_instansi && (
+                                            <div className="col-span-2">
+                                                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Nama Instansi</p>
+                                                <p className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.nama_instansi}</p>
+                                            </div>
+                                        )}
+                                        <div className="col-span-2">
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans">Judul Program / Modul</p>
+                                            <p className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.title}</p>
+                                        </div>
                                     </div>
 
                                     {selectedItem.description && (
-                                        <div>
-                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans font-semibold">Deskripsi Kebutuhan</p>
-                                            <p className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">{selectedItem.description}</p>
+                                        <div className="pt-2 border-t border-teal-100 dark:border-teal-900/20">
+                                            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-teal-500 dark:text-teal-400 font-sans font-semibold">Deskripsi / Detail Kebutuhan</p>
+                                            <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed font-normal whitespace-pre-line">{selectedItem.description}</p>
                                         </div>
                                     )}
 
@@ -694,6 +745,145 @@ export default function Approval() {
                                         <div className="pt-2 border-t border-teal-100 dark:border-teal-900/20 font-sans">
                                             <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 font-semibold">Keterangan Proses / Catatan Staf PD</p>
                                             <p className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">{selectedItem.rejectReason}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ── ROW-BASED CHANGES DETAIL ── */}
+                            {['Modul Baru', 'Revisi Modul', 'Program Baru', 'Revisi Program'].includes(selectedItem.type) && 
+                             ((selectedItem.modulRows && selectedItem.modulRows.length > 0) || 
+                              (selectedItem.programRows && selectedItem.programRows.length > 0)) && (
+                                <div className="space-y-4 font-sans">
+                                    <div className="grid grid-cols-2 gap-3.5 p-3.5 bg-blue-50/10 dark:bg-blue-950/5 rounded-xl border border-blue-100 dark:border-blue-900/40">
+                                        <div className="col-span-2 text-xs font-bold text-blue-600 dark:text-blue-450 uppercase tracking-wider mb-1">
+                                            Detail Perubahan {selectedItem.type.includes('Program') ? 'Program' : 'Modul'}
+                                        </div>
+                                        
+                                        <div>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Kategori</p>
+                                            <p className="font-semibold text-xs text-neutral-800 dark:text-neutral-200">{selectedItem.program || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Bahasa Pengantar</p>
+                                            <p className="font-semibold text-xs text-neutral-800 dark:text-neutral-200">{selectedItem.language || 'Indonesia'}</p>
+                                        </div>
+                                        {selectedItem.jenisModul && selectedItem.jenisModul.length > 0 && (
+                                            <div className="col-span-2">
+                                                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Jenis Modul</p>
+                                                <p className="font-semibold text-xs text-neutral-800 dark:text-neutral-200">{selectedItem.jenisModul.join(', ')}</p>
+                                            </div>
+                                        )}
+                                        {selectedItem.jenisKebutuhanPelatihan && (
+                                            <div className="col-span-2">
+                                                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans font-semibold">Jenis Kebutuhan Modul Pelatihan</p>
+                                                <p className="font-semibold text-xs text-neutral-800 dark:text-neutral-200">{selectedItem.jenisKebutuhanPelatihan}</p>
+                                            </div>
+                                        )}
+                                        {selectedItem.revision_reason && (
+                                            <div className="col-span-2">
+                                                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans font-semibold">Referensi No. Pengajuan Modul Khusus</p>
+                                                <p className="font-semibold text-xs text-neutral-800 dark:text-neutral-200">{selectedItem.revision_reason}</p>
+                                            </div>
+                                        )}
+                                        {selectedItem.description && (
+                                            <div className="col-span-2 pt-1">
+                                                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans font-semibold">Detail Permintaan Modul Khusus</p>
+                                                <p className="text-xs text-neutral-705 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap bg-white/50 dark:bg-neutral-900/30 p-2.5 rounded-lg border border-neutral-200/40 dark:border-neutral-800/40">{selectedItem.description}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Modul Rows Table */}
+                                    {selectedItem.modulRows && selectedItem.modulRows.length > 0 && (
+                                        <div className="space-y-2">
+                                            <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Daftar Modul yang Diajukan</h4>
+                                            <div className="overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
+                                                <table className="w-full text-[11px] min-w-[900px]">
+                                                    <thead>
+                                                        <tr className="bg-neutral-50 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400">
+                                                            {['Jenis Modul Pelatihan', 'Kode Modul', 'Nama Modul', 'Sebelum Perubahan', 'Setelah Perubahan', 'Alasan Perubahan', 'Kode Revisi', 'Tanggal Berlaku', 'Link Modul'].map(h => (
+                                                                <th key={h} className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 text-neutral-700 dark:text-neutral-300">
+                                                        {selectedItem.modulRows.map(row => (
+                                                            <tr key={row.id} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-900/20">
+                                                                <td className="px-3 py-2.5 font-medium">{row.jenisModulPelatihan}</td>
+                                                                <td className="px-3 py-2.5 font-semibold text-neutral-900 dark:text-neutral-100">{row.kodeModul || '-'}</td>
+                                                                <td className="px-3 py-2.5">{row.namaModul || '-'}</td>
+                                                                <td className="px-3 py-2.5 text-neutral-500 dark:text-neutral-400">{row.sebelumPerubahan || 'Tidak ada'}</td>
+                                                                <td className="px-3 py-2.5 text-neutral-500 dark:text-neutral-400">{row.setelahPerubahan || 'Ada'}</td>
+                                                                <td className="px-3 py-2.5">{row.alasanPerubahan || '-'}</td>
+                                                                <td className="px-3 py-2.5 font-bold text-neutral-900 dark:text-neutral-100">{row.kodeRevisi || '00'}</td>
+                                                                <td className="px-3 py-2.5">{row.tanggalBerlaku || '-'}</td>
+                                                                <td className="px-3 py-2.5">
+                                                                    {row.linkModul ? (
+                                                                        <a
+                                                                            href={row.linkModul}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-semibold"
+                                                                        >
+                                                                            <ExternalLink className="size-3" />
+                                                                            Buka Link
+                                                                        </a>
+                                                                    ) : (
+                                                                        <span className="text-neutral-400">-</span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Program Rows Table */}
+                                    {selectedItem.programRows && selectedItem.programRows.length > 0 && (
+                                        <div className="space-y-2">
+                                            <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Daftar Program yang Diajukan</h4>
+                                            <div className="overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
+                                                <table className="w-full text-[11px] min-w-[800px]">
+                                                    <thead>
+                                                        <tr className="bg-neutral-50 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400">
+                                                            {['Kode Program', 'Nama Program', 'Sebelum Perubahan', 'Setelah Perubahan', 'Alasan Perubahan', 'Kode Revisi', 'Tanggal Berlaku', 'Link Program'].map(h => (
+                                                                <th key={h} className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 text-neutral-700 dark:text-neutral-300">
+                                                        {selectedItem.programRows.map(row => (
+                                                            <tr key={row.id} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-900/20">
+                                                                <td className="px-3 py-2.5 font-semibold text-neutral-900 dark:text-neutral-100">{row.kodeProgram || '-'}</td>
+                                                                <td className="px-3 py-2.5">{row.namaProgram || '-'}</td>
+                                                                <td className="px-3 py-2.5 text-neutral-500 dark:text-neutral-400">{row.sebelumPerubahan || 'Tidak ada'}</td>
+                                                                <td className="px-3 py-2.5 text-neutral-500 dark:text-neutral-400">{row.setelahPerubahan || 'Ada'}</td>
+                                                                <td className="px-3 py-2.5">{row.alasanPerubahan || '-'}</td>
+                                                                <td className="px-3 py-2.5 font-bold text-neutral-900 dark:text-neutral-100">{row.kodeRevisi || '00'}</td>
+                                                                <td className="px-3 py-2.5">{row.tanggalBerlaku || '-'}</td>
+                                                                <td className="px-3 py-2.5">
+                                                                    {row.linkProgram ? (
+                                                                        <a
+                                                                            href={row.linkProgram}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-semibold"
+                                                                        >
+                                                                            <ExternalLink className="size-3" />
+                                                                            Buka Link
+                                                                        </a>
+                                                                    ) : (
+                                                                        <span className="text-neutral-400">-</span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -744,48 +934,52 @@ export default function Approval() {
                                     )}
                                 </div>
                             ) : (
-                                <div>
-                                    <p className="mb-1.5 text-xs font-semibold text-neutral-400 font-sans">Dokumen PDF</p>
-                                    {selectedItem.fileName ? (
-                                        <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900 font-sans">
-                                            <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500 dark:bg-red-950/30">
-                                                <FileText className="size-5" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="truncate text-xs font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.fileName}</p>
-                                                {selectedItem.fileSize && (
-                                                    <p className="text-[10px] text-neutral-400">{selectedItem.fileSize} · PDF</p>
+                                // Only show this request-level PDF section if NOT a row-based request!
+                                !((selectedItem.modulRows && selectedItem.modulRows.length > 0) || 
+                                  (selectedItem.programRows && selectedItem.programRows.length > 0)) && (
+                                    <div>
+                                        <p className="mb-1.5 text-xs font-semibold text-neutral-400 font-sans">Dokumen PDF</p>
+                                        {selectedItem.fileName ? (
+                                            <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900 font-sans">
+                                                <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500 dark:bg-red-950/30">
+                                                    <FileText className="size-5" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-xs font-semibold text-neutral-800 dark:text-neutral-200">{selectedItem.fileName}</p>
+                                                    {selectedItem.fileSize && (
+                                                        <p className="text-[10px] text-neutral-400">{selectedItem.fileSize} · PDF</p>
+                                                    )}
+                                                </div>
+                                                {selectedItem.fileUrl && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <a
+                                                            href={selectedItem.fileUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-blue-50 hover:text-blue-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-blue-400"
+                                                            title="Preview PDF"
+                                                        >
+                                                            <Eye className="size-3.5" />
+                                                        </a>
+                                                        <a
+                                                            href={selectedItem.fileUrl}
+                                                            download
+                                                            className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-emerald-50 hover:text-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-emerald-450"
+                                                            title="Download PDF"
+                                                        >
+                                                            <Download className="size-3.5" />
+                                                        </a>
+                                                    </div>
                                                 )}
                                             </div>
-                                            {selectedItem.fileUrl && (
-                                                <div className="flex items-center gap-1.5">
-                                                    <a
-                                                        href={selectedItem.fileUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-blue-50 hover:text-blue-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-blue-400"
-                                                        title="Preview PDF"
-                                                    >
-                                                        <Eye className="size-3.5" />
-                                                    </a>
-                                                    <a
-                                                        href={selectedItem.fileUrl}
-                                                        download
-                                                        className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-emerald-50 hover:text-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:text-emerald-450"
-                                                        title="Download PDF"
-                                                    >
-                                                        <Download className="size-3.5" />
-                                                    </a>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/30 p-4 text-center dark:border-neutral-800 font-sans">
-                                            <Paperclip className="mx-auto mb-1 size-5 text-neutral-350" />
-                                            <p className="text-xs text-neutral-455">Tidak ada dokumen yang dilampirkan.</p>
-                                        </div>
-                                    )}
-                                </div>
+                                        ) : (
+                                            <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/30 p-4 text-center dark:border-neutral-800 font-sans">
+                                                <Paperclip className="mx-auto mb-1 size-5 text-neutral-350" />
+                                                <p className="text-xs text-neutral-455">Tidak ada dokumen yang dilampirkan.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
                             )}
 
                             {/* Reject reason (history) */}

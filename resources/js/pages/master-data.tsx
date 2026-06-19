@@ -55,7 +55,8 @@ interface MasterItem {
         | 'Tipe Sertifikat di Sihalal'
         | 'Jenis Sertifikat'
         | 'PIC Periksa LK'
-        | 'Kode Program';
+        | 'Kode Program'
+        | 'Jenis Perubahan';
     code: string | null;
     status: 'Aktif' | 'Nonaktif';
     updatedAt: string;
@@ -116,6 +117,7 @@ export default function MasterData() {
                 'jenis-sertifikat': 'Jenis Sertifikat',
                 'pic-periksa-lk': 'PIC Periksa LK',
                 'kode-program': 'Kode Program',
+                'jenis-perubahan': 'Jenis Perubahan',
             };
             if (tabParam && tabMap[tabParam]) return tabMap[tabParam];
         }
@@ -175,6 +177,7 @@ export default function MasterData() {
             'Jenis Sertifikat': 0,
             'PIC Periksa LK': 0,
             'Kode Program': 0,
+            'Jenis Perubahan': 0,
         };
         dataList.forEach((item) => {
             if (counts[item.category] !== undefined) {
@@ -397,6 +400,7 @@ export default function MasterData() {
         'Jenis Sertifikat',
         'PIC Periksa LK',
         'Kode Program',
+        'Jenis Perubahan',
     ] as const;
 
     return (

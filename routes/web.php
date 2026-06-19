@@ -2,20 +2,22 @@
 
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DriveIntegrationController;
+use App\Http\Controllers\FormulaController;
 use App\Http\Controllers\GoogleDriveOAuthController;
+use App\Http\Controllers\MasterDataController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\PengajuanController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\MasterDataController;
-use App\Http\Controllers\DriveIntegrationController;
-use App\Http\Controllers\FormulaController;
 use App\Http\Controllers\TrainingMatrixController;
+use App\Http\Controllers\TrainingProgramController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return \Illuminate\Support\Facades\Auth::check()
+    return Auth::check()
         ? redirect()->route('dashboard')
         : redirect()->route('login');
 })->name('home');
@@ -70,6 +72,21 @@ Route::middleware(['auth'])->group(function () {
     Route::post('database/{code}/update', [ModuleController::class, 'update'])->name('database.update');
     Route::delete('database/{code}', [ModuleController::class, 'destroy'])->name('database.destroy');
 
+    // Database Program Pelatihan
+    Route::get('database-program', [TrainingProgramController::class, 'index'])->name('database-program');
+    Route::post('database-program', [TrainingProgramController::class, 'store'])->name('database-program.store');
+    Route::get('database-program/export', [TrainingProgramController::class, 'export'])->name('database-program.export');
+    Route::get('database-program/template', [TrainingProgramController::class, 'template'])->name('database-program.template');
+    Route::post('database-program/import', [TrainingProgramController::class, 'import'])->name('database-program.import');
+    Route::get('database-program/revision/{id}/download', [TrainingProgramController::class, 'downloadRevision'])->name('database-program.revision.download');
+    Route::get('database-program/revision/{id}/preview', [TrainingProgramController::class, 'previewRevision'])->name('database-program.revision.preview');
+    Route::get('database-program/{code}/download', [TrainingProgramController::class, 'download'])->name('database-program.download');
+    Route::get('database-program/{code}/preview', [TrainingProgramController::class, 'preview'])->name('database-program.preview');
+    Route::post('database-program/{code}/revision', [TrainingProgramController::class, 'revision'])->name('database-program.revision');
+    Route::post('database-program/{code}/status', [TrainingProgramController::class, 'toggleStatus'])->name('database-program.status');
+    Route::post('database-program/{code}/update', [TrainingProgramController::class, 'update'])->name('database-program.update');
+    Route::delete('database-program/{code}', [TrainingProgramController::class, 'destroy'])->name('database-program.destroy');
+
     // Google Drive OAuth
     Route::get('google-drive/connect', [GoogleDriveOAuthController::class, 'connect'])->name('google-drive.connect');
     Route::get('google-drive/callback', [GoogleDriveOAuthController::class, 'callback'])->name('google-drive.callback');
@@ -106,6 +123,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('master-data/jenis-sertifikat', [MasterDataController::class, 'jenisSertifikat'])->name('master-data.jenis-sertifikat');
     Route::get('master-data/pic-periksa-lk', [MasterDataController::class, 'picPeriksaLk'])->name('master-data.pic-periksa-lk');
     Route::get('master-data/kode-program', [MasterDataController::class, 'kodeProgram'])->name('master-data.kode-program');
+    Route::get('master-data/jenis-perubahan', [MasterDataController::class, 'jenisPerubahan'])->name('master-data.jenis-perubahan');
 
     // Master Data — shared CRUD endpoints (must be after named category routes)
     Route::get('master-data/template', [MasterDataController::class, 'downloadTemplate'])->name('master-data.template');

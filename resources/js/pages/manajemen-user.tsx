@@ -40,7 +40,6 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import React, { useState, useMemo, useEffect } from 'react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Label, Tooltip } from 'recharts';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -226,21 +225,6 @@ export default function ManajemenUser() {
         setEditUser(user);
     };
 
-    const chartColors: Record<string, string> = {
-        admin: '#3b82f6',
-        'manager PD': '#8b5cf6',
-        'Staf PD': '#f59e0b',
-        'tim training': '#10b981',
-        User: '#737373',
-    };
-
-    const userChartData = roleDistribution.map((item) => ({
-        ...item,
-        fill: chartColors[item.name] ?? '#94a3b8',
-    }));
-
-    const totalUsers = userChartData.reduce((acc, curr) => acc + curr.value, 0);
-
     const getRoleBadge = (role: string) => {
         const map: Record<string, string> = {
             admin: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300',
@@ -306,9 +290,7 @@ export default function ManajemenUser() {
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-                    {/* LEFT COLUMN */}
-                    <div className="lg:col-span-3 space-y-6">
+
 
                         {/* Metrics */}
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -361,37 +343,19 @@ export default function ManajemenUser() {
                         {/* Table + Filters */}
                         <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm overflow-hidden">
                             {/* Filter Bar */}
-                            <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/10 space-y-4">
-                                {/* Top Row: Search & Actions */}
-                                <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
-                                    <div className="relative w-full lg:max-w-md xl:max-w-lg flex-1">
-                                        <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
-                                        <input
-                                            type="text"
-                                            value={searchQuery}
-                                            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                                            placeholder="Cari nama atau email..."
-                                            className="h-10 w-full rounded-xl border border-neutral-200 bg-white dark:bg-neutral-900 pl-10 pr-4 text-xs text-neutral-900 dark:text-neutral-100 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 shadow-sm transition-all"
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
-                                        {selectedIds.length > 0 && (
-                                            <Button onClick={() => setIsBulkDeleteOpen(true)} variant="destructive" size="sm" className="h-9 px-3.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm">
-                                                <Trash2 className="size-4" />
-                                                <span>Hapus ({selectedIds.length})</span>
-                                            </Button>
-                                        )}
-                                        <Button onClick={() => setIsAddOpen(true)} size="sm" className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm">
-                                            <Plus className="size-4" />
-                                            <span>Tambah User</span>
-                                        </Button>
-                                    </div>
+                            <div className="flex flex-col gap-3 border-b border-neutral-100 p-4 dark:border-neutral-800 md:flex-row md:items-center md:justify-between bg-neutral-50/10">
+                                <div className="relative max-w-sm flex-1">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                                        placeholder="Cari nama atau email..."
+                                        className="h-9 w-full rounded-lg border border-neutral-200 bg-white pl-9 pr-4 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                    />
                                 </div>
-
-                                {/* Bottom Row: Filters */}
-                                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/60">
-                                    <div className="flex flex-wrap items-center gap-2.5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="w-40">
                                         <SearchableSelect
                                             value={roleFilter}
                                             onChange={val => { setRoleFilter(val); setCurrentPage(1); }}
@@ -404,6 +368,8 @@ export default function ManajemenUser() {
                                                 { value: 'User', label: 'User' }
                                             ]}
                                         />
+                                    </div>
+                                    <div className="w-40">
                                         <SearchableSelect
                                             value={statusFilter}
                                             onChange={val => { setStatusFilter(val); setCurrentPage(1); }}
@@ -415,9 +381,18 @@ export default function ManajemenUser() {
                                             ]}
                                         />
                                     </div>
-
-                                    <Button onClick={handleResetFilters} variant="outline" size="sm" className="h-9 px-3 rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 text-xs text-neutral-600 dark:text-neutral-300 font-semibold shadow-sm">
-                                        <RefreshCw className="mr-1.5 size-3.5" /> Reset Filter
+                                    <Button onClick={handleResetFilters} variant="outline" size="sm" className="h-9 rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 text-xs text-neutral-600 dark:text-neutral-300 font-semibold shadow-sm px-3 dark:border-neutral-800">
+                                        <RefreshCw className="mr-1.5 size-3.5" /> Reset
+                                    </Button>
+                                    {selectedIds.length > 0 && (
+                                        <Button onClick={() => setIsBulkDeleteOpen(true)} variant="destructive" size="sm" className="h-9 px-3.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm">
+                                            <Trash2 className="size-4" />
+                                            <span>Hapus ({selectedIds.length})</span>
+                                        </Button>
+                                    )}
+                                    <Button onClick={() => setIsAddOpen(true)} size="sm" className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm">
+                                        <Plus className="size-4" />
+                                        <span>Tambah User</span>
                                     </Button>
                                 </div>
                             </div>
@@ -542,57 +517,6 @@ export default function ManajemenUser() {
                                 </div>
                             </div>
                         </Card>
-                    </div>
-
-                    {/* RIGHT COLUMN */}
-                    <div className="space-y-6 lg:col-span-1">
-                        {/* Role Distribution Chart */}
-                        <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950 flex flex-col">
-                            <div className="border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
-                                <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Distribusi Role</h3>
-                            </div>
-                            <CardContent className="p-5 flex flex-col items-center gap-6">
-                                <div className="h-36 w-36 flex-shrink-0">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Tooltip />
-                                            <Pie data={userChartData} dataKey="value" nameKey="name" innerRadius={34} outerRadius={50} strokeWidth={0}>
-                                                {userChartData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                                                ))}
-                                                <Label
-                                                    content={({ viewBox }) => {
-                                                        if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
-                                                            return (
-                                                                <g>
-                                                                    <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-xl font-extrabold">{totalUsers}</text>
-                                                                    <text x={viewBox.cx} y={(viewBox.cy || 0) + 14} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[8px] font-bold uppercase tracking-wider">Total</text>
-                                                                </g>
-                                                            );
-                                                        }
-                                                    }}
-                                                />
-                                            </Pie>
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                <div className="w-full space-y-2 text-xs">
-                                    {userChartData.map((item) => (
-                                        <div key={item.name} className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="size-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
-                                                <span className="text-neutral-500 dark:text-neutral-400 font-medium capitalize">{item.name}</span>
-                                            </div>
-                                            <span className="font-bold text-neutral-800 dark:text-neutral-200">
-                                                {item.value} <span className="text-neutral-400 font-normal text-[10px] ml-1">({totalUsers > 0 ? ((item.value / totalUsers) * 100).toFixed(0) : 0}%)</span>
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
             </div>
 
             {/* ADD USER DIALOG */}

@@ -6,6 +6,7 @@ use App\Models\Module;
 use App\Models\ModuleRequest;
 use App\Models\ModuleRevision;
 use App\Models\Setting;
+use App\Models\MasterData;
 use App\Services\GoogleDriveOAuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -128,6 +129,122 @@ class ApprovalController extends Controller
                 }
             } catch (\Exception $e) {
                 Log::error('Gagal mengirim email notifikasi approval Kebutuhan Khusus: ' . $e->getMessage());
+            }
+
+            return redirect()->route('approval')->with('message', "Pengajuan {$moduleRequest->request_number} berhasil disetujui.");
+        }
+
+        // ── Check if this is a row-based request (Perubahan Modul / Program) ──
+        $isRowBased = (!empty($moduleRequest->modul_rows) && count(json_decode($moduleRequest->modul_rows, true) ?: []) > 0)
+            || (!empty($moduleRequest->program_rows) && count(json_decode($moduleRequest->program_rows, true) ?: []) > 0);
+
+        if ($isRowBased) {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($moduleRequest, $user) {
+                $moduleRequest->update([
+                    'status'       => 'Selesai',
+                    'processed_by' => $user->id,
+                    'processed_at' => now(),
+                ]);
+
+                $isProgram = str_contains(strtolower($moduleRequest->type), 'program');
+
+                if (!$isProgram) {
+                    $rows = json_decode($moduleRequest->modul_rows, true) ?: [];
+                    foreach ($rows as $row) {
+                        $code = strtoupper(trim($row['kodeModul'] ?? ''));
+                        $title = trim($row['namaModul'] ?? '');
+                        if (empty($code) || empty($title)) {
+                            continue;
+                        }
+
+                        $revision = $row['kodeRevisi'] ?? '1.0';
+                        $filePath = $row['linkModul'] ?? null;
+                        if ($filePath) {
+                            $relativeFilePath = str_replace('/storage/', '', $filePath);
+                        } else {
+                            $relativeFilePath = null;
+                        }
+
+                        $module = Module::where('code', $code)->first();
+                        if ($module) {
+                            $module->update([
+                                'title'            => $title,
+                                'current_revision' => $revision,
+                                'file_path'        => $relativeFilePath ?? $module->file_path,
+                                'status'           => 'Approved',
+                                'approved_by'      => Auth::id(),
+                                'approved_at'      => now(),
+                            ]);
+                        } else {
+                            $module = Module::create([
+                                'code'             => $code,
+                                'title'            => $title,
+                                'program'          => 'Lainnya',
+                                'language'         => $moduleRequest->language ?? 'Indonesia',
+                                'status'           => 'Approved',
+                                'current_revision' => $revision,
+                                'file_path'        => $relativeFilePath,
+                                'approved_by'      => Auth::id(),
+                                'approved_at'      => now(),
+                                'created_by'       => $moduleRequest->applicant_id,
+                            ]);
+                        }
+
+                        \App\Models\ModuleRevision::create([
+                            'module_id'   => $module->id,
+                            'revision'    => $revision,
+                            'note'        => $row['alasanPerubahan'] ?? 'Perubahan disetujui.',
+                            'author_name' => $moduleRequest->applicant?->name ?? 'Staf PD',
+                            'status'      => 'Approved',
+                            'file_path'   => $relativeFilePath,
+                            'created_by'  => $moduleRequest->applicant_id,
+                        ]);
+                    }
+                } else {
+                    $rows = json_decode($moduleRequest->program_rows, true) ?: [];
+                    foreach ($rows as $row) {
+                        $code = strtoupper(trim($row['kodeProgram'] ?? ''));
+                        $name = trim($row['namaProgram'] ?? '');
+                        if (empty($code) || empty($name)) {
+                            continue;
+                        }
+
+                        $exists = MasterData::where('category', 'Kode Program')
+                            ->where('code', $code)
+                            ->exists();
+
+                        if (!$exists) {
+                            MasterData::create([
+                                'category' => 'Kode Program',
+                                'code'     => $code,
+                                'name'     => $name,
+                                'status'   => 'Aktif',
+                            ]);
+                        } else {
+                            MasterData::where('category', 'Kode Program')
+                                ->where('code', $code)
+                                ->update(['name' => $name]);
+                        }
+                    }
+                }
+            });
+
+            try {
+                $emailsToNotify = collect();
+                if ($moduleRequest->applicant && $moduleRequest->applicant->email) {
+                    $emailsToNotify->push($moduleRequest->applicant->email);
+                }
+                $managerEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['manager pd'])
+                    ->where('status', 'Aktif')
+                    ->pluck('email');
+                $emailsToNotify = $emailsToNotify->merge($managerEmails)->unique()->filter();
+                
+                if ($emailsToNotify->isNotEmpty()) {
+                    \Illuminate\Support\Facades\Mail::to($emailsToNotify)
+                        ->send(new \App\Mail\ModuleRequestProcessedMail($moduleRequest));
+                }
+            } catch (\Exception $e) {
+                Log::error('Gagal mengirim email notifikasi approval: ' . $e->getMessage());
             }
 
             return redirect()->route('approval')->with('message', "Pengajuan {$moduleRequest->request_number} berhasil disetujui.");
@@ -400,6 +517,16 @@ class ApprovalController extends Controller
             'link_modul' => $req->link_modul,
             'tanggal_realisasi' => $req->tanggal_realisasi?->format('Y-m-d') ?? '',
             'tanggal_realisasi_formatted' => $req->tanggal_realisasi?->format('d M Y') ?? '-',
+            'jenisKebutuhanPelatihan' => $req->jenis_kebutuhan ?? '',
+            'keteranganKebutuhan' => $req->keterangan_kebutuhan ?? '',
+            'jenisModul' => $req->jenis_modul ? json_decode($req->jenis_modul, true) : [],
+            'modulRows' => $req->modul_rows ? json_decode($req->modul_rows, true) : [],
+            'programRows' => $req->program_rows ? json_decode($req->program_rows, true) : [],
+            'jenis_kebutuhan' => $req->jenis_kebutuhan,
+            'nama_instansi' => $req->nama_instansi,
+            'judul_program' => $req->judul_program,
+            'jam_khusus' => $req->jam_khusus,
+            'pre_post_test' => $req->pre_post_test,
         ];
     }
 

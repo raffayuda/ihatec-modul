@@ -114,7 +114,7 @@ class PengajuanController extends Controller
         ])->toArray();
 
         $masterData = [
-            'jenisPerubahan'  => ['Modul Baru', 'Revisi Modul', 'Program Baru', 'Revisi Program'],
+            'jenisPerubahan'  => MasterData::where('category', 'Jenis Perubahan')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Modul', 'Program'],
             'bahasaPengantar' => MasterData::where('category', 'Bahasa Pengantar')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Indonesia', 'Inggris'],
             'jenisModul'      => MasterData::where('category', 'Jenis Modul')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Modul', 'Lembar Kerja', 'Post Test'],
             'kodeProgram'     => $kodeProgramList,
@@ -185,8 +185,8 @@ class PengajuanController extends Controller
         }
 
         $modulRows = $request->input('modul_rows', []);
-        if ($request->hasFile('modul_rows')) {
-            $uploadedFiles = $request->file('modul_rows');
+        $uploadedFiles = $request->file('modul_rows');
+        if (is_array($uploadedFiles)) {
             foreach ($uploadedFiles as $index => $rowFiles) {
                 if (isset($rowFiles['fileModul'])) {
                     $file = $rowFiles['fileModul'];
@@ -199,9 +199,9 @@ class PengajuanController extends Controller
         }
 
         $programRows = $request->input('program_rows', []);
-        if ($request->hasFile('program_rows')) {
-            $uploadedFiles = $request->file('program_rows');
-            foreach ($uploadedFiles as $index => $rowFiles) {
+        $uploadedProgramFiles = $request->file('program_rows');
+        if (is_array($uploadedProgramFiles)) {
+            foreach ($uploadedProgramFiles as $index => $rowFiles) {
                 if (isset($rowFiles['fileProgram'])) {
                     $file = $rowFiles['fileProgram'];
                     $code = $programRows[$index]['kodeProgram'] ?? 'PROG';
@@ -698,8 +698,8 @@ class PengajuanController extends Controller
         $status = ($validated['submit_for_approval'] ?? false) ? 'Menunggu Approval' : $moduleRequest->status;
 
         $modulRows = $request->input('modul_rows', []);
-        if ($request->hasFile('modul_rows')) {
-            $uploadedFiles = $request->file('modul_rows');
+        $uploadedFiles = $request->file('modul_rows');
+        if (is_array($uploadedFiles)) {
             foreach ($uploadedFiles as $index => $rowFiles) {
                 if (isset($rowFiles['fileModul'])) {
                     $file = $rowFiles['fileModul'];
@@ -712,9 +712,9 @@ class PengajuanController extends Controller
         }
 
         $programRows = $request->input('program_rows', []);
-        if ($request->hasFile('program_rows')) {
-            $uploadedFiles = $request->file('program_rows');
-            foreach ($uploadedFiles as $index => $rowFiles) {
+        $uploadedProgramFiles = $request->file('program_rows');
+        if (is_array($uploadedProgramFiles)) {
+            foreach ($uploadedProgramFiles as $index => $rowFiles) {
                 if (isset($rowFiles['fileProgram'])) {
                     $file = $rowFiles['fileProgram'];
                     $code = $programRows[$index]['kodeProgram'] ?? 'PROG';

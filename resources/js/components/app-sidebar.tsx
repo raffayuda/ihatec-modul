@@ -42,6 +42,7 @@ export function AppSidebar() {
         { title: 'Jenis Sertifikat', url: '/master-data/jenis-sertifikat', icon: BookOpen },
         { title: 'PIC Periksa LK', url: '/master-data/pic-periksa-lk', icon: Users },
         { title: 'Kode Program', url: '/master-data/kode-program', icon: Database },
+        { title: 'Jenis Perubahan', url: '/master-data/jenis-perubahan', icon: FileEdit },
     ];
 
     // ── Admin ────────────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ export function AppSidebar() {
         { title: 'Perubahan Modul', url: '/perubahan-modul', icon: FileEdit },
         { title: 'Approval Modul', url: '/approval', icon: CheckSquare },
         { title: 'Database Modul', url: '/database', icon: Database },
+        { title: 'Database Program Pelatihan', url: '/database-program', icon: Database },
         { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
         { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
         { title: 'Report', url: '/report', icon: BarChart3 },
@@ -70,6 +72,7 @@ export function AppSidebar() {
         { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
         { title: 'Approval Modul', url: '/approval', icon: CheckSquare },
         { title: 'Database Modul', url: '/database', icon: Database },
+        { title: 'Database Program Pelatihan', url: '/database-program', icon: Database },
         { title: 'Report', url: '/report', icon: BarChart3 },
         { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
         { title: 'Pengaturan', url: '/settings', icon: Settings },
@@ -81,6 +84,7 @@ export function AppSidebar() {
         { title: 'Permintaan Modul Khusus', url: '/pengajuan', icon: FileText },
         { title: 'Perubahan Modul', url: '/perubahan-modul', icon: FileEdit },
         { title: 'Database Modul', url: '/database', icon: Database },
+        { title: 'Database Program Pelatihan', url: '/database-program', icon: Database },
         { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
         { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
         { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
@@ -91,6 +95,7 @@ export function AppSidebar() {
     const timTrainingItems: NavItem[] = [
         { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
         { title: 'Database Modul', url: '/database', icon: Database },
+        { title: 'Database Program Pelatihan', url: '/database-program', icon: Database },
         { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
         { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
         { title: 'Report', url: '/report', icon: BarChart3 },
@@ -139,20 +144,6 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter className="gap-4">
-                {/* Storage Card Widget in Sidebar */}
-                <div className="mx-2 rounded-xl border border-neutral-100 bg-neutral-50/50 p-3.5 group-data-[collapsible=icon]:hidden dark:border-neutral-800 dark:bg-neutral-900/50">
-                    <div className="mb-1 text-xs font-semibold text-neutral-700 dark:text-neutral-300">Penyimpanan (PDF)</div>
-                    <div className="mb-1.5 h-1.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-                        <div className="h-full rounded-full bg-blue-600 dark:bg-blue-500" style={{ width: '28%' }}></div>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] font-medium text-neutral-500 dark:text-neutral-400">
-                        <span>28.4 GB / 100 GB</span>
-                        <span>28%</span>
-                    </div>
-                    <button className="mt-2 text-left text-[10px] font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-                        Lihat Detail
-                    </button>
-                </div>
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

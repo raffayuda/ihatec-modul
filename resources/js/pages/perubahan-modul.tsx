@@ -4,7 +4,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import {
     Plus, Edit3, FileText, Search, ChevronLeft, ChevronRight,
     Check, X, Upload, Eye, Trash2, Clock,
-    CheckCircle2, XCircle, ArrowLeft,
+    CheckCircle2, XCircle, ArrowLeft, MoreVertical,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,12 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
     DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // ─────────────────────────────────────────────
 // Types
@@ -41,6 +47,7 @@ interface ModulRow {
     tanggalBerlaku: string;
     linkModul: string;
     fileModul: File | null;
+    isCodeManuallyEdited?: boolean;
 }
 
 interface ProgramRow {
@@ -54,6 +61,7 @@ interface ProgramRow {
     tanggalBerlaku: string;
     linkProgram: string;
     fileProgram: File | null;
+    isCodeManuallyEdited?: boolean;
 }
 
 interface Submission {
@@ -115,6 +123,7 @@ function emptyModulRow(jenisModulPelatihan: string, kategori: string): ModulRow 
         sebelumPerubahan: '', setelahPerubahan: '',
         alasanPerubahan: '', kodeRevisi: kategori === 'Baru' ? '0.0' : '',
         tanggalBerlaku: '', linkModul: '', fileModul: null,
+        isCodeManuallyEdited: false,
     };
 }
 
@@ -124,6 +133,7 @@ function emptyProgramRow(): ProgramRow {
         sebelumPerubahan: '', setelahPerubahan: '',
         alasanPerubahan: '', kodeRevisi: '0.0',
         tanggalBerlaku: '', linkProgram: '', fileProgram: null,
+        isCodeManuallyEdited: false,
     };
 }
 
@@ -156,7 +166,6 @@ function incrementRevision(current: string): string {
         }
     }
     
-    // If it's a pure integer (could have leading zeros, like "00", "01", "09")
     const num = parseInt(current, 10);
     if (!isNaN(num)) {
         const nextNum = num + 1;
@@ -167,6 +176,100 @@ function incrementRevision(current: string): string {
     }
     
     return current + '_rev';
+}
+
+const parseTypeAndKategori = (combinedType: string) => {
+    if (!combinedType) return { baseType: 'Modul', kategori: 'Baru' as const };
+    if (combinedType.startsWith('Revisi ')) {
+        return {
+            baseType: combinedType.replace('Revisi ', ''),
+            kategori: 'Existing' as const
+        };
+    }
+    if (combinedType.endsWith(' Baru')) {
+        return {
+            baseType: combinedType.replace(' Baru', ''),
+            kategori: 'Baru' as const
+        };
+    }
+    return { baseType: combinedType, kategori: 'Baru' as const };
+};
+
+const getCombinedType = (base: string, kat: 'Baru' | 'Existing') => {
+    if (kat === 'Baru') {
+        return `${base} Baru`;
+    } else {
+        return `Revisi ${base}`;
+    }
+};
+
+function generateModuleAcronym(title: string, revision: string = '0.0', existingModules: any[] = []): string {
+    const cleanTitle = title.trim();
+    if (!cleanTitle) return '';
+
+    // Split by spaces/whitespace and filter out empty words
+    const words = cleanTitle.split(/\s+/).filter(word => word.length > 0);
+    let acronym = '';
+
+    if (words.length === 1) {
+        // Only one word - use it in full (clean up special characters)
+        acronym = words[0].replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    } else {
+        // Multiple words - take first letter of each
+        acronym = words
+            .map(word => word.charAt(0))
+            .join('')
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .toUpperCase();
+    }
+
+    if (!acronym) return '';
+
+    const baseCode = `${acronym}-V${revision}`;
+    let finalCode = baseCode;
+    let counter = 1;
+
+    // Check for conflict/clash with existing module codes from masterData
+    while (existingModules.some(m => (m.code || '').toUpperCase() === finalCode.toUpperCase())) {
+        finalCode = `${baseCode}-${counter}`;
+        counter++;
+    }
+
+    return finalCode;
+}
+
+function generateProgramAcronym(name: string, existingPrograms: any[] = []): string {
+    const cleanName = name.trim();
+    if (!cleanName) return '';
+
+    // Split by spaces/whitespace and filter out empty words
+    const words = cleanName.split(/\s+/).filter(word => word.length > 0);
+    let acronym = '';
+
+    if (words.length === 1) {
+        // Only one word - use it in full (clean up special characters)
+        acronym = words[0].replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    } else {
+        // Multiple words - take first letter of each
+        acronym = words
+            .map(word => word.charAt(0))
+            .join('')
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .toUpperCase();
+    }
+
+    if (!acronym) return '';
+
+    let finalCode = acronym;
+    let counter = 1;
+
+    // Check for conflict/clash with existing program codes from masterData
+    while (existingPrograms.some(p => (p.code || p.id || '').toUpperCase() === finalCode.toUpperCase())) {
+        finalCode = `${acronym}-${counter}`;
+        counter++;
+    }
+
+    return finalCode;
 }
 
 // ─────────────────────────────────────────────
@@ -181,7 +284,7 @@ export default function PerubahanModul() {
     const canApprove = ['admin', 'manager pd'].includes(roleLower);
 
     const md = masterData ?? {
-        jenisPerubahan: ['Modul Baru', 'Revisi Modul', 'Program Baru', 'Revisi Program'],
+        jenisPerubahan: ['Modul', 'Program'],
         bahasaPengantar: ['Indonesia', 'Inggris'],
         jenisModul: ['Modul', 'Lembar Kerja', 'Post Test'],
         kodeProgram: [],
@@ -193,6 +296,7 @@ export default function PerubahanModul() {
     type ViewMode = 'list' | 'detail';
     const [mode, setMode] = useState<ViewMode>('list');
     const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
 
     // ── Form modal ──────────────────────────────────
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -206,7 +310,7 @@ export default function PerubahanModul() {
 
     // ── Form state ───────────────────────────────────
     const today = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-    const [formJenisPerubahan, setFormJenisPerubahan] = useState('Modul Baru');
+    const [formJenisPerubahan, setFormJenisPerubahan] = useState(masterData?.jenisPerubahan?.[0] ?? 'Modul');
     const [formKategori, setFormKategori] = useState<'Baru' | 'Existing'>('Baru');
     const [formReferensiKhusus, setFormReferensiKhusus] = useState('');
     const [formDetailPermintaan, setFormDetailPermintaan] = useState('');
@@ -240,15 +344,15 @@ export default function PerubahanModul() {
     useEffect(() => {
         if (!isProgram && formJenisModul.length > 0) {
             setModulRows(prev => {
-                const kept = prev.filter(r => formJenisModul.some(() => true));
-                const newRows = formJenisModul.flatMap((_jm) =>
-                    JENIS_MODUL_PELATIHAN.map(jmp => {
-                        const existing = kept.find(r => r.jenisModulPelatihan === jmp);
-                        return existing ?? emptyModulRow(jmp, formKategori);
-                    })
-                ).filter((row, idx, arr) => arr.findIndex(r => r.jenisModulPelatihan === row.jenisModulPelatihan) === idx);
+                const kept = prev.filter(r => formJenisModul.includes(r.jenisModulPelatihan));
+                const newRows = formJenisModul.map((jm) => {
+                    const existing = kept.find(r => r.jenisModulPelatihan === jm);
+                    return existing ?? emptyModulRow(jm, formKategori);
+                });
                 return newRows;
             });
+        } else if (!isProgram && formJenisModul.length === 0) {
+            setModulRows([]);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formJenisModul, formJenisPerubahan]);
@@ -279,7 +383,7 @@ export default function PerubahanModul() {
     const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
 
     const resetForm = () => {
-        setFormJenisPerubahan('Modul Baru');
+        setFormJenisPerubahan(md.jenisPerubahan[0] ?? 'Modul');
         setFormKategori('Baru');
         setFormReferensiKhusus('');
         setFormDetailPermintaan('');
@@ -298,8 +402,9 @@ export default function PerubahanModul() {
     };
 
     const openEditForm = (s: Submission) => {
-        setFormJenisPerubahan(s.jenisPerubahan);
-        setFormKategori(s.kategoriModul as 'Baru' | 'Existing');
+        const parsed = parseTypeAndKategori(s.jenisPerubahan);
+        setFormJenisPerubahan(parsed.baseType);
+        setFormKategori(parsed.kategori);
         setFormReferensiKhusus(s.referensiKhusus);
         setFormDetailPermintaan(s.detailPermintaan);
         setFormKeteranganKebutuhan(s.keteranganKebutuhan);
@@ -315,7 +420,7 @@ export default function PerubahanModul() {
 
     const openDetail = (s: Submission) => {
         setSelectedSubmission(s);
-        setMode('detail');
+        setIsDetailOpen(true);
     };
 
     // ── Row helpers ──────────────────────────────────
@@ -331,9 +436,8 @@ export default function PerubahanModul() {
     const addProgramRow = () => setProgramRows(prev => [...prev, emptyProgramRow()]);
     const removeProgramRow = (id: string) => setProgramRows(prev => prev.filter(r => r.id !== id));
 
-    // ── Payload builder ──────────────────────────────
     const buildPayload = (submitForApproval = false) => ({
-        jenis_perubahan: formJenisPerubahan,
+        jenis_perubahan: getCombinedType(formJenisPerubahan, formKategori),
         kategori_modul: formKategori,
         referensi_khusus: formReferensiKhusus,
         detail_permintaan: formDetailPermintaan,
@@ -349,6 +453,7 @@ export default function PerubahanModul() {
     const handleSave = () => {
         if (formMode === 'create') {
             router.post('/perubahan-modul', buildPayload(false), {
+                forceFormData: true,
                 onSuccess: () => { setIsFormModalOpen(false); resetForm(); },
             });
         } else if (selectedSubmission) {
@@ -356,6 +461,7 @@ export default function PerubahanModul() {
                 ...buildPayload(false),
                 _method: 'PUT',
             }, {
+                forceFormData: true,
                 onSuccess: () => { setIsFormModalOpen(false); resetForm(); },
             });
         }
@@ -364,6 +470,7 @@ export default function PerubahanModul() {
     const handleRequestApproval = () => {
         if (formMode === 'create') {
             router.post('/perubahan-modul', buildPayload(true), {
+                forceFormData: true,
                 onSuccess: () => { setIsFormModalOpen(false); resetForm(); },
             });
         } else if (selectedSubmission) {
@@ -371,6 +478,7 @@ export default function PerubahanModul() {
                 ...buildPayload(true),
                 _method: 'PUT',
             }, {
+                forceFormData: true,
                 onSuccess: () => { setIsFormModalOpen(false); resetForm(); },
             });
         }
@@ -379,14 +487,22 @@ export default function PerubahanModul() {
     const handleApprove = () => {
         if (!selectedSubmission) return;
         router.post(`/perubahan-modul/${selectedSubmission.dbId}/approve`, {}, {
-            onSuccess: () => setMode('list'),
+            onSuccess: () => {
+                setIsDetailOpen(false);
+                setSelectedSubmission(null);
+            },
         });
     };
 
     const handleReject = () => {
         if (!selectedSubmission || !rejectReason.trim()) return;
         router.post(`/perubahan-modul/${selectedSubmission.dbId}/reject`, { reason: rejectReason }, {
-            onSuccess: () => { setMode('list'); setRejectOpen(false); setRejectReason(''); },
+            onSuccess: () => {
+                setIsDetailOpen(false);
+                setSelectedSubmission(null);
+                setRejectOpen(false);
+                setRejectReason('');
+            },
         });
     };
 
@@ -509,27 +625,54 @@ export default function PerubahanModul() {
                                                     </Badge>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-1">
-                                                        {/* View detail */}
-                                                        <button onClick={() => openDetail(item)}
-                                                            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200" title="Lihat Detail">
-                                                            <Eye className="size-3.5" />
-                                                        </button>
-                                                        {/* Edit (Draft only) */}
-                                                        {isProcessor && item.status === 'Draft' && (
-                                                            <button onClick={() => openEditForm(item)}
-                                                                className="rounded-lg p-1.5 text-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/30" title="Edit">
-                                                                <Edit3 className="size-3.5" />
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <button className="flex size-7 items-center justify-center rounded hover:bg-neutral-100 text-neutral-500 dark:hover:bg-neutral-800 dark:text-neutral-400">
+                                                                <MoreVertical className="size-3.5" />
                                                             </button>
-                                                        )}
-                                                        {/* Delete */}
-                                                        {isProcessor && ['Baru', 'Draft'].includes(item.status) && (
-                                                            <button onClick={() => setDeleteItem(item)}
-                                                                className="rounded-lg p-1.5 text-rose-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30" title="Hapus">
-                                                                <Trash2 className="size-3.5" />
-                                                            </button>
-                                                        )}
-                                                    </div>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-40 text-xs">
+                                                            <DropdownMenuItem className="cursor-pointer font-medium" onClick={() => openDetail(item)}>
+                                                                Lihat Detail
+                                                            </DropdownMenuItem>
+                                                            {isProcessor && item.status === 'Draft' && (
+                                                                <>
+                                                                    <DropdownMenuItem className="cursor-pointer font-medium" onClick={() => openEditForm(item)}>
+                                                                        Edit
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem className="cursor-pointer font-medium text-amber-600 dark:text-amber-400" onClick={() => {
+                                                                        router.post(`/perubahan-modul/${item.dbId}/submit`, {}, {
+                                                                            onSuccess: () => {},
+                                                                        });
+                                                                    }}>
+                                                                        Request Approval
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                            {canApprove && item.status === 'Menunggu Approval' && (
+                                                                <>
+                                                                    <DropdownMenuItem className="cursor-pointer font-medium text-emerald-600 dark:text-emerald-400" onClick={() => {
+                                                                        router.post(`/perubahan-modul/${item.dbId}/approve`, {}, {
+                                                                            onSuccess: () => {},
+                                                                        });
+                                                                    }}>
+                                                                        Approve
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem className="cursor-pointer font-medium text-rose-600 dark:text-rose-400" onClick={() => {
+                                                                        setSelectedSubmission(item);
+                                                                        setRejectOpen(true);
+                                                                    }}>
+                                                                        Reject
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                            {isProcessor && ['Baru', 'Draft'].includes(item.status) && (
+                                                                <DropdownMenuItem className="cursor-pointer font-medium text-rose-600 dark:text-rose-400" onClick={() => setDeleteItem(item)}>
+                                                                    Hapus
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </td>
                                             </tr>
                                         ))}
@@ -558,26 +701,28 @@ export default function PerubahanModul() {
                     </>
                 )}
 
-                {/* ══════════════════════════════ DETAIL VIEW ════════════════════════════════ */}
-                {mode === 'detail' && selectedSubmission && (
-                    <>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => setMode('list')} className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 font-medium">
-                                <ArrowLeft className="size-4" /> Kembali ke Daftar
-                            </button>
-                            <span className="text-neutral-300 dark:text-neutral-700">/</span>
-                            <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">{selectedSubmission.noPerubahan}</span>
-                            <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[selectedSubmission.status] ?? ''}`}>
-                                {selectedSubmission.status}
-                            </Badge>
-                        </div>
+            </div>
 
-                        <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                            <div className="border-b border-neutral-100 px-6 py-4 dark:border-neutral-800 bg-neutral-50/30">
-                                <h2 className="font-bold text-neutral-900 dark:text-neutral-100 text-base">Detail Pengajuan Perubahan Modul</h2>
-                            </div>
+            {/* ══════════════════════════════ DETAIL DIALOG ════════════════════════════════ */}
+            <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+                <DialogContent className="max-w-6xl w-[95vw] md:w-full max-h-[92vh] overflow-y-auto overflow-x-hidden bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 p-0">
+                    {selectedSubmission && (
+                        <>
+                            <DialogHeader className="border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30 px-6 py-4 sticky top-0 z-10 flex flex-row items-center justify-between">
+                                <div>
+                                    <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                                        Detail Pengajuan Perubahan Modul
+                                        <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[selectedSubmission.status] ?? ''}`}>
+                                            {selectedSubmission.status}
+                                        </Badge>
+                                    </DialogTitle>
+                                    <DialogDescription className="text-xs text-neutral-400">
+                                        No. Pengajuan: {selectedSubmission.noPerubahan}
+                                    </DialogDescription>
+                                </div>
+                            </DialogHeader>
+
                             <div className="p-6 space-y-6">
-
                                 {/* Info rows */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-8 text-xs">
                                     {[
@@ -593,7 +738,7 @@ export default function PerubahanModul() {
                                     ].map(row => (
                                         <div key={row.label} className="flex gap-3">
                                             <span className="w-56 flex-shrink-0 font-semibold text-neutral-500 dark:text-neutral-400">{row.label}</span>
-                                            <span className="font-bold text-rose-600 dark:text-rose-400">{row.value || '-'}</span>
+                                            <span className="font-semibold text-neutral-800 dark:text-neutral-200">{row.value || '-'}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -615,13 +760,13 @@ export default function PerubahanModul() {
                                                     {selectedSubmission.modulRows.map(row => (
                                                         <tr key={row.id}>
                                                             <td className="px-3 py-2.5 font-medium text-neutral-700 dark:text-neutral-300">{row.jenisModulPelatihan}</td>
-                                                            <td className="px-3 py-2.5 font-semibold text-rose-600 dark:text-rose-400">{row.kodeModul || '-'}</td>
-                                                            <td className="px-3 py-2.5 text-rose-600 dark:text-rose-400">{row.namaModul || '-'}</td>
+                                                            <td className="px-3 py-2.5 font-semibold text-neutral-800 dark:text-neutral-200">{row.kodeModul || '-'}</td>
+                                                            <td className="px-3 py-2.5 text-neutral-700 dark:text-neutral-300">{row.namaModul || '-'}</td>
                                                             <td className="px-3 py-2.5 text-neutral-600 dark:text-neutral-400">{row.sebelumPerubahan || 'Tidak ada'}</td>
                                                             <td className="px-3 py-2.5 text-neutral-600 dark:text-neutral-400">{row.setelahPerubahan || 'Ada'}</td>
-                                                            <td className="px-3 py-2.5 text-rose-600 dark:text-rose-400">{row.alasanPerubahan || '-'}</td>
-                                                            <td className="px-3 py-2.5 font-bold text-rose-600 dark:text-rose-400">{row.kodeRevisi || '00'}</td>
-                                                            <td className="px-3 py-2.5 text-rose-600 dark:text-rose-400">{row.tanggalBerlaku || '-'}</td>
+                                                            <td className="px-3 py-2.5 text-neutral-700 dark:text-neutral-300">{row.alasanPerubahan || '-'}</td>
+                                                            <td className="px-3 py-2.5 font-bold text-neutral-800 dark:text-neutral-200">{row.kodeRevisi || '00'}</td>
+                                                            <td className="px-3 py-2.5 text-neutral-700 dark:text-neutral-300">{row.tanggalBerlaku || '-'}</td>
                                                             <td className="px-3 py-2.5">
                                                                 {row.linkModul
                                                                     ? <a href={row.linkModul} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-semibold">Open file</a>
@@ -654,13 +799,13 @@ export default function PerubahanModul() {
                                                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                                                     {selectedSubmission.programRows.map(row => (
                                                         <tr key={row.id}>
-                                                            <td className="px-3 py-2.5 font-semibold text-rose-600 dark:text-rose-400">{row.kodeProgram || '-'}</td>
-                                                            <td className="px-3 py-2.5 text-rose-600 dark:text-rose-400">{row.namaProgram || '-'}</td>
+                                                            <td className="px-3 py-2.5 font-semibold text-neutral-800 dark:text-neutral-200">{row.kodeProgram || '-'}</td>
+                                                            <td className="px-3 py-2.5 text-neutral-700 dark:text-neutral-300">{row.namaProgram || '-'}</td>
                                                             <td className="px-3 py-2.5 text-neutral-600 dark:text-neutral-400">{row.sebelumPerubahan || 'Tidak ada'}</td>
                                                             <td className="px-3 py-2.5 text-neutral-600 dark:text-neutral-400">{row.setelahPerubahan || 'Ada'}</td>
-                                                            <td className="px-3 py-2.5 text-rose-600 dark:text-rose-400">{row.alasanPerubahan || '-'}</td>
-                                                            <td className="px-3 py-2.5 font-bold text-rose-600 dark:text-rose-400">{row.kodeRevisi || '00'}</td>
-                                                            <td className="px-3 py-2.5 text-rose-600 dark:text-rose-400">{row.tanggalBerlaku || '-'}</td>
+                                                            <td className="px-3 py-2.5 text-neutral-700 dark:text-neutral-300">{row.alasanPerubahan || '-'}</td>
+                                                            <td className="px-3 py-2.5 font-bold text-neutral-800 dark:text-neutral-200">{row.kodeRevisi || '00'}</td>
+                                                            <td className="px-3 py-2.5 text-neutral-700 dark:text-neutral-300">{row.tanggalBerlaku || '-'}</td>
                                                             <td className="px-3 py-2.5">
                                                                 {row.linkProgram
                                                                     ? <a href={row.linkProgram} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-semibold">Open file</a>
@@ -692,48 +837,62 @@ export default function PerubahanModul() {
                                         </div>
                                     </div>
                                 )}
+                            </div>
 
+                            {/* Footer/Actions */}
+                            <div className="sticky bottom-0 z-10 bg-white dark:bg-neutral-950 border-t border-neutral-100 dark:border-neutral-800 px-6 py-4 flex items-center justify-end gap-2">
+                                <Button onClick={() => setIsDetailOpen(false)} variant="outline" size="sm" className="h-9 px-4 text-xs font-semibold rounded-lg">
+                                    Tutup
+                                </Button>
                                 {/* Manager approve/reject buttons */}
                                 {canApprove && selectedSubmission.status === 'Menunggu Approval' && (
-                                    <div className="flex items-center gap-2 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                                    <>
+                                        <Button onClick={() => {
+                                            setSelectedSubmission(selectedSubmission);
+                                            setRejectOpen(true);
+                                        }} size="sm"
+                                            className="h-9 px-4 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg">
+                                            <XCircle className="size-3.5 mr-1.5" /> Reject
+                                        </Button>
                                         <Button onClick={handleApprove} size="sm"
                                             className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg">
                                             <CheckCircle2 className="size-3.5 mr-1.5" /> Approved
                                         </Button>
-                                        <Button onClick={() => setRejectOpen(true)} size="sm"
-                                            className="h-9 px-4 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg">
-                                            <XCircle className="size-3.5 mr-1.5" /> Reject
-                                        </Button>
-                                    </div>
+                                    </>
                                 )}
 
                                 {/* Staf PD: edit or submit for approval from detail */}
                                 {isProcessor && selectedSubmission.status === 'Draft' && (
-                                    <div className="flex items-center gap-2 pt-2 border-t border-neutral-100 dark:border-neutral-800">
-                                        <Button onClick={() => openEditForm(selectedSubmission)} variant="outline" size="sm"
+                                    <>
+                                        <Button onClick={() => {
+                                            setIsDetailOpen(false);
+                                            openEditForm(selectedSubmission);
+                                        }} variant="outline" size="sm"
                                             className="h-9 px-4 text-xs font-semibold rounded-lg text-blue-600 border-blue-200 hover:bg-blue-50">
                                             <Edit3 className="size-3.5 mr-1.5" /> Edit
                                         </Button>
                                         <Button onClick={() => {
                                             router.post(`/perubahan-modul/${selectedSubmission.dbId}/submit`, {}, {
-                                                onSuccess: () => setMode('list'),
+                                                onSuccess: () => {
+                                                    setIsDetailOpen(false);
+                                                    setSelectedSubmission(null);
+                                                },
                                             });
                                         }} size="sm"
                                             className="h-9 px-4 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg">
                                             <Upload className="size-3.5 mr-1.5" /> Request Approval
                                         </Button>
-                                    </div>
+                                    </>
                                 )}
                             </div>
-                        </Card>
-                    </>
-                )}
-
-            </div>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
 
             {/* ══════════════════════════════ FORM MODAL ════════════════════════════════ */}
             <Dialog open={isFormModalOpen} onOpenChange={(v) => { if (!v) { setIsFormModalOpen(false); resetForm(); } }}>
-                <DialogContent className="max-w-5xl w-full max-h-[92vh] overflow-y-auto bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 p-0">
+                <DialogContent className="max-w-7xl w-[95vw] md:w-full max-h-[92vh] overflow-y-auto overflow-x-hidden bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 p-0">
                     <DialogHeader className="border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30 px-6 py-4 sticky top-0 z-10">
                         <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100">
                             {formMode === 'create' ? '✦ Pengajuan Perubahan Modul Baru' : `Edit Perubahan — ${selectedSubmission?.noPerubahan}`}
@@ -826,7 +985,7 @@ export default function PerubahanModul() {
                             </div>
 
                             {!isProgram && (
-                                <div className="col-span-2">
+                                <div className="sm:col-span-2">
                                     <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Jenis Modul (Pilih lebih dari satu)</label>
                                     <div className="flex flex-wrap gap-3">
                                         {md.jenisModul.map(jm => (
@@ -851,7 +1010,7 @@ export default function PerubahanModul() {
                                         <Plus className="size-3.5" /> Tambah Baris
                                     </button>
                                 </div>
-                                <div className="overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
+                                <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
                                     <table className="w-full text-[11px] min-w-[900px]">
                                         <thead>
                                             <tr className="bg-neutral-50 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800">
@@ -887,13 +1046,46 @@ export default function PerubahanModul() {
                                                                 nullLabel="-- Pilih --"
                                                             />
                                                         ) : (
-                                                            <Cell value={row.kodeModul} onChange={v => updateModulRow(row.id, 'kodeModul', v)} placeholder="Kode" />
+                                                            <Cell
+                                                                value={row.kodeModul}
+                                                                onChange={v => {
+                                                                    setModulRows(prev => prev.map(r => {
+                                                                        if (r.id === row.id) {
+                                                                            const isManual = v !== '';
+                                                                            const generatedCode = isManual
+                                                                                ? v
+                                                                                : generateModuleAcronym(r.namaModul, r.kodeRevisi || '0.0', md.modules);
+                                                                            return {
+                                                                                ...r,
+                                                                                kodeModul: generatedCode,
+                                                                                isCodeManuallyEdited: isManual
+                                                                            };
+                                                                        }
+                                                                        return r;
+                                                                    }));
+                                                                }}
+                                                                placeholder="Kode"
+                                                            />
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <Cell
                                                             value={row.namaModul}
-                                                            onChange={v => updateModulRow(row.id, 'namaModul', v)}
+                                                            onChange={v => {
+                                                                setModulRows(prev => prev.map(r => {
+                                                                    if (r.id === row.id) {
+                                                                        const generatedCode = r.isCodeManuallyEdited
+                                                                            ? r.kodeModul
+                                                                            : generateModuleAcronym(v, r.kodeRevisi || '0.0', md.modules);
+                                                                        return {
+                                                                            ...r,
+                                                                            namaModul: v,
+                                                                            kodeModul: generatedCode
+                                                                        };
+                                                                    }
+                                                                    return r;
+                                                                }));
+                                                            }}
                                                             placeholder="Nama modul..."
                                                             disabled={formKategori === 'Existing'}
                                                         />
@@ -940,7 +1132,7 @@ export default function PerubahanModul() {
                                         <Plus className="size-3.5" /> Tambah Baris
                                     </button>
                                 </div>
-                                <div className="overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
+                                <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
                                     <table className="w-full text-[11px] min-w-[900px]">
                                         <thead>
                                             <tr className="bg-neutral-50 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800">
@@ -972,13 +1164,46 @@ export default function PerubahanModul() {
                                                                 nullLabel="-- Pilih --"
                                                             />
                                                         ) : (
-                                                            <Cell value={row.kodeProgram} onChange={v => updateProgramRow(row.id, 'kodeProgram', v)} placeholder="Kode" />
+                                                            <Cell
+                                                                value={row.kodeProgram}
+                                                                onChange={v => {
+                                                                    setProgramRows(prev => prev.map(r => {
+                                                                        if (r.id === row.id) {
+                                                                            const isManual = v !== '';
+                                                                            const generatedCode = isManual
+                                                                                ? v
+                                                                                : generateProgramAcronym(r.namaProgram, md.kodeProgram);
+                                                                            return {
+                                                                                ...r,
+                                                                                kodeProgram: generatedCode,
+                                                                                isCodeManuallyEdited: isManual
+                                                                            };
+                                                                        }
+                                                                        return r;
+                                                                    }));
+                                                                }}
+                                                                placeholder="Kode"
+                                                            />
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <Cell
                                                             value={row.namaProgram}
-                                                            onChange={v => updateProgramRow(row.id, 'namaProgram', v)}
+                                                            onChange={v => {
+                                                                setProgramRows(prev => prev.map(r => {
+                                                                    if (r.id === row.id) {
+                                                                        const generatedCode = r.isCodeManuallyEdited
+                                                                            ? r.kodeProgram
+                                                                            : generateProgramAcronym(v, md.kodeProgram);
+                                                                        return {
+                                                                            ...r,
+                                                                            namaProgram: v,
+                                                                            kodeProgram: generatedCode
+                                                                        };
+                                                                    }
+                                                                    return r;
+                                                                }));
+                                                            }}
                                                             placeholder="Nama program..."
                                                             disabled={formKategori === 'Existing'}
                                                         />

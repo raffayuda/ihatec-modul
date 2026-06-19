@@ -277,7 +277,7 @@ export default function MatriksPelatihan({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Database Matriks Pelatihan" />
 
-            <div className="flex h-full flex-1 flex-col gap-6 p-6 bg-neutral-50/60 dark:bg-neutral-900/10">
+            <div className="flex h-full flex-1 flex-col gap-6 p-6 bg-neutral-50/60 dark:bg-neutral-900/10 min-w-0 w-full">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex flex-col gap-1">
@@ -383,9 +383,9 @@ export default function MatriksPelatihan({
                 </div>
 
                 {/* Filter and Table Card */}
-                <Card className="border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm overflow-hidden flex flex-col flex-1">
+                <Card className="w-full min-w-0 border-neutral-200/80 bg-white dark:border-neutral-800 dark:bg-neutral-950 shadow-sm overflow-hidden flex flex-col flex-1">
                     {/* Filters & Actions Bar */}
-                    <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/10 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                             {/* Search */}
                             <div className="relative w-full sm:w-72">

@@ -48,6 +48,10 @@ class DatabaseSeeder extends Seeder
             ['category' => 'Jenis Modul', 'name' => 'Lembar Kerja', 'code' => 'JM-002', 'status' => 'Aktif'],
             ['category' => 'Jenis Modul', 'name' => 'Post Test', 'code' => 'JM-003', 'status' => 'Aktif'],
 
+            // Jenis Perubahan
+            ['category' => 'Jenis Perubahan', 'name' => 'Modul', 'code' => 'JP-M', 'status' => 'Aktif'],
+            ['category' => 'Jenis Perubahan', 'name' => 'Program', 'code' => 'JP-P', 'status' => 'Aktif'],
+
             // Bahasa Pengantar
             ['category' => 'Bahasa Pengantar', 'name' => 'Indonesia', 'code' => 'BP-001', 'status' => 'Aktif'],
             ['category' => 'Bahasa Pengantar', 'name' => 'English', 'code' => 'BP-002', 'status' => 'Aktif'],

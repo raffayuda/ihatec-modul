@@ -519,6 +519,27 @@ export default function DatabaseModul({
                     </div>
                 )}
 
+                {/* Metrics */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {[
+                        { label: 'Total Modul', value: metrics.total, icon: FileText, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50 dark:text-blue-400 border border-blue-200 dark:border-blue-900' },
+                        { label: 'Approved', value: metrics.approved, icon: CheckCircle2, color: 'text-emerald-650 bg-emerald-50 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900' },
+                        { label: 'Revisi', value: metrics.revisi, icon: RefreshCw, color: 'text-orange-600 bg-orange-50 dark:bg-orange-950/50 dark:text-orange-400 border border-orange-200 dark:border-orange-900' },
+                    ].map((m) => (
+                        <Card key={m.label} className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+                            <CardContent className="flex items-start gap-2 p-4">
+                                <div className={`flex size-9 items-center justify-center rounded-xl ${m.color}`}>
+                                    <m.icon className="size-4.5" />
+                                </div>
+                                <div>
+                                    <div className="text-xl font-bold text-neutral-900 dark:text-neutral-100">{m.value}</div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{m.label}</div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+
                 {/* Success/Error Toast */}
                 {localToast && (
                     <div className={`fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border p-4 text-sm font-semibold shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300 ${
@@ -542,14 +563,14 @@ export default function DatabaseModul({
                                 {/* Top Row: Search & Primary Actions */}
                                 <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
                                     {/* Search input - prominent and flexible */}
-                                    <div className="relative w-full lg:max-w-md xl:max-w-lg flex-1">
-                                        <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
+                                    <div className="relative max-w-sm flex-1">
+                                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
                                         <input
                                             type="text"
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             placeholder="Cari kode modul, judul, jenis..."
-                                            className="h-10 w-full rounded-xl border border-neutral-200 bg-white dark:bg-neutral-900 pl-10 pr-4 text-xs text-neutral-900 dark:text-neutral-100 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 shadow-sm transition-all"
+                                            className="h-9 w-full rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 pl-9 pr-4 text-xs text-neutral-900 dark:text-neutral-100 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 shadow-sm transition-all"
                                         />
                                     </div>
 
@@ -560,7 +581,7 @@ export default function DatabaseModul({
                                                 onClick={() => setIsBulkDeleteModalOpen(true)}
                                                 variant="destructive"
                                                 size="sm"
-                                                className="h-9 px-3.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
+                                                className="h-9 rounded-lg px-3 text-xs font-semibold"
                                             >
                                                 <Trash2 className="size-4" />
                                                 <span>Hapus ({selectedModules.length})</span>
@@ -571,9 +592,9 @@ export default function DatabaseModul({
                                             <Button
                                                 onClick={() => setIsAddModalOpen(true)}
                                                 size="sm"
-                                                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
+                                                className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700"
                                             >
-                                                <Plus className="size-4" />
+                                                <Plus className="mr-1.5 size-4" />
                                                 <span>Tambah Modul</span>
                                             </Button>
                                         )}
@@ -584,7 +605,7 @@ export default function DatabaseModul({
                                                     onClick={() => setIsImportModalOpen(true)}
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-9 px-3.5 border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold rounded-lg flex items-center gap-1.5 bg-white dark:bg-neutral-900 shadow-sm"
+                                                    className="h-9 rounded-lg border-neutral-200 dark:border-neutral-800 px-3 text-xs font-semibold bg-white dark:bg-neutral-900 hover:bg-neutral-50"
                                                 >
                                                     <Upload className="size-3.5" />
                                                     <span>Import</span>
@@ -595,7 +616,7 @@ export default function DatabaseModul({
                                                 onClick={() => window.location.href = '/database/export'}
                                                 variant="outline"
                                                 size="sm"
-                                                className="h-9 px-3.5 border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold rounded-lg flex items-center gap-1.5 bg-white dark:bg-neutral-900 shadow-sm"
+                                                className="h-9 rounded-lg border-neutral-200 dark:border-neutral-800 px-3 text-xs font-semibold bg-white dark:bg-neutral-900 hover:bg-neutral-50"
                                             >
                                                 <Download className="size-3.5" />
                                                 <span>Export</span>
@@ -654,14 +675,8 @@ export default function DatabaseModul({
                                         </div>
                                     </div>
 
-                                    <Button
-                                        onClick={handleResetFilters}
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-9 px-3 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 font-semibold bg-white dark:bg-neutral-900 shadow-sm"
-                                    >
-                                        <RefreshCw className="mr-1.5 size-3.5" />
-                                        Reset Filter
+                                    <Button onClick={handleResetFilters} variant="outline" size="sm" className="h-9 rounded-lg border-neutral-200 dark:border-neutral-800 px-3 text-xs font-semibold">
+                                        <RefreshCw className="mr-1.5 size-3.5" /> Reset
                                     </Button>
                                 </div>
                             </div>

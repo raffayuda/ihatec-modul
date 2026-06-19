@@ -78,6 +78,11 @@ class MasterDataController extends Controller
         return $this->renderCategory('Kode Program', 'master-data/kode-program');
     }
 
+    public function jenisPerubahan(): Response
+    {
+        return $this->renderCategory('Jenis Perubahan', 'master-data/jenis-perubahan');
+    }
+
     /**
      * Render a category-filtered master data page.
      */
