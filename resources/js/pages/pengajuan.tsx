@@ -428,6 +428,30 @@ export default function Pengajuan() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
 
+    const [dismissedNotifications, setDismissedNotifications] = useState<string[]>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const saved = localStorage.getItem('dismissed_notifications');
+                return saved ? JSON.parse(saved) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+        return [];
+    });
+
+    const dismissNotification = (id: string) => {
+        const updated = [...dismissedNotifications, id];
+        setDismissedNotifications(updated);
+        if (typeof window !== 'undefined') {
+            try {
+                localStorage.setItem('dismissed_notifications', JSON.stringify(updated));
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    };
+
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editItem, setEditItem] = useState<SubmissionItem | null>(null);
     const [deleteItem, setDeleteItem] = useState<SubmissionItem | null>(null);
@@ -595,9 +619,7 @@ export default function Pengajuan() {
                 if (!createData.nama_instansi) {
                     errors.nama_instansi = 'Nama Instansi wajib diisi untuk Pelatihan Inhouse.';
                 }
-                if (!createData.training_days) {
-                    errors.training_days = 'Jumlah Hari Pelatihan wajib diisi untuk Pelatihan Inhouse.';
-                }
+
                 if (!createData.jam_khusus) {
                     errors.jam_khusus = 'Request Jam Khusus Pelatihan wajib diisi untuk Pelatihan Inhouse.';
                 }
@@ -777,10 +799,7 @@ export default function Pengajuan() {
                     editForm.setError('nama_instansi', 'Nama Instansi wajib diisi untuk Pelatihan Inhouse.');
                     hasError = true;
                 }
-                if (!editForm.data.training_days) {
-                    editForm.setError('training_days', 'Jumlah Hari Pelatihan wajib diisi untuk Pelatihan Inhouse.');
-                    hasError = true;
-                }
+
                 if (!editForm.data.jam_khusus) {
                     editForm.setError('jam_khusus', 'Request Jam Khusus Pelatihan wajib diisi untuk Pelatihan Inhouse.');
                     hasError = true;
@@ -840,7 +859,7 @@ export default function Pengajuan() {
         prosesForm.clearErrors();
         let hasError = false;
 
-        if (prosesForm.data.status === 'Menunggu Approval') {
+        if (prosesForm.data.status === 'Selesai') {
             if (!prosesForm.data.link_modul) {
                 prosesForm.setError('link_modul', 'Link Modul wajib diisi jika status Done.');
                 hasError = true;
@@ -952,9 +971,9 @@ export default function Pengajuan() {
                 )}
 
                 {/* Completed Requests Notification Banner */}
-                {role === 'User' && submissions.some(item => item.status === 'Selesai' && item.type === 'Kebutuhan Khusus') && (
+                {role === 'User' && submissions.some(item => item.status === 'Selesai' && item.type === 'Kebutuhan Khusus' && !dismissedNotifications.includes(item.id)) && (
                     <div className="space-y-2.5">
-                        {submissions.filter(item => item.status === 'Selesai' && item.type === 'Kebutuhan Khusus').map(item => (
+                        {submissions.filter(item => item.status === 'Selesai' && item.type === 'Kebutuhan Khusus' && !dismissedNotifications.includes(item.id)).map(item => (
                             <div key={item.id} className="flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-xs font-medium text-emerald-800 shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400">
                                 <div className="flex items-start gap-3">
                                     <div className="flex size-7 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">
@@ -967,17 +986,27 @@ export default function Pengajuan() {
                                         </p>
                                     </div>
                                 </div>
-                                {item.link_modul && (
-                                    <a
-                                        href={item.link_modul}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:underline dark:text-emerald-300 bg-white/80 dark:bg-emerald-950/50 px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 font-sans"
+                                <div className="flex items-center gap-2">
+                                    {item.link_modul && (
+                                        <a
+                                            href={item.link_modul}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:underline dark:text-emerald-300 bg-white/80 dark:bg-emerald-950/50 px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 font-sans"
+                                        >
+                                            <ArrowUpRight className="size-3.5" />
+                                            Buka Modul
+                                        </a>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => dismissNotification(item.id)}
+                                        className="flex size-7 items-center justify-center rounded-lg border border-emerald-200 hover:bg-emerald-100 text-emerald-600 dark:border-emerald-900/50 dark:hover:bg-emerald-950 font-sans cursor-pointer"
+                                        title="Tutup"
                                     >
-                                        <ArrowUpRight className="size-3.5" />
-                                        Buka Modul
-                                    </a>
-                                )}
+                                        <XIcon className="size-4" />
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -1051,7 +1080,7 @@ export default function Pengajuan() {
                                     <Button onClick={handleResetFilters} variant="outline" size="sm" className="h-9 rounded-lg border-neutral-200 px-3 text-xs font-semibold dark:border-neutral-800">
                                         <RefreshCw className="mr-1.5 size-3.5" /> Reset
                                     </Button>
-                                    {role !== 'Manager PD' && (
+                                    {role == 'User' && (
                                         <Button onClick={() => setIsCreateOpen(true)} size="sm" className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">
                                             <Plus className="mr-1.5 size-4" /> Ajukan Permintaan
                                         </Button>
@@ -1105,14 +1134,14 @@ export default function Pengajuan() {
                                                         </button>
                                                     </td>
                                                     <td className="px-5 py-4">
-                                                        <Badge variant="secondary" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${item.type === 'Modul Baru' ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300' : item.type === 'Revisi Modul' ? 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300' : 'bg-teal-50 text-teal-600 dark:bg-teal-950/40 dark:text-teal-300'}`}>
+                                                        <Badge variant="outline" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${item.type === 'Modul Baru' ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300' : item.type === 'Revisi Modul' ? 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300' : 'bg-teal-50 text-teal-600 dark:bg-teal-950/40 dark:text-teal-300'}`}>
                                                             {item.type}
                                                         </Badge>
                                                     </td>
                                                     <td className="whitespace-nowrap px-5 py-4 font-medium text-neutral-600 dark:text-neutral-400">{item.applicant}</td>
                                                     <td className="whitespace-nowrap px-5 py-4 font-medium text-neutral-500 dark:text-neutral-400">{item.deadline}</td>
                                                     <td className="px-5 py-4">
-                                                        <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[item.priority] ?? ''}`}>
+                                                        <Badge variant="outline" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[item.priority] ?? ''}`}>
                                                             {item.priority}
                                                         </Badge>
                                                     </td>
@@ -1139,6 +1168,22 @@ export default function Pengajuan() {
                                                                     </a>
                                                                 )}
                                                             </div>
+                                                        ) : item.link_modul ? (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <div className="flex size-6 items-center justify-center rounded bg-blue-50 text-blue-500 dark:bg-blue-950/30">
+                                                                    <ArrowUpRight className="size-3.5" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <a
+                                                                        href={item.link_modul}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-[10px] font-semibold text-blue-600 hover:underline dark:text-blue-400 block truncate max-w-[120px]"
+                                                                    >
+                                                                        Buka Link Modul
+                                                                    </a>
+                                                                </div>
+                                                            </div>
                                                         ) : (
                                                             item.type === 'Kebutuhan Khusus' ? (
                                                                 <span className="text-[10px] text-neutral-400 font-medium font-sans italic">Tidak ada dokumen</span>
@@ -1154,7 +1199,7 @@ export default function Pengajuan() {
                                                         )}
                                                     </td>
                                                     <td className="px-5 py-4">
-                                                        <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[item.status] ?? ''}`}>
+                                                        <Badge variant="outline" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[item.status] ?? ''}`}>
                                                             {STATUS_LABELS[item.status] ?? item.status}
                                                         </Badge>
                                                     </td>
@@ -1169,11 +1214,11 @@ export default function Pengajuan() {
                                                                 <DropdownMenuItem onClick={() => setDetailItem(item)} className="cursor-pointer font-medium">
                                                                     <ArrowUpRight className="mr-2 size-3.5" /> Lihat Detail
                                                                 </DropdownMenuItem>
-                                                                {item.status === 'Selesai' && item.link_modul && (
+                                                                {/* {item.status === 'Selesai' && item.link_modul && (
                                                                     <DropdownMenuItem onClick={() => window.open(item.link_modul!, '_blank')} className="cursor-pointer font-medium text-emerald-600">
                                                                         <ArrowUpRight className="mr-2 size-3.5" /> Lihat Modul
                                                                     </DropdownMenuItem>
-                                                                )}
+                                                                )} */}
                                                                 {/* Staf PD & Admin Actions */}
                                                                 {['Staf PD', 'Admin'].includes(role) && (
                                                                     <DropdownMenuItem onClick={() => openProses(item)} className="cursor-pointer font-medium text-purple-600">
@@ -1752,7 +1797,7 @@ export default function Pengajuan() {
                                     }}
                                     options={[
                                         { value: 'Baru', label: 'Process' },
-                                        { value: 'Menunggu Approval', label: 'Done' },
+                                        { value: 'Selesai', label: 'Done' },
                                         { value: 'Hold', label: 'Hold' },
                                         { value: 'Batal', label: 'Cancel' }
                                     ]}
@@ -1761,8 +1806,8 @@ export default function Pengajuan() {
                                 {prosesForm.errors.status && <p className="mt-1 text-[10px] text-rose-500 font-sans">{prosesForm.errors.status}</p>}
                             </div>
 
-                            {/* Link Modul - Visible only if Menunggu Approval */}
-                            {prosesForm.data.status === 'Menunggu Approval' && (
+                            {/* Link Modul - Visible only if Selesai */}
+                            {prosesForm.data.status === 'Selesai' && (
                                 <div>
                                     <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Link Modul *</label>
                                     <input
@@ -1777,8 +1822,8 @@ export default function Pengajuan() {
                                 </div>
                             )}
 
-                            {/* Tanggal Realisasi - Visible only if Menunggu Approval */}
-                            {prosesForm.data.status === 'Menunggu Approval' && (
+                            {/* Tanggal Realisasi - Visible only if Selesai */}
+                            {prosesForm.data.status === 'Selesai' && (
                                 <div>
                                     <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">Tanggal Realisasi *</label>
                                     <input
@@ -1807,8 +1852,8 @@ export default function Pengajuan() {
                                 </div>
                             )}
 
-                            {/* Keterangan Proses / Alasan - Visible if Menunggu Approval, Hold, or Batal */}
-                            {['Menunggu Approval', 'Hold', 'Batal'].includes(prosesForm.data.status) && (
+                            {/* Keterangan Proses / Alasan - Visible if Selesai, Hold, or Batal */}
+                            {['Selesai', 'Hold', 'Batal'].includes(prosesForm.data.status) && (
                                 <div>
                                     <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans font-semibold">
                                         Keterangan {prosesForm.data.status !== 'Baru' && <span className="text-rose-500">*</span>}
@@ -1828,7 +1873,7 @@ export default function Pengajuan() {
 
                         <DialogFooter className="pt-2">
                             <Button type="button" variant="outline" onClick={() => setProsesItem(null)}>Batal</Button>
-                            <Button type="submit" disabled={prosesForm.processing} className="bg-purple-650 text-white hover:bg-purple-700">
+                            <Button type="submit" disabled={prosesForm.processing} className="bg-purple-800 text-white hover:bg-purple-900">
                                 {prosesForm.processing ? 'Menyimpan...' : 'Simpan Proses'}
                             </Button>
                         </DialogFooter>
@@ -2050,7 +2095,7 @@ export default function Pengajuan() {
                                         )}
                                     </div>
                                 </div>
-                            ) : (
+                            ) : !detailItem.link_modul && (
                                 <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/30 p-3.5 text-center dark:border-neutral-800">
                                     <p className="text-xs text-neutral-400 font-sans">Belum ada dokumen PDF yang diupload.</p>
                                 </div>

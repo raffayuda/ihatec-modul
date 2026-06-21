@@ -75,7 +75,6 @@ export function AppSidebar() {
         { title: 'Database Program Pelatihan', url: '/database-program', icon: Database },
         { title: 'Report', url: '/report', icon: BarChart3 },
         { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
-        { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
     // ── Staf PD ──────────────────────────────────────────────────────────────
@@ -88,19 +87,13 @@ export function AppSidebar() {
         { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
         { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
         { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
-        { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
     // ── Tim Training ─────────────────────────────────────────────────────────
     const timTrainingItems: NavItem[] = [
         { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
-        { title: 'Database Modul', url: '/database', icon: Database },
-        { title: 'Database Program Pelatihan', url: '/database-program', icon: Database },
         { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
         { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
-        { title: 'Report', url: '/report', icon: BarChart3 },
-        { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
-        { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
     // ── User (Pengaju) ───────────────────────────────────────────────────────
@@ -108,7 +101,6 @@ export function AppSidebar() {
         { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
         { title: 'Permintaan Modul Khusus', url: '/pengajuan', icon: FilePlus },
         { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
-        { title: 'Pengaturan', url: '/settings', icon: Settings },
     ];
 
     // Select menu based on role

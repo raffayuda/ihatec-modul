@@ -637,9 +637,12 @@ export default function AuditLog() {
                                 <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Aktivitas Hari Ini</h3>
                             </div>
                             <CardContent className="p-5 flex-1 flex flex-col justify-between gap-4">
-                                <div className="relative pl-5 border-l border-neutral-100 dark:border-neutral-800 space-y-4 text-xs">
+                                <div className="relative pl-5 space-y-4 text-xs">
                                     {activityToday.map((act, index) => (
                                         <div key={index} className="relative">
+                                            {index < activityToday.length - 1 && (
+                                                <div className="absolute left-[-21px] top-4 bottom-[-24px] w-0.5 bg-neutral-100 dark:bg-neutral-800" />
+                                            )}
                                             <span className={`absolute -left-[26px] top-1 flex size-3 items-center justify-center rounded-full ring-4 ring-white dark:ring-neutral-950 ${act.bulletColor}`}></span>
                                             <div className="flex flex-col">
                                                 <span className="font-semibold text-neutral-800 dark:text-neutral-200">{act.text}</span>

@@ -57,7 +57,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-function generateAcronymCode(title: string, revision: string = '1.0', modules: any[] = []): string {
+function generateAcronymCode(title: string, modules: any[] = []): string {
     const cleanTitle = title.trim();
     if (!cleanTitle) return '';
 
@@ -79,13 +79,12 @@ function generateAcronymCode(title: string, revision: string = '1.0', modules: a
 
     if (!acronym) return '';
 
-    const baseCode = `${acronym}-V${revision}`;
-    let finalCode = baseCode;
+    let finalCode = acronym;
     let counter = 1;
 
     // Check for conflict/clash with existing module codes
-    while (modules.some(m => m.id.toUpperCase() === finalCode.toUpperCase())) {
-        finalCode = `${baseCode}-${counter}`;
+    while (modules.some(m => (m.id || '').toUpperCase() === finalCode.toUpperCase())) {
+        finalCode = `${acronym}-${counter}`;
         counter++;
     }
 
@@ -289,6 +288,7 @@ export default function DatabaseModul({
     const { data, setData, post, processing, errors, reset } = useForm({
         code: '',
         title: '',
+        revision: '0.0',
         program: 'Modul',
         language: 'Indonesia',
         description: '',
@@ -750,6 +750,7 @@ export default function DatabaseModul({
                                                     </td>
                                                     <td className="px-4 py-4">
                                                         <Badge
+                                                            variant="outline"
                                                             className={`font-semibold rounded-md border-0 px-2 py-0.5 text-[9px] ${
                                                                 item.status === 'Approved'
                                                                     ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'
@@ -861,20 +862,6 @@ export default function DatabaseModul({
                                     Menampilkan {filteredModules.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(currentPage * itemsPerPage, filteredModules.length)} dari {filteredModules.length} modul
                                 </span>
                                 <div className="flex items-center gap-4">
-                                    <div className="w-32">
-                                        <SearchableSelect
-                                            value={String(itemsPerPage)}
-                                            onChange={(val) => {
-                                                setItemsPerPage(Number(val));
-                                                setCurrentPage(1);
-                                            }}
-                                            options={[
-                                                { value: '10', label: '10 / halaman' },
-                                                { value: '20', label: '20 / halaman' },
-                                                { value: '50', label: '50 / halaman' }
-                                            ]}
-                                        />
-                                    </div>
                                     <div className="flex items-center gap-1.5">
                                         <button 
                                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -1042,34 +1029,52 @@ export default function DatabaseModul({
                     </DialogHeader>
 
                     <form onSubmit={handleAddModule} className="space-y-4 py-2 text-xs">
-                        {/* Kode Modul */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                Kode Modul
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                value={data.code}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    if (val === '') {
-                                        setIsCodeManuallyEdited(false);
-                                        setData(prev => ({
-                                            ...prev,
-                                            code: generateAcronymCode(prev.title, '1.0', modules)
-                                        }));
-                                    } else {
-                                        setIsCodeManuallyEdited(true);
-                                        setData('code', val);
-                                    }
-                                }}
-                                placeholder="Contoh: SJPH.01"
-                                className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
-                            />
-                            {errors.code && (
-                                <p className="text-[10px] text-rose-600 font-semibold mt-1">{errors.code}</p>
-                            )}
+                        {/* Kode Modul & Kode Revisi */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                    Kode Modul *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={data.code}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === '') {
+                                            setIsCodeManuallyEdited(false);
+                                            setData(prev => ({
+                                                ...prev,
+                                                code: generateAcronymCode(prev.title, modules)
+                                            }));
+                                        } else {
+                                            setIsCodeManuallyEdited(true);
+                                            setData('code', val.toUpperCase());
+                                        }
+                                    }}
+                                    placeholder="Contoh: SJPH"
+                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                                />
+                                {errors.code && (
+                                    <p className="text-[10px] text-rose-600 font-semibold mt-1">{errors.code}</p>
+                                )}
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                    Kode Revisi *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={data.revision}
+                                    onChange={(e) => setData('revision', e.target.value)}
+                                    placeholder="0.0"
+                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                                />
+                                {errors.revision && (
+                                    <p className="text-[10px] text-rose-600 font-semibold mt-1">{errors.revision}</p>
+                                )}
+                            </div>
                         </div>
 
                         {/* Judul Modul */}
@@ -1086,7 +1091,7 @@ export default function DatabaseModul({
                                     setData(prev => ({
                                         ...prev,
                                         title: val,
-                                        code: isCodeManuallyEdited ? prev.code : generateAcronymCode(val, '1.0', modules)
+                                        code: isCodeManuallyEdited ? prev.code : generateAcronymCode(val, modules)
                                     }));
                                 }}
                                 placeholder="Contoh: Pengenalan ISO 9001:2015"
@@ -1452,9 +1457,12 @@ export default function DatabaseModul({
 
                     <div className="py-4 max-h-[350px] overflow-y-auto pr-1">
                         {historyModule && historyModule.revisionsHistory && historyModule.revisionsHistory.length > 0 ? (
-                            <div className="relative pl-6 border-l border-neutral-100 dark:border-neutral-800 space-y-6 text-xs">
+                            <div className="relative pl-6 space-y-6 text-xs">
                                 {historyModule.revisionsHistory.map((historyItem, index) => (
                                     <div key={index} className="relative">
+                                        {index < historyModule.revisionsHistory.length - 1 && (
+                                            <div className="absolute left-[-22px] top-5 bottom-[-34px] w-0.5 bg-neutral-100 dark:bg-neutral-800" />
+                                        )}
                                         {/* Colored Timeline Node Indicator */}
                                         <span className={`absolute -left-[30px] top-1 flex size-4.5 items-center justify-center rounded-full ring-4 ring-white dark:ring-neutral-950 ${
                                             index === 0

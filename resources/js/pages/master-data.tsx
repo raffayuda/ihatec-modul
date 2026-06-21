@@ -658,6 +658,7 @@ export default function MasterData() {
                                                     )}
                                                     <td className="px-6 py-4">
                                                         <Badge
+                                                            variant="outline"
                                                             className={`font-semibold rounded-md border-0 px-2 py-0.5 text-[9px] ${
                                                                 item.status === 'Aktif'
                                                                     ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'
@@ -699,17 +700,6 @@ export default function MasterData() {
                                     Menampilkan {filteredData.length > 0 ? 1 : 0}-{filteredData.length} dari {filteredData.length} data
                                 </span>
                                 <div className="flex items-center gap-4">
-                                    <div className="w-32">
-                                        <SearchableSelect
-                                            value={pageSize}
-                                            onChange={(val) => setPageSize(val)}
-                                            options={[
-                                                { value: '10', label: '10 / halaman' },
-                                                { value: '20', label: '20 / halaman' },
-                                                { value: '50', label: '50 / halaman' }
-                                            ]}
-                                        />
-                                    </div>
                                     <div className="flex items-center gap-1.5">
                                         <button className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400"><ChevronLeft className="size-3.5" /></button>
                                         <button className="flex size-7 items-center justify-center rounded text-xs font-semibold border bg-blue-600 border-blue-600 text-white dark:bg-blue-500 dark:border-blue-500">1</button>
@@ -758,9 +748,12 @@ export default function MasterData() {
                                     <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">Riwayat Perubahan</h3>
                                 </div>
                                 <CardContent className="p-5 flex-1 flex flex-col justify-between gap-4">
-                                    <div className="relative pl-5 border-l border-neutral-100 dark:border-neutral-800 space-y-4.5 text-xs">
-                                        {history.map((log) => (
+                                    <div className="relative pl-5 space-y-4.5 text-xs">
+                                        {history.map((log, index) => (
                                             <div key={log.id} className="relative">
+                                                {index < history.length - 1 && (
+                                                    <div className="absolute left-[-21px] top-4 bottom-[-26px] w-0.5 bg-neutral-100 dark:bg-neutral-800" />
+                                                )}
                                                 <span className="absolute -left-[26px] top-1 flex size-3 items-center justify-center rounded-full bg-blue-500 ring-4 ring-white dark:ring-neutral-950"></span>
                                                 <div className="flex flex-col">
                                                     <span className="font-semibold text-neutral-800 dark:text-neutral-200">{log.text}</span>

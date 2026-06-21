@@ -340,7 +340,7 @@ class ModuleController extends Controller
                     continue;
                 }
 
-                $revision = trim((string) ($row['revision'] ?? '1.0')) ?: '1.0';
+                $revision = trim((string) ($row['revision'] ?? '0.0')) ?: '0.0';
                 $status = trim((string) ($row['status'] ?? 'Approved')) ?: 'Approved';
 
                 if (! in_array($status, ['Approved', 'Revisi'], true)) {
@@ -401,6 +401,8 @@ class ModuleController extends Controller
         $request->validate([
             'code' => 'required|string|unique:modules,code',
             'title' => 'required|string',
+            'revision' => 'required|string',
+            'program' => 'required|string',
             'language' => 'required|string',
             'description' => 'nullable|string',
             'file' => 'required|file|mimes:pdf|max:20480',
@@ -418,11 +420,11 @@ class ModuleController extends Controller
         $module = Module::create([
             'code' => $code,
             'title' => $request->input('title'),
-            'program' => 'Lainnya',
+            'program' => $request->input('program', 'Modul'),
             'language' => $request->input('language'),
             'description' => $request->input('description'),
             'status' => 'Approved',
-            'current_revision' => '0.0',
+            'current_revision' => $request->input('revision'),
             'file_path' => $filePath,
             'file_name' => $file->getClientOriginalName(),
             'file_size' => $fileSizeStr,
@@ -435,7 +437,7 @@ class ModuleController extends Controller
 
         ModuleRevision::create([
             'module_id' => $module->id,
-            'revision' => '0.0',
+            'revision' => $request->input('revision'),
             'note' => 'Rilis pertama modul baru.',
             'author_name' => Auth::user()->name ?? 'System Admin',
             'status' => 'Approved',

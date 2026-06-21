@@ -508,7 +508,7 @@ class TrainingProgramController extends Controller
                     continue;
                 }
 
-                $revisionCode = trim((string) ($row['revision_code'] ?? '1.0')) ?: '1.0';
+                $revisionCode = trim((string) ($row['revision_code'] ?? '0.0')) ?: '0.0';
                 $status = trim((string) ($row['status'] ?? 'Aktif')) ?: 'Aktif';
                 if (! in_array($status, ['Aktif', 'Non Aktif'], true)) {
                     $status = 'Aktif';

@@ -4,12 +4,12 @@ import { Head, router, usePage } from '@inertiajs/react';
 import {
     Plus, Edit3, FileText, Search, ChevronLeft, ChevronRight,
     Check, X, Upload, Eye, Trash2, Clock,
-    CheckCircle2, XCircle, ArrowLeft, MoreVertical,
+    CheckCircle2, XCircle, ArrowLeft, MoreVertical, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -89,6 +89,7 @@ interface MasterData {
     jenisPerubahan: string[];
     bahasaPengantar: string[];
     jenisModul: string[];
+    jenisKebutuhan?: string[];
     kodeProgram: Array<{ code: string; name: string; revision?: string }>;
     modules: Array<{ code: string; title: string; revision?: string }>;
     pengajuanKhusus: PengajuanKhusus[];
@@ -109,7 +110,18 @@ const STATUS_COLORS: Record<string, string> = {
     Draft: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
     'Menunggu Approval': 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
     Disetujui: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+    Selesai: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
     Ditolak: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
+    Batal: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+    Draft: 'Draft',
+    'Menunggu Approval': 'Pending',
+    Disetujui: 'Done',
+    Selesai: 'Done',
+    Ditolak: 'Reject',
+    Batal: 'Reject',
 };
 
 const JENIS_MODUL_PELATIHAN = ['Modul', 'Lembar Kerja', 'Post Test'];
@@ -514,124 +526,153 @@ export default function PerubahanModul() {
         });
     };
 
-    // ─────────────────────────────────────────────────────
-    // ── RENDER ───────────────────────────────────────────
-    // ─────────────────────────────────────────────────────
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Perubahan Modul" />
 
-            {/* Toast */}
+            {/* Floating success/error toast */}
             {localToast && (
-                <div className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${localToast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
-                    {localToast.type === 'success' ? <Check className="size-4" /> : <X className="size-4" />}
-                    {localToast.message}
+                <div className={`fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border p-4 text-sm font-semibold shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300 ${
+                    localToast.type === 'success'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300'
+                        : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300'
+                }`}>
+                    {localToast.type === 'success' ? (
+                        <CheckCircle2 className="size-4.5 text-emerald-600 dark:text-emerald-400" />
+                    ) : (
+                        <AlertTriangle className="size-4.5 text-rose-600 dark:text-rose-450" />
+                    )}
+                    <span>{localToast.message}</span>
                 </div>
             )}
 
-            <div className="flex flex-1 flex-col gap-5 p-5">
+            <div className="flex h-full flex-1 flex-col gap-6 p-6 bg-neutral-50/60 dark:bg-neutral-900/10">
 
                 {/* ══════════════════════════════ LIST VIEW ════════════════════════════════ */}
                 {mode === 'list' && (
                     <>
                         {/* Header */}
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">Perubahan Modul</h1>
-                                <p className="text-xs text-neutral-400 mt-0.5">Kelola pengajuan penambahan &amp; revisi modul/program</p>
-                            </div>
-                            {isProcessor && (
-                                <Button
-                                    id="btn-new-perubahan"
-                                    onClick={openCreateForm}
-                                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl px-4 h-9 shadow-sm"
-                                >
-                                    <Plus className="size-4" /> New Pengajuan
-                                </Button>
-                            )}
+                        <div className="flex flex-col gap-1">
+                            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">Perubahan Modul</h1>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                Kelola pengajuan penambahan &amp; revisi modul/program
+                            </p>
                         </div>
 
-                        {/* Stat cards */}
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                        {/* Metrics */}
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
                             {[
-                                { label: 'Total', count: submissions.length, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
-                                { label: 'Draft', count: submissions.filter(s => s.status === 'Draft').length, icon: Clock, color: 'text-neutral-500', bg: 'bg-neutral-100 dark:bg-neutral-800' },
-                                { label: 'Menunggu', count: submissions.filter(s => s.status === 'Menunggu Approval').length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30' },
-                                { label: 'Disetujui', count: submissions.filter(s => s.status === 'Disetujui').length, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
-                                { label: 'Ditolak', count: submissions.filter(s => s.status === 'Ditolak').length, icon: XCircle, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-950/30' },
-                            ].map(({ label, count, icon: Icon, color, bg }) => (
-                                <Card key={label} className={`border-neutral-200/80 dark:border-neutral-800 ${bg} shadow-none`}>
-                                    <div className="flex items-center gap-3 p-4">
-                                        <Icon className={`size-5 ${color}`} />
-                                        <div>
-                                            <div className="text-xl font-bold text-neutral-900 dark:text-neutral-100">{count}</div>
-                                            <div className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">{label}</div>
+                                { label: 'Total', value: submissions.length, icon: FileText, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50 dark:text-blue-400 border border-blue-200 dark:border-blue-900' },
+                                { label: 'Draft', value: submissions.filter(s => s.status === 'Draft').length, icon: Clock, color: 'text-neutral-500 bg-neutral-100 dark:bg-neutral-800 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700' },
+                                { label: 'Menunggu', value: submissions.filter(s => s.status === 'Menunggu Approval').length, icon: Clock, color: 'text-purple-650 bg-purple-50 dark:bg-purple-950/50 dark:text-purple-400 border border-purple-200 dark:border-purple-900' },
+                                { label: 'Disetujui', value: submissions.filter(s => s.status === 'Disetujui').length, icon: CheckCircle2, color: 'text-emerald-650 bg-emerald-50 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900' },
+                                { label: 'Ditolak', value: submissions.filter(s => s.status === 'Ditolak').length, icon: XCircle, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-900' },
+                            ].map((m) => (
+                                <Card key={m.label} className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+                                    <CardContent className="flex items-start gap-2 p-4">
+                                        <div className={`flex size-9 items-center justify-center rounded-xl ${m.color}`}>
+                                            <m.icon className="size-4.5" />
                                         </div>
-                                    </div>
+                                        <div>
+                                            <div className="text-xl font-bold text-neutral-900 dark:text-neutral-100">{m.value}</div>
+                                            <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{m.label}</div>
+                                        </div>
+                                    </CardContent>
                                 </Card>
                             ))}
                         </div>
 
-                        {/* Table card */}
-                        <Card className="border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                            {/* Toolbar */}
-                            <div className="flex flex-wrap items-center gap-3 border-b border-neutral-100 px-5 py-3.5 dark:border-neutral-800">
-                                <div className="relative flex-1 min-w-[180px]">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400" />
+                        {/* Table Card */}
+                        <Card className="overflow-hidden border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+                            {/* Filters */}
+                            <div className="flex flex-col gap-3 border-b border-neutral-100 p-4 dark:border-neutral-800 md:flex-row md:items-center md:justify-between">
+                                <div className="relative max-w-sm flex-1">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                                     <input
-                                        type="text" placeholder="Cari no. pengajuan atau jenis..."
-                                        value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                                        className="h-8 w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 pl-8 pr-3 text-xs outline-none focus:border-blue-400 dark:text-neutral-100"
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                                        placeholder="Cari no. pengajuan atau jenis..."
+                                        className="h-9 w-full rounded-lg border border-neutral-200 bg-white pl-9 pr-4 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                                     />
                                 </div>
-                                <div className="w-40">
-                                    <SearchableSelect
-                                        value={statusFilter}
-                                        onChange={val => setStatusFilter(val)}
-                                        options={['Semua Status', 'Draft', 'Menunggu Approval', 'Disetujui', 'Ditolak']}
-                                    />
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="w-40">
+                                        <SearchableSelect
+                                            value={statusFilter}
+                                            onChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
+                                            options={[
+                                                { value: 'Semua Status', label: 'Semua Status' },
+                                                { value: 'Draft', label: 'Draft' },
+                                                { value: 'Menunggu Approval', label: 'Menunggu Approval' },
+                                                { value: 'Disetujui', label: 'Disetujui' },
+                                                { value: 'Ditolak', label: 'Ditolak' }
+                                            ]}
+                                        />
+                                    </div>
+                                    <Button onClick={() => { setSearchQuery(''); setStatusFilter('Semua Status'); setCurrentPage(1); }} variant="outline" size="sm" className="h-9 rounded-lg border-neutral-200 px-3 text-xs font-semibold dark:border-neutral-800">
+                                        <RefreshCw className="mr-1.5 size-3.5" /> Reset
+                                    </Button>
+                                    {isProcessor && (
+                                        <Button id="btn-new-perubahan" onClick={openCreateForm} size="sm" className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">
+                                            <Plus className="mr-1.5 size-4" /> New Pengajuan
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Table */}
                             <div className="overflow-x-auto">
-                                <table className="w-full text-xs">
+                                <table className="w-full min-w-[820px] border-collapse text-left text-xs">
                                     <thead>
-                                        <tr className="border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30">
-                                            {['No. Pengajuan', 'Tgl Pengajuan', 'Jenis Perubahan', 'Kategori', 'Status', 'Aksi'].map(h => (
-                                                <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">{h}</th>
-                                            ))}
+                                        <tr className="border-b border-neutral-100 bg-neutral-50/50 font-semibold text-neutral-400 dark:border-neutral-800 dark:bg-neutral-900/30">
+                                            <th className="px-5 py-3.5">No. Pengajuan</th>
+                                            <th className="px-5 py-3.5">Tgl Pengajuan</th>
+                                            <th className="px-5 py-3.5">Jenis Perubahan</th>
+                                            <th className="px-5 py-3.5">Kategori</th>
+                                            <th className="px-5 py-3.5">Status</th>
+                                            <th className="w-20 px-5 py-3.5 text-center">Aksi</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-neutral-50 dark:divide-neutral-900">
+                                    <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                                         {currentItems.length === 0 ? (
                                             <tr>
-                                                <td colSpan={6} className="text-center py-12 text-neutral-400">
+                                                <td colSpan={6} className="py-10 text-center font-medium text-neutral-400 dark:text-neutral-500">
                                                     {isProcessor
                                                         ? <span>Belum ada pengajuan. <button onClick={openCreateForm} className="text-blue-600 font-semibold hover:underline">Buat pengajuan baru</button>.</span>
-                                                        : 'Belum ada data pengajuan perubahan modul.'}
+                                                        : 'Belum ada data pengajuan perubahan modul/program.'}
                                                 </td>
                                             </tr>
                                         ) : currentItems.map(item => (
-                                            <tr key={item.id} className="hover:bg-neutral-50/80 dark:hover:bg-neutral-900/40 transition-colors">
-                                                <td className="px-4 py-3 font-semibold text-neutral-800 dark:text-neutral-200">{item.noPerubahan}</td>
-                                                <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400">{item.tglPengajuan}</td>
-                                                <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{item.jenisPerubahan}</td>
-                                                <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400">{item.kategoriModul}</td>
-                                                <td className="px-4 py-3">
-                                                    <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[item.status] ?? ''}`}>
-                                                        {item.status}
+                                            <tr key={item.id} className="hover:bg-neutral-50/20 dark:hover:bg-neutral-900/10 transition-colors">
+                                                <td className="whitespace-nowrap px-5 py-4 font-mono text-[10px] font-semibold text-neutral-500 dark:text-neutral-400">
+                                                    <button
+                                                        onClick={() => openDetail(item)}
+                                                        className="text-left font-semibold text-neutral-900 hover:text-blue-600 dark:text-neutral-100 dark:hover:text-blue-400 cursor-pointer"
+                                                    >
+                                                        {item.noPerubahan}
+                                                    </button>
+                                                </td>
+                                                <td className="whitespace-nowrap px-5 py-4 font-medium text-neutral-500 dark:text-neutral-450">{item.tglPengajuan}</td>
+                                                <td className="px-5 py-4">
+                                                    <Badge variant="secondary" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${item.jenisPerubahan.includes('Baru') ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300' : 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300'}`}>
+                                                        {item.jenisPerubahan}
                                                     </Badge>
                                                 </td>
-                                                <td className="px-4 py-3">
+                                                <td className="whitespace-nowrap px-5 py-4 font-medium text-neutral-600 dark:text-neutral-450">{item.kategoriModul}</td>
+                                                <td className="px-5 py-4">
+                                                    <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[item.status] ?? ''}`}>
+                                                        {STATUS_LABELS[item.status] ?? item.status}
+                                                    </Badge>
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <button className="flex size-7 items-center justify-center rounded hover:bg-neutral-100 text-neutral-500 dark:hover:bg-neutral-800 dark:text-neutral-400">
+                                                            <button className="mx-auto flex size-7 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800 cursor-pointer">
                                                                 <MoreVertical className="size-3.5" />
                                                             </button>
                                                         </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-40 text-xs">
+                                                        <DropdownMenuContent align="end" className="w-48 text-xs">
                                                             <DropdownMenuItem className="cursor-pointer font-medium" onClick={() => openDetail(item)}>
                                                                 Lihat Detail
                                                             </DropdownMenuItem>
@@ -667,7 +708,7 @@ export default function PerubahanModul() {
                                                                 </>
                                                             )}
                                                             {isProcessor && ['Baru', 'Draft'].includes(item.status) && (
-                                                                <DropdownMenuItem className="cursor-pointer font-medium text-rose-600 dark:text-rose-400" onClick={() => setDeleteItem(item)}>
+                                                                <DropdownMenuItem className="cursor-pointer font-medium text-rose-600 dark:text-rose-450" onClick={() => setDeleteItem(item)}>
                                                                     Hapus
                                                                 </DropdownMenuItem>
                                                             )}
@@ -681,22 +722,24 @@ export default function PerubahanModul() {
                             </div>
 
                             {/* Pagination */}
-                            {totalPages > 1 && (
-                                <div className="flex items-center justify-between border-t border-neutral-100 px-5 py-3.5 text-xs dark:border-neutral-800">
-                                    <span className="text-neutral-400">{filteredSubmissions.length} data</span>
-                                    <div className="flex items-center gap-1">
-                                        <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}
-                                            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 disabled:opacity-30 dark:hover:bg-neutral-800">
-                                            <ChevronLeft className="size-3.5" />
+                            <div className="flex flex-col gap-3 border-t border-neutral-100 p-4 dark:border-neutral-800 sm:flex-row sm:items-center sm:justify-between">
+                                <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                                    Menampilkan {indexOfFirst + 1}–{Math.min(indexOfLast, filteredSubmissions.length)} dari {filteredSubmissions.length} pengajuan
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                    <button onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))} disabled={currentPage === 1} className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+                                        <ChevronLeft className="size-3.5" />
+                                    </button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                        <button key={page} onClick={() => setCurrentPage(page)} className={`flex size-7 items-center justify-center rounded border text-xs font-semibold ${page === currentPage ? 'border-blue-600 bg-blue-600 text-white' : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400'}`}>
+                                            {page}
                                         </button>
-                                        <span className="px-2 font-medium text-neutral-600 dark:text-neutral-400">{currentPage} / {totalPages}</span>
-                                        <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}
-                                            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 disabled:opacity-30 dark:hover:bg-neutral-800">
-                                            <ChevronRight className="size-3.5" />
-                                        </button>
-                                    </div>
+                                    ))}
+                                    <button onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages || totalPages === 0} className="flex size-7 items-center justify-center rounded border border-neutral-200 bg-white text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+                                        <ChevronRight className="size-3.5" />
+                                    </button>
                                 </div>
-                            )}
+                            </div>
                         </Card>
                     </>
                 )}
@@ -711,7 +754,7 @@ export default function PerubahanModul() {
                             <DialogHeader className="border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30 px-6 py-4 sticky top-0 z-10 flex flex-row items-center justify-between">
                                 <div>
                                     <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-                                        Detail Pengajuan Perubahan Modul
+                                        Detail Pengajuan Perubahan {selectedSubmission?.jenisPerubahan?.toLowerCase().includes('program') ? 'Program' : 'Modul'}
                                         <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[selectedSubmission.status] ?? ''}`}>
                                             {selectedSubmission.status}
                                         </Badge>
@@ -727,15 +770,20 @@ export default function PerubahanModul() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-8 text-xs">
                                     {[
                                         { label: 'Tgl Pengajuan', value: selectedSubmission.tglPengajuan },
-                                        { label: 'No. Pengajuan Perubahan Modul', value: selectedSubmission.noPerubahan },
+                                        { label: `No. Pengajuan Perubahan ${selectedSubmission?.jenisPerubahan?.toLowerCase().includes('program') ? 'Program' : 'Modul'}`, value: selectedSubmission.noPerubahan },
                                         { label: 'Jenis Perubahan', value: selectedSubmission.jenisPerubahan },
-                                        { label: 'Kategori Modul', value: selectedSubmission.kategoriModul },
-                                        { label: 'Referensi No. Pengajuan Modul Khusus', value: selectedSubmission.referensiKhusus },
-                                        { label: 'Detail Permintaan Modul Khusus', value: selectedSubmission.detailPermintaan },
-                                        { label: 'Jenis Kebutuhan Modul Pelatihan', value: selectedSubmission.jenisKebutuhanPelatihan },
+                                        { label: `Kategori ${selectedSubmission?.jenisPerubahan?.toLowerCase().includes('program') ? 'Program' : 'Modul'}`, value: selectedSubmission.kategoriModul },
+                                        { label: `Referensi No. Pengajuan ${selectedSubmission?.jenisPerubahan?.toLowerCase().includes('program') ? 'Program' : 'Modul'} Khusus`, value: selectedSubmission.referensiKhusus },
+                                        { label: `Detail Permintaan ${selectedSubmission?.jenisPerubahan?.toLowerCase().includes('program') ? 'Program' : 'Modul'} Khusus`, value: selectedSubmission.detailPermintaan },
+                                        { label: `Jenis Kebutuhan ${selectedSubmission?.jenisPerubahan?.toLowerCase().includes('program') ? 'Program' : 'Modul'} Pelatihan`, value: selectedSubmission.jenisKebutuhanPelatihan },
                                         { label: 'Bahasa Pengantar', value: selectedSubmission.bahasaPengantar },
                                         { label: 'Jenis Modul', value: selectedSubmission.jenisModul?.join(', ') },
-                                    ].map(row => (
+                                    ].filter(row => {
+                                        if (row.label === 'Jenis Modul' && selectedSubmission?.jenisPerubahan?.toLowerCase().includes('program')) {
+                                            return false;
+                                        }
+                                        return true;
+                                    }).map(row => (
                                         <div key={row.label} className="flex gap-3">
                                             <span className="w-56 flex-shrink-0 font-semibold text-neutral-500 dark:text-neutral-400">{row.label}</span>
                                             <span className="font-semibold text-neutral-800 dark:text-neutral-200">{row.value || '-'}</span>
@@ -895,10 +943,10 @@ export default function PerubahanModul() {
                 <DialogContent className="max-w-7xl w-[95vw] md:w-full max-h-[92vh] overflow-y-auto overflow-x-hidden bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 p-0">
                     <DialogHeader className="border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30 px-6 py-4 sticky top-0 z-10">
                         <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100">
-                            {formMode === 'create' ? '✦ Pengajuan Perubahan Modul Baru' : `Edit Perubahan — ${selectedSubmission?.noPerubahan}`}
+                            {formMode === 'create' ? `✦ Pengajuan Perubahan ${formJenisPerubahan} Baru` : `Edit Perubahan — ${selectedSubmission?.noPerubahan}`}
                         </DialogTitle>
                         <DialogDescription className="text-xs text-neutral-400">
-                            Isi form di bawah untuk mengajukan penambahan modul atau revisi modul existing.
+                            Isi form di bawah untuk mengajukan penambahan {formJenisPerubahan.toLowerCase()} atau revisi {formJenisPerubahan.toLowerCase()} existing.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -912,7 +960,7 @@ export default function PerubahanModul() {
                             </div>
 
                             <div>
-                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">No. Pengajuan Perubahan Modul</label>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">No. Pengajuan Perubahan {formJenisPerubahan}</label>
                                 <input type="text"
                                     value={formMode === 'create' ? 'Auto-generate saat disimpan' : (selectedSubmission?.noPerubahan ?? '')}
                                     disabled className="w-full h-9 rounded-lg border border-neutral-200 bg-neutral-50 dark:bg-neutral-900 px-3 text-xs text-neutral-400 outline-none dark:border-neutral-800" />
@@ -927,7 +975,7 @@ export default function PerubahanModul() {
                             </div>
 
                             <div>
-                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Kategori Modul/Program</label>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Kategori {formJenisPerubahan}</label>
                                 <div className="flex gap-4 items-center h-9">
                                     {(['Baru', 'Existing'] as const).map(k => (
                                         <label key={k} className="flex items-center gap-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 cursor-pointer">
@@ -945,20 +993,20 @@ export default function PerubahanModul() {
 
                             {formKategori === 'Baru' && (
                                 <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Referensi No. Pengajuan Modul Khusus</label>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Referensi No. Pengajuan {formJenisPerubahan} Khusus</label>
                                     <SearchableSelect value={formReferensiKhusus} onChange={val => handleSelectPengajuanKhusus(val)}
                                         options={md.pengajuanKhusus.map(p => ({ value: p.id, label: p.id }))}
-                                        nullLabel="-- Pilih No. Pengajuan Khusus --"
+                                        nullLabel={`-- Pilih No. Pengajuan ${formJenisPerubahan} Khusus --`}
                                     />
                                 </div>
                             )}
 
                             <div>
-                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Detail Permintaan Modul Khusus</label>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Detail Permintaan {formJenisPerubahan} Khusus</label>
                                 <textarea value={formDetailPermintaan} onChange={e => setFormDetailPermintaan(e.target.value)} rows={2}
                                     disabled={formKategori === 'Baru' && !!formReferensiKhusus}
                                     className="w-full rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 dark:border-neutral-800 px-3 py-2 text-xs outline-none focus:border-blue-500 dark:text-neutral-100 disabled:bg-neutral-50 dark:disabled:bg-neutral-800 disabled:text-neutral-400 resize-none"
-                                    placeholder="Isian dari pengajuan modul khusus..." />
+                                    placeholder={`Isian dari pengajuan ${formJenisPerubahan.toLowerCase()} khusus...`} />
                             </div>
 
                             <div>
@@ -966,15 +1014,18 @@ export default function PerubahanModul() {
                                 <textarea value={formKeteranganKebutuhan} onChange={e => setFormKeteranganKebutuhan(e.target.value)} rows={2}
                                     disabled={formKategori === 'Baru' && !!formReferensiKhusus}
                                     className="w-full rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 dark:border-neutral-800 px-3 py-2 text-xs outline-none focus:border-blue-500 dark:text-neutral-100 disabled:bg-neutral-50 dark:disabled:bg-neutral-800 disabled:text-neutral-400 resize-none"
-                                    placeholder="Isian dari pengajuan modul khusus..." />
+                                    placeholder={`Isian dari pengajuan ${formJenisPerubahan.toLowerCase()} khusus...`} />
                             </div>
 
                             <div>
-                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Jenis Kebutuhan Modul Pelatihan</label>
-                                <input type="text" value={formJenisKebutuhanPelatihan} onChange={e => setFormJenisKebutuhanPelatihan(e.target.value)}
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Jenis Kebutuhan {formJenisPerubahan} Pelatihan</label>
+                                <SearchableSelect
+                                    value={formJenisKebutuhanPelatihan}
+                                    onChange={val => setFormJenisKebutuhanPelatihan(val)}
+                                    options={md.jenisKebutuhan || ['Pelatihan Inhouse', 'Pelatihan Internal', 'Seminar']}
+                                    nullLabel={`-- Pilih Jenis Kebutuhan --`}
                                     disabled={formKategori === 'Baru' && !!formReferensiKhusus}
-                                    className="w-full h-9 rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 dark:border-neutral-800 px-3 text-xs outline-none focus:border-blue-500 dark:text-neutral-100 disabled:bg-neutral-50 dark:disabled:bg-neutral-800 disabled:text-neutral-400"
-                                    placeholder="Pilih dari no. pengajuan modul khusus..." />
+                                />
                             </div>
 
                             <div>

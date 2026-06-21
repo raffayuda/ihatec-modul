@@ -465,7 +465,7 @@ export default function Approval() {
                                                 </button>
                                             </td>
                                             <td className="px-5 py-4">
-                                                <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${TYPE_COLORS[item.type] ?? ''}`}>
+                                                <Badge variant="outline" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${TYPE_COLORS[item.type] ?? ''}`}>
                                                     {item.type}
                                                 </Badge>
                                             </td>
@@ -476,7 +476,7 @@ export default function Approval() {
                                                 </div>
                                             </td>
                                             <td className="px-5 py-4">
-                                                <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[item.priority] ?? ''}`}>
+                                                <Badge variant="outline" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[item.priority] ?? ''}`}>
                                                     {item.priority}
                                                 </Badge>
                                             </td>
@@ -536,7 +536,7 @@ export default function Approval() {
                                                 {item.submittedAt}
                                             </td>
                                             <td className="px-5 py-4">
-                                                <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${
+                                                <Badge variant="outline" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${
                                                     item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
                                                     : (item.status === 'Ditolak' || item.status === 'Batal') ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
                                                     : item.status === 'Menunggu Approval' ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300'

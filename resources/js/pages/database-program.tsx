@@ -218,7 +218,7 @@ export default function DatabaseProgram({
     const { data, setData, post, processing, errors, reset } = useForm({
         code: '',
         name: '',
-        revision_code: '1.0',
+        revision_code: '0.0',
         effective_date: '',
         description: '',
         file: null as File | null,
@@ -575,6 +575,7 @@ export default function DatabaseProgram({
                                             </td>
                                             <td className="px-4 py-4">
                                                 <Badge
+                                                    variant="outline"
                                                     className={`font-semibold rounded-md border-0 px-2 py-0.5 text-[9px] ${
                                                         program.status === 'Aktif'
                                                             ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'
@@ -678,20 +679,6 @@ export default function DatabaseProgram({
                             Menampilkan {filteredPrograms.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(currentPage * itemsPerPage, filteredPrograms.length)} dari {filteredPrograms.length} program
                         </span>
                         <div className="flex items-center gap-4">
-                            <div className="w-32">
-                                <SearchableSelect
-                                    value={String(itemsPerPage)}
-                                    onChange={(val) => {
-                                        setItemsPerPage(Number(val));
-                                        setCurrentPage(1);
-                                    }}
-                                    options={[
-                                        { value: '10', label: '10 / halaman' },
-                                        { value: '20', label: '20 / halaman' },
-                                        { value: '50', label: '50 / halaman' }
-                                    ]}
-                                />
-                            </div>
                             <div className="flex items-center gap-1.5">
                                 <button 
                                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -1212,9 +1199,12 @@ export default function DatabaseProgram({
 
                     <div className="py-4 max-h-[350px] overflow-y-auto pr-1">
                         {historyProgram && historyProgram.revisionsHistory && historyProgram.revisionsHistory.length > 0 ? (
-                            <div className="relative pl-6 border-l border-neutral-100 dark:border-neutral-800 space-y-6 text-xs">
+                            <div className="relative pl-6 space-y-6 text-xs">
                                 {historyProgram.revisionsHistory.map((rev, index) => (
                                     <div key={rev.id} className="relative">
+                                        {index < historyProgram.revisionsHistory.length - 1 && (
+                                            <div className="absolute left-[-22px] top-5 bottom-[-34px] w-0.5 bg-neutral-100 dark:bg-neutral-800" />
+                                        )}
                                         <span className={`absolute -left-[30px] top-1 flex size-4.5 items-center justify-center rounded-full ring-4 ring-white dark:ring-neutral-950 ${
                                             index === 0
                                                 ? 'bg-emerald-500 text-white font-extrabold text-[8px]'

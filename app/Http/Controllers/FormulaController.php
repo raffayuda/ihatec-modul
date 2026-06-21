@@ -88,6 +88,11 @@ class FormulaController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $user = auth()->user();
+        if (! in_array(strtolower($user->role), ['admin', 'staf pd'])) {
+            abort(403, 'Akses ditolak.');
+        }
+
         $validated = $request->validate([
             'trainingCode' => 'required|string',
             'modules' => 'required|array',

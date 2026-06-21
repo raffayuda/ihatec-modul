@@ -206,28 +206,30 @@ export default function FormulaModul({
                     </div>
 
                     {/* Tab Switcher / Role Simulation Toggle */}
-                    <div className="flex items-center gap-1 rounded-xl bg-neutral-100 dark:bg-neutral-950 p-1 border border-neutral-200 dark:border-neutral-800 self-start sm:self-center">
-                        <button
-                            onClick={() => setActiveTab('admin')}
-                            className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                                activeTab === 'admin'
-                                    ? 'bg-white text-neutral-900 dark:bg-neutral-900 dark:text-white shadow-sm'
-                                    : 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200'
-                            }`}
-                        >
-                            Tampilan Admin PD
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('training')}
-                            className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                                activeTab === 'training'
-                                    ? 'bg-white text-neutral-900 dark:bg-neutral-900 dark:text-white shadow-sm'
-                                    : 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200'
-                            }`}
-                        >
-                            Tampilan Training
-                        </button>
-                    </div>
+                    {(userRole.toLowerCase() === 'admin' || userRole.toLowerCase() === 'staf pd') && (
+                        <div className="flex items-center gap-1 rounded-xl bg-neutral-100 dark:bg-neutral-950 p-1 border border-neutral-200 dark:border-neutral-800 self-start sm:self-center">
+                            <button
+                                onClick={() => setActiveTab('admin')}
+                                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                                    activeTab === 'admin'
+                                        ? 'bg-white text-neutral-900 dark:bg-neutral-900 dark:text-white shadow-sm'
+                                        : 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200'
+                                }`}
+                            >
+                                Tampilan Admin PD
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('training')}
+                                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                                    activeTab === 'training'
+                                        ? 'bg-white text-neutral-900 dark:bg-neutral-900 dark:text-white shadow-sm'
+                                        : 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200'
+                                }`}
+                            >
+                                Tampilan Training
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Local Toast Alert */}

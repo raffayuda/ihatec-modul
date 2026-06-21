@@ -440,12 +440,12 @@ export default function ManajemenUser() {
                                                     <td className="px-6 py-4 font-semibold text-neutral-900 dark:text-neutral-100">{user.name}</td>
                                                     <td className="px-6 py-4 font-medium text-neutral-500 dark:text-neutral-400">{user.email}</td>
                                                     <td className="px-6 py-4">
-                                                        <Badge variant="secondary" className={`font-semibold rounded-md border-0 px-2.5 py-0.5 text-[10px] ${getRoleBadge(user.role)}`}>
+                                                        <Badge variant="outline" className={`font-semibold rounded-md border-0 px-2.5 py-0.5 text-[10px] ${getRoleBadge(user.role)}`}>
                                                             {user.role}
                                                         </Badge>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <Badge className={`font-semibold rounded-md border-0 px-2 py-0.5 text-[10px] ${
+                                                        <Badge variant="outline" className={`font-semibold rounded-md border-0 px-2 py-0.5 text-[10px] ${
                                                             user.status === 'Aktif' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'
                                                             : user.status === 'Pending' ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300'
                                                             : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300'

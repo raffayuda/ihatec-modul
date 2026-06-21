@@ -6,6 +6,8 @@ use App\Models\Module;
 use App\Models\ModuleRequest;
 use App\Models\MasterData;
 use App\Models\Setting;
+use App\Models\TrainingProgram;
+use App\Models\TrainingProgramRevision;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -77,33 +79,14 @@ class PengajuanController extends Controller
                 'approvedAt'             => $req->approved_at ? Carbon::parse($req->approved_at)->format('d M Y H:i') : null,
             ]);
 
-        // Build masterData for the form
-        $approvedRequests = ModuleRequest::where('status', 'Disetujui')
-            ->whereIn('type', ['Program Baru', 'Revisi Program'])
-            ->get();
-            
-        $programRevisions = [];
-        foreach ($approvedRequests as $req) {
-            $rows = json_decode($req->program_rows, true) ?: [];
-            foreach ($rows as $row) {
-                $code = $row['kodeProgram'] ?? null;
-                $rev = $row['kodeRevisi'] ?? null;
-                if ($code && $rev) {
-                    if (!isset($programRevisions[$code]) || version_compare($rev, $programRevisions[$code], '>')) {
-                        $programRevisions[$code] = $rev;
-                    }
-                }
-            }
-        }
-
-        $kodeProgramList = MasterData::where('category', 'Kode Program')
-            ->where('status', 'Aktif')
-            ->orderBy('name')
+        // Build masterData for the form from TrainingProgram database
+        $kodeProgramList = TrainingProgram::where('status', 'Aktif')
+            ->orderBy('code')
             ->get()
-            ->map(fn ($m) => [
-                'code' => $m->code ?? $m->name,
-                'name' => $m->code ? $m->name : '',
-                'revision' => $programRevisions[$m->code ?? $m->name] ?? '00',
+            ->map(fn ($tp) => [
+                'code' => $tp->code,
+                'name' => $tp->name,
+                'revision' => $tp->revision_code ?? '1.0',
             ])
             ->toArray();
 
@@ -117,10 +100,11 @@ class PengajuanController extends Controller
             'jenisPerubahan'  => MasterData::where('category', 'Jenis Perubahan')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Modul', 'Program'],
             'bahasaPengantar' => MasterData::where('category', 'Bahasa Pengantar')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Indonesia', 'Inggris'],
             'jenisModul'      => MasterData::where('category', 'Jenis Modul')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Modul', 'Lembar Kerja', 'Post Test'],
+            'jenisKebutuhan'  => MasterData::where('category', 'Jenis Kebutuhan Modul')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Pelatihan Inhouse', 'Pelatihan Internal', 'Seminar'],
             'kodeProgram'     => $kodeProgramList,
             'modules'         => $modulesList,
             'pengajuanKhusus' => ModuleRequest::where('type', 'Kebutuhan Khusus')
-                ->whereIn('status', ['Menunggu Approval', 'Disetujui', 'Baru', 'Drafting'])
+                ->whereIn('status', ['Selesai', 'Disetujui', 'Baru', 'Drafting'])
                 ->orderByDesc('created_at')
                 ->get()
                 ->map(fn ($req) => [
@@ -314,7 +298,7 @@ class PengajuanController extends Controller
                     ]);
                 }
             } else {
-                // For Program, update MasterData Kode Program
+                // For Program, update TrainingProgram and TrainingProgramRevision
                 $rows = json_decode($req->program_rows, true) ?: [];
                 foreach ($rows as $row) {
                     $code = strtoupper(trim($row['kodeProgram'] ?? ''));
@@ -323,22 +307,83 @@ class PengajuanController extends Controller
                         continue;
                     }
 
-                    $exists = MasterData::where('category', 'Kode Program')
-                        ->where('code', $code)
-                        ->exists();
+                    $revision = $row['kodeRevisi'] ?? '1.0';
+                    $filePath = $row['linkProgram'] ?? null;
+                    if ($filePath) {
+                        $relativeFilePath = str_replace('/storage/', '', $filePath);
+                    } else {
+                        $relativeFilePath = null;
+                    }
 
-                    if (!$exists) {
-                        MasterData::create([
-                            'category' => 'Kode Program',
-                            'code' => $code,
+                    $fileSizeStr = null;
+                    $pageCount = 1;
+                    if ($relativeFilePath && Storage::disk('public')->exists($relativeFilePath)) {
+                        $size = Storage::disk('public')->size($relativeFilePath);
+                        $fileSizeStr = $this->formatFileSize($size);
+                        
+                        $absolutePath = Storage::disk('public')->path($relativeFilePath);
+                        $pageCount = $this->getPdfPageCount($absolutePath);
+                    }
+
+                    $effectiveDate = null;
+                    if (!empty($row['tanggalBerlaku'])) {
+                        try {
+                            $effectiveDate = Carbon::parse($row['tanggalBerlaku'])->format('Y-m-d');
+                        } catch (\Exception $e) {
+                            $effectiveDate = null;
+                        }
+                    }
+
+                    // Look up existing program
+                    $program = TrainingProgram::where('code', $code)->first();
+                    if ($program) {
+                        // Delete old file if it's different
+                        if ($relativeFilePath && $program->file_path && $program->file_path !== $relativeFilePath) {
+                            Storage::disk('public')->delete($program->file_path);
+                        }
+
+                        $program->update([
                             'name' => $name,
+                            'revision_code' => $revision,
+                            'effective_date' => $effectiveDate,
                             'status' => 'Aktif',
+                            'description' => $row['alasanPerubahan'] ?? $program->description,
+                            'file_path' => $relativeFilePath ?? $program->file_path,
+                            'file_name' => $relativeFilePath ? basename($relativeFilePath) : $program->file_name,
+                            'file_size' => $fileSizeStr ?? $program->file_size,
+                            'file_pages' => $relativeFilePath ? $pageCount : $program->file_pages,
                         ]);
                     } else {
-                        MasterData::where('category', 'Kode Program')
-                            ->where('code', $code)
-                            ->update(['name' => $name]);
+                        // Create new program
+                        $program = TrainingProgram::create([
+                            'code' => $code,
+                            'name' => $name,
+                            'revision_code' => $revision,
+                            'effective_date' => $effectiveDate,
+                            'status' => 'Aktif',
+                            'description' => $row['alasanPerubahan'] ?? null,
+                            'file_path' => $relativeFilePath,
+                            'file_name' => $relativeFilePath ? basename($relativeFilePath) : null,
+                            'file_size' => $fileSizeStr,
+                            'file_pages' => $relativeFilePath ? $pageCount : null,
+                            'created_by' => $req->applicant_id,
+                        ]);
                     }
+
+                    // Create program revision history
+                    TrainingProgramRevision::create([
+                        'training_program_id' => $program->id,
+                        'revision_code' => $revision,
+                        'effective_date' => $effectiveDate,
+                        'note' => $row['alasanPerubahan'] ?? 'Perubahan disetujui.',
+                        'author_name' => $req->applicant?->name ?? 'Staf PD',
+                        'status' => 'Aktif',
+                        'file_path' => $relativeFilePath,
+                        'file_name' => $relativeFilePath ? basename($relativeFilePath) : null,
+                        'file_size' => $fileSizeStr,
+                        'file_pages' => $relativeFilePath ? $pageCount : null,
+                        'created_by' => $req->applicant_id,
+                    ]);
                 }
             }
         });
@@ -521,7 +566,6 @@ class PengajuanController extends Controller
                 
                 // Pelatihan Inhouse specific validation
                 'nama_instansi' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string|max:255',
-                'training_days' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|integer',
                 'jam_khusus' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string',
                 'pre_post_test' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string',
 
@@ -534,7 +578,6 @@ class PengajuanController extends Controller
                 'description.required' => 'Detail Permintaan Modul Khusus wajib diisi.',
                 'deadline.required' => 'Tanggal Kebutuhan wajib diisi.',
                 'nama_instansi.required_if' => 'Nama Instansi wajib diisi untuk Pelatihan Inhouse.',
-                'training_days.required_if' => 'Jumlah Hari Pelatihan wajib diisi untuk Pelatihan Inhouse.',
                 'jam_khusus.required_if' => 'Request Jam Khusus Pelatihan wajib diisi untuk Pelatihan Inhouse.',
                 'pre_post_test.required_if' => 'Permintaan Pre & Post Test wajib diisi untuk Pelatihan Inhouse.',
                 'keterangan_kebutuhan.required_if' => 'Keterangan Kebutuhan wajib diisi untuk Pelatihan Internal / Seminar.',
@@ -759,7 +802,7 @@ class PengajuanController extends Controller
         }
 
         // Processing Kebutuhan Khusus by Admin or Staf PD (or cancellation by User)
-        if ($moduleRequest->type === 'Kebutuhan Khusus' && ($request->has('link_modul') || $request->has('tanggal_realisasi') || $request->has('tanggal_kebutuhan_baru') || in_array($request->input('status'), ['Baru', 'Menunggu Approval', 'Batal', 'Hold']))) {
+        if ($moduleRequest->type === 'Kebutuhan Khusus' && ($request->has('link_modul') || $request->has('tanggal_realisasi') || $request->has('tanggal_kebutuhan_baru') || in_array($request->input('status'), ['Baru', 'Selesai', 'Batal', 'Hold']))) {
             if (!$isProcessor) {
                 // Regular User can cancel their own request if status is 'Baru' (representing 'Process')
                 if ($user->id === $moduleRequest->applicant_id && $moduleRequest->status === 'Baru' && $request->input('status') === 'Batal') {
@@ -794,15 +837,15 @@ class PengajuanController extends Controller
 
             // Staf PD / Admin processing Kebutuhan Khusus
             $validated = $request->validate([
-                'status' => 'required|in:Baru,Menunggu Approval,Batal,Hold',
-                'link_modul' => 'required_if:status,Menunggu Approval|nullable|url|max:255',
-                'tanggal_realisasi' => 'required_if:status,Menunggu Approval|nullable|date',
+                'status' => 'required|in:Baru,Selesai,Batal,Hold',
+                'link_modul' => 'required_if:status,Selesai|nullable|url|max:255',
+                'tanggal_realisasi' => 'required_if:status,Selesai|nullable|date',
                 'tanggal_kebutuhan_baru' => 'required_if:status,Hold|nullable|date',
                 'reject_reason' => 'required|string|max:1000',
             ], [
-                'link_modul.required_if' => 'Link Modul wajib diisi jika status Done (Kirim ke Approval).',
+                'link_modul.required_if' => 'Link Modul wajib diisi jika status Done.',
                 'link_modul.url' => 'Link Modul harus berupa URL yang valid.',
-                'tanggal_realisasi.required_if' => 'Tanggal Realisasi wajib diisi jika status Done (Kirim ke Approval).',
+                'tanggal_realisasi.required_if' => 'Tanggal Realisasi wajib diisi jika status Done.',
                 'tanggal_kebutuhan_baru.required_if' => 'Tanggal Kebutuhan Baru wajib diisi jika status Hold.',
                 'reject_reason.required' => 'Keterangan wajib diisi.',
             ]);
@@ -813,8 +856,8 @@ class PengajuanController extends Controller
 
             $moduleRequest->update($validated);
 
-            // Send email if status changed to Batal or Hold
-            if ($oldStatus !== $moduleRequest->status && in_array($moduleRequest->status, ['Batal', 'Hold'])) {
+            // Send email if status changed to Selesai, Batal or Hold
+            if ($oldStatus !== $moduleRequest->status && in_array($moduleRequest->status, ['Selesai', 'Batal', 'Hold'])) {
                 try {
                     $emailsToNotify = collect();
                     if ($moduleRequest->applicant && $moduleRequest->applicant->email) {
@@ -913,7 +956,6 @@ class PengajuanController extends Controller
                 
                 // Pelatihan Inhouse specific validation
                 'nama_instansi' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string|max:255',
-                'training_days' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|integer',
                 'jam_khusus' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string',
                 'pre_post_test' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string',
 
@@ -926,7 +968,6 @@ class PengajuanController extends Controller
                 'description.required' => 'Detail Permintaan Modul Khusus wajib diisi.',
                 'deadline.required' => 'Tanggal Kebutuhan wajib diisi.',
                 'nama_instansi.required_if' => 'Nama Instansi wajib diisi untuk Pelatihan Inhouse.',
-                'training_days.required_if' => 'Jumlah Hari Pelatihan wajib diisi untuk Pelatihan Inhouse.',
                 'jam_khusus.required_if' => 'Request Jam Khusus Pelatihan wajib diisi untuk Pelatihan Inhouse.',
                 'pre_post_test.required_if' => 'Permintaan Pre & Post Test wajib diisi untuk Pelatihan Inhouse.',
                 'keterangan_kebutuhan.required_if' => 'Keterangan Kebutuhan wajib diisi untuk Pelatihan Internal / Seminar.',
@@ -1002,13 +1043,13 @@ class PengajuanController extends Controller
         $moduleRequest = ModuleRequest::findOrFail($id);
         $user = Auth::user();
 
-        if ($moduleRequest->applicant_id !== $user->id && strtolower($user->role) !== 'admin') {
+        if ($moduleRequest->applicant_id !== $user->id && ! in_array(strtolower($user->role), ['admin', 'staf pd'])) {
             abort(403, 'Akses ditolak.');
         }
 
-        if ($moduleRequest->status !== 'Baru') {
+        if (! in_array($moduleRequest->status, ['Baru', 'Draft', 'Drafting'])) {
             return redirect()->route($redirectRoute)
-                ->with('error', 'Pengajuan hanya dapat dihapus jika masih berstatus Baru.');
+                ->with('error', 'Pengajuan hanya dapat dihapus jika masih berstatus Baru atau Draft.');
         }
 
         if ($moduleRequest->file_path && Storage::disk('public')->exists($moduleRequest->file_path)) {
@@ -1088,5 +1129,22 @@ class PengajuanController extends Controller
         }
 
         return round($bytes / 1048576, 1).' MB';
+    }
+
+    /**
+     * Get PDF page count.
+     */
+    protected function getPdfPageCount(string $filePath): int
+    {
+        $content = @file_get_contents($filePath);
+        if ($content === false) {
+            return 1;
+        }
+        if (preg_match('/\/Count\s+(\d+)/', $content, $matches)) {
+            return (int) $matches[1];
+        }
+        $count = preg_match_all('/\/Type\s*\/Page\b/', $content, $matches);
+
+        return $count > 0 ? $count : 1;
     }
 }
