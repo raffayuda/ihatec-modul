@@ -63,11 +63,6 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     <div className="grid gap-1.5">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="password" className="text-xs font-bold text-neutral-400 ml-3">Kata Sandi</Label>
-                            {canResetPassword && (
-                                <TextLink href={route('password.request')} className="text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors mr-3" tabIndex={5}>
-                                    Lupa kata sandi?
-                                </TextLink>
-                            )}
                         </div>
                         <Input
                             id="password"
