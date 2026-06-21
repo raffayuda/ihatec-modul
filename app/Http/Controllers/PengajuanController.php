@@ -104,7 +104,7 @@ class PengajuanController extends Controller
             'kodeProgram'     => $kodeProgramList,
             'modules'         => $modulesList,
             'pengajuanKhusus' => ModuleRequest::where('type', 'Kebutuhan Khusus')
-                ->whereIn('status', ['Selesai', 'Disetujui', 'Baru', 'Drafting'])
+                ->whereIn('status', ['Baru', 'Drafting'])
                 ->orderByDesc('created_at')
                 ->get()
                 ->map(fn ($req) => [
@@ -562,11 +562,11 @@ class PengajuanController extends Controller
                 'judul_program' => 'required|string|max:255',
                 'description' => 'required|string',
                 'deadline' => 'required|date',
-                'priority' => 'required|in:High,Medium,Low',
+                'priority' => 'nullable|in:High,Medium,Low',
                 
                 // Pelatihan Inhouse specific validation
                 'nama_instansi' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string|max:255',
-                'jam_khusus' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string',
+                'jam_khusus' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|numeric',
                 'pre_post_test' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string',
 
                 // Pelatihan Internal or Seminar specific validation
@@ -579,6 +579,7 @@ class PengajuanController extends Controller
                 'deadline.required' => 'Tanggal Kebutuhan wajib diisi.',
                 'nama_instansi.required_if' => 'Nama Instansi wajib diisi untuk Pelatihan Inhouse.',
                 'jam_khusus.required_if' => 'Request Jam Khusus Pelatihan wajib diisi untuk Pelatihan Inhouse.',
+                'jam_khusus.numeric' => 'Request Jam Khusus Pelatihan harus berupa angka.',
                 'pre_post_test.required_if' => 'Permintaan Pre & Post Test wajib diisi untuk Pelatihan Inhouse.',
                 'keterangan_kebutuhan.required_if' => 'Keterangan Kebutuhan wajib diisi untuk Pelatihan Internal / Seminar.',
             ]);
@@ -590,7 +591,7 @@ class PengajuanController extends Controller
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'deadline' => 'nullable|date',
-                'priority' => 'required|in:High,Medium,Low',
+                'priority' => 'nullable|in:High,Medium,Low',
                 'related_module_id' => 'nullable|integer',
                 'program' => 'nullable|string|max:255',
                 'language' => 'nullable|string|max:255',
@@ -952,11 +953,11 @@ class PengajuanController extends Controller
                 'judul_program' => 'required|string|max:255',
                 'description' => 'required|string',
                 'deadline' => 'required|date',
-                'priority' => 'required|in:High,Medium,Low',
+                'priority' => 'nullable|in:High,Medium,Low',
                 
                 // Pelatihan Inhouse specific validation
                 'nama_instansi' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string|max:255',
-                'jam_khusus' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string',
+                'jam_khusus' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|numeric',
                 'pre_post_test' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string',
 
                 // Pelatihan Internal or Seminar specific validation
@@ -969,6 +970,7 @@ class PengajuanController extends Controller
                 'deadline.required' => 'Tanggal Kebutuhan wajib diisi.',
                 'nama_instansi.required_if' => 'Nama Instansi wajib diisi untuk Pelatihan Inhouse.',
                 'jam_khusus.required_if' => 'Request Jam Khusus Pelatihan wajib diisi untuk Pelatihan Inhouse.',
+                'jam_khusus.numeric' => 'Request Jam Khusus Pelatihan harus berupa angka.',
                 'pre_post_test.required_if' => 'Permintaan Pre & Post Test wajib diisi untuk Pelatihan Inhouse.',
                 'keterangan_kebutuhan.required_if' => 'Keterangan Kebutuhan wajib diisi untuk Pelatihan Internal / Seminar.',
             ]);
@@ -985,7 +987,7 @@ class PengajuanController extends Controller
                 'title' => $request->input('type') === 'Kebutuhan Khusus' ? 'nullable|string|max:255' : 'required|string|max:255',
                 'description' => 'nullable|string',
                 'deadline' => 'nullable|date',
-                'priority' => 'required|in:High,Medium,Low',
+                'priority' => 'nullable|in:High,Medium,Low',
                 'status' => 'sometimes|in:Baru,Drafting,Menunggu Approval',
                 'related_module_id' => 'nullable|integer',
                 'program' => 'nullable|string|max:255',

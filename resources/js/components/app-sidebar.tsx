@@ -84,8 +84,6 @@ export function AppSidebar() {
         { title: 'Perubahan Modul', url: '/perubahan-modul', icon: FileEdit },
         { title: 'Database Modul', url: '/database', icon: Database },
         { title: 'Database Program Pelatihan', url: '/database-program', icon: Database },
-        { title: 'Formula Modul', url: '/formula', icon: FlaskConical },
-        { title: 'Matriks Pelatihan', url: '/matriks', icon: Grid },
         { title: 'Notifikasi', url: '/notifikasi', icon: Bell },
     ];
 

@@ -1444,7 +1444,7 @@ export default function DatabaseModul({
 
             {/* Modal: Riwayat Revisi */}
             <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
-                <DialogContent className="max-w-md bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
+                <DialogContent className="max-w- bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800">
                     <DialogHeader>
                         <DialogTitle className="text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
                             <History className="size-5 text-blue-600 dark:text-blue-400" />
@@ -1455,16 +1455,16 @@ export default function DatabaseModul({
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="py-4 max-h-[350px] overflow-y-auto pr-1">
+                    <div className="py-4 max-h-[350px] overflow-y-auto">
                         {historyModule && historyModule.revisionsHistory && historyModule.revisionsHistory.length > 0 ? (
-                            <div className="relative pl-6 space-y-6 text-xs">
+                            <div className="relative pl-8 space-y-6 text-xs">
                                 {historyModule.revisionsHistory.map((historyItem, index) => (
                                     <div key={index} className="relative">
                                         {index < historyModule.revisionsHistory.length - 1 && (
-                                            <div className="absolute left-[-22px] top-5 bottom-[-34px] w-0.5 bg-neutral-100 dark:bg-neutral-800" />
+                                            <div className="absolute left-[-18px] top-5 bottom-[-34px] w-0.5 bg-neutral-100 dark:bg-neutral-800" />
                                         )}
                                         {/* Colored Timeline Node Indicator */}
-                                        <span className={`absolute -left-[30px] top-1 flex size-4.5 items-center justify-center rounded-full ring-4 ring-white dark:ring-neutral-950 ${
+                                        <span className={`absolute -left-[26px] top-1 flex size-4.5 items-center justify-center rounded-full ring-4 ring-white dark:ring-neutral-950 ${
                                             index === 0
                                                 ? 'bg-emerald-500 text-white font-extrabold text-[8px]'
                                                 : index === 1

@@ -1098,7 +1098,6 @@ export default function Pengajuan() {
                                             <th className="px-5 py-3.5">Tipe</th>
                                             <th className="px-5 py-3.5">Pengaju</th>
                                             <th className="px-5 py-3.5">Deadline</th>
-                                            <th className="px-5 py-3.5">Prioritas</th>
                                             <th className="px-5 py-3.5">File</th>
                                             <th className="px-5 py-3.5">Status</th>
                                             <th className="w-20 px-5 py-3.5 text-center">Aksi</th>
@@ -1107,7 +1106,7 @@ export default function Pengajuan() {
                                     <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                                         {currentItems.length === 0 ? (
                                             <tr>
-                                                <td colSpan={9} className="py-10 text-center font-medium text-neutral-400 dark:text-neutral-500">
+                                                <td colSpan={8} className="py-10 text-center font-medium text-neutral-400 dark:text-neutral-500">
                                                     Belum ada pengajuan.
                                                 </td>
                                             </tr>
@@ -1140,11 +1139,6 @@ export default function Pengajuan() {
                                                     </td>
                                                     <td className="whitespace-nowrap px-5 py-4 font-medium text-neutral-600 dark:text-neutral-400">{item.applicant}</td>
                                                     <td className="whitespace-nowrap px-5 py-4 font-medium text-neutral-500 dark:text-neutral-400">{item.deadline}</td>
-                                                    <td className="px-5 py-4">
-                                                        <Badge variant="outline" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[item.priority] ?? ''}`}>
-                                                            {item.priority}
-                                                        </Badge>
-                                                    </td>
                                                     {/* File column */}
                                                     <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                                                         {item.fileName ? (
@@ -1314,10 +1308,6 @@ export default function Pengajuan() {
                                 )}
                                 {createErrors.deadline && <p className="mt-1 text-[10px] text-rose-500 font-sans">{createErrors.deadline}</p>}
                             </div>
-                            <div>
-                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Prioritas *</label>
-                                <SearchableSelect value={createData.priority} onChange={(val) => setCreateData({ ...createData, priority: val })} options={['High', 'Medium', 'Low']} />
-                            </div>
                         </div>
 
                         {/* ── CONDITIONAL SECTION: MODUL BARU ── */}
@@ -1449,11 +1439,11 @@ export default function Pengajuan() {
                                     <div>
                                         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jam Khusus / Jumlah Jam *</label>
                                         <input
-                                            type="text"
+                                            type="number"
                                             value={createData.jam_khusus}
                                             onChange={(e) => setCreateData({ ...createData, jam_khusus: e.target.value })}
                                             className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                            placeholder="e.g. 16 Jam Pelatihan"
+                                            placeholder="e.g. 16"
                                             required
                                         />
                                     </div>
@@ -1572,10 +1562,6 @@ export default function Pengajuan() {
                                     </p>
                                 )}
                                 {editForm.errors.deadline && <p className="mt-1 text-[10px] text-rose-500 font-sans">{editForm.errors.deadline}</p>}
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Prioritas *</label>
-                                <SearchableSelect value={editForm.data.priority} onChange={(val) => editForm.setData('priority', val)} options={['High', 'Medium', 'Low']} />
                             </div>
                         </div>
 
@@ -1715,11 +1701,11 @@ export default function Pengajuan() {
                                         <div>
                                             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-sans">Jam Khusus / Jumlah Jam *</label>
                                             <input
-                                                type="text"
+                                                type="number"
                                                 value={editForm.data.jam_khusus}
                                                 onChange={(e) => editForm.setData('jam_khusus', e.target.value)}
                                                 className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                                placeholder="e.g. 16 Jam Pelatihan"
+                                                placeholder="e.g. 16"
                                                 required
                                             />
                                         </div>
@@ -1913,10 +1899,6 @@ export default function Pengajuan() {
                                     <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-[10px] font-semibold bg-neutral-200/60 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200">
                                         {detailItem.type}
                                     </Badge>
-                                </div>
-                                <div>
-                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Prioritas</p>
-                                    <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[detailItem.priority]}`}>{detailItem.priority}</Badge>
                                 </div>
                                 <div>
                                     <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Status</p>

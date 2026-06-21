@@ -151,7 +151,6 @@ export default function Approval() {
     const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
     const [searchQuery, setSearchQuery] = useState('');
     const [typeFilter, setTypeFilter] = useState('Semua Tipe');
-    const [priorityFilter, setPriorityFilter] = useState('Semua Prioritas');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
 
@@ -196,10 +195,9 @@ export default function Approval() {
                 item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 item.applicant.toLowerCase().includes(searchQuery.toLowerCase());
             const matchType = typeFilter === 'Semua Tipe' || item.type === typeFilter;
-            const matchPriority = priorityFilter === 'Semua Prioritas' || item.priority === priorityFilter;
-            return matchSearch && matchType && matchPriority;
+            return matchSearch && matchType;
         });
-    }, [activeList, searchQuery, typeFilter, priorityFilter]);
+    }, [activeList, searchQuery, typeFilter]);
 
     const indexOfLast = currentPage * itemsPerPage;
     const indexOfFirst = indexOfLast - itemsPerPage;
@@ -209,7 +207,6 @@ export default function Approval() {
     const handleReset = () => {
         setSearchQuery('');
         setTypeFilter('Semua Tipe');
-        setPriorityFilter('Semua Prioritas');
         setCurrentPage(1);
     };
 
@@ -409,18 +406,6 @@ export default function Approval() {
                                      ]}
                                  />
                              </div>
-                             <div className="w-40">
-                                 <SearchableSelect
-                                     value={priorityFilter}
-                                     onChange={(val) => { setPriorityFilter(val); setCurrentPage(1); }}
-                                     options={[
-                                         "Semua Prioritas",
-                                         "High",
-                                         "Medium",
-                                         "Low"
-                                     ]}
-                                 />
-                             </div>
                             <Button onClick={handleReset} variant="outline" size="sm" className="h-9 rounded-lg border-neutral-200 px-3 text-xs font-semibold dark:border-neutral-800">
                                 <RefreshCw className="mr-1.5 size-3.5" /> Reset
                             </Button>
@@ -436,7 +421,6 @@ export default function Approval() {
                                     <th className="px-5 py-3.5">Judul</th>
                                     <th className="px-5 py-3.5">Tipe</th>
                                     <th className="px-5 py-3.5">Pengaju</th>
-                                    <th className="px-5 py-3.5">Prioritas</th>
                                     <th className="px-5 py-3.5">Dokumen</th>
                                     <th className="px-5 py-3.5">Waktu Submit</th>
                                     <th className="px-5 py-3.5">Status</th>
@@ -446,7 +430,7 @@ export default function Approval() {
                             <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                                 {currentItems.length === 0 ? (
                                     <tr>
-                                        <td colSpan={9} className="py-12 text-center font-medium text-neutral-400 dark:text-neutral-500">
+                                        <td colSpan={8} className="py-12 text-center font-medium text-neutral-400 dark:text-neutral-500">
                                             {activeTab === 'queue' ? 'Tidak ada pengajuan yang menunggu approval.' : 'Belum ada riwayat keputusan.'}
                                         </td>
                                     </tr>
@@ -474,11 +458,6 @@ export default function Approval() {
                                                     <p>{item.applicant}</p>
                                                     <p className="text-[10px] text-neutral-400">{item.unit}</p>
                                                 </div>
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <Badge variant="outline" className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[item.priority] ?? ''}`}>
-                                                    {item.priority}
-                                                </Badge>
                                             </td>
                                             {/* Dokumen column */}
                                             <td className="px-5 py-4">
@@ -626,10 +605,6 @@ export default function Approval() {
                                 <div>
                                     <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Tipe Modul</p>
                                     <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${TYPE_COLORS[selectedItem.type] ?? ''}`}>{selectedItem.type}</Badge>
-                                </div>
-                                <div>
-                                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-sans">Prioritas</p>
-                                    <Badge className={`rounded-md border-0 px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[selectedItem.priority] ?? ''}`}>{selectedItem.priority}</Badge>
                                 </div>
                             </div>
 
