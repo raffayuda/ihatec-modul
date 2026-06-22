@@ -3,8 +3,8 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, router, usePage } from '@inertiajs/react';
 import {
     Plus, Edit3, FileText, Search, ChevronLeft, ChevronRight,
-    Check, X, Upload, Eye, Trash2, Clock,
-    CheckCircle2, XCircle, ArrowLeft, MoreVertical, RefreshCw, AlertTriangle
+    X, Upload, Clock,
+    CheckCircle2, XCircle, MoreVertical, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -215,7 +215,7 @@ const getCombinedType = (base: string, kat: 'Baru' | 'Existing') => {
     }
 };
 
-function generateModuleAcronym(title: string, revision: string = '0.0', existingModules: any[] = []): string {
+function generateModuleAcronym(title: string, revision: string = '0.0', existingModules: Array<{ code: string }> = []): string {
     const cleanTitle = title.trim();
     if (!cleanTitle) return '';
 
@@ -250,7 +250,7 @@ function generateModuleAcronym(title: string, revision: string = '0.0', existing
     return finalCode;
 }
 
-function generateProgramAcronym(name: string, existingPrograms: any[] = []): string {
+function generateProgramAcronym(name: string, existingPrograms: Array<{ code?: string; id?: string }> = []): string {
     const cleanName = name.trim();
     if (!cleanName) return '';
 
@@ -306,7 +306,7 @@ export default function PerubahanModul() {
 
     // ── View mode ───────────────────────────────────
     type ViewMode = 'list' | 'detail';
-    const [mode, setMode] = useState<ViewMode>('list');
+    const mode = 'list';
     const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
 
@@ -464,7 +464,7 @@ export default function PerubahanModul() {
 
     const handleSave = () => {
         if (formMode === 'create') {
-            router.post('/perubahan-modul', buildPayload(false), {
+            router.post('/perubahan-modul', buildPayload(false) as any, {
                 forceFormData: true,
                 onSuccess: () => { setIsFormModalOpen(false); resetForm(); },
             });
@@ -472,7 +472,7 @@ export default function PerubahanModul() {
             router.post(`/perubahan-modul/${selectedSubmission.dbId}`, {
                 ...buildPayload(false),
                 _method: 'PUT',
-            }, {
+            } as any, {
                 forceFormData: true,
                 onSuccess: () => { setIsFormModalOpen(false); resetForm(); },
             });
@@ -481,7 +481,7 @@ export default function PerubahanModul() {
 
     const handleRequestApproval = () => {
         if (formMode === 'create') {
-            router.post('/perubahan-modul', buildPayload(true), {
+            router.post('/perubahan-modul', buildPayload(true) as any, {
                 forceFormData: true,
                 onSuccess: () => { setIsFormModalOpen(false); resetForm(); },
             });
@@ -489,7 +489,7 @@ export default function PerubahanModul() {
             router.post(`/perubahan-modul/${selectedSubmission.dbId}`, {
                 ...buildPayload(true),
                 _method: 'PUT',
-            }, {
+            } as any, {
                 forceFormData: true,
                 onSuccess: () => { setIsFormModalOpen(false); resetForm(); },
             });
@@ -600,7 +600,7 @@ export default function PerubahanModul() {
                                     <div className="w-40">
                                         <SearchableSelect
                                             value={statusFilter}
-                                            onChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
+                                            onChange={(val) => { setStatusFilter(String(val)); setCurrentPage(1); }}
                                             options={[
                                                 { value: 'Semua Status', label: 'Semua Status' },
                                                 { value: 'Draft', label: 'Draft' },

@@ -7,7 +7,6 @@ import {
     UserCheck,
     ShieldCheck,
     Users,
-    ArrowRight,
     type LucideIcon,
 } from 'lucide-react';
 

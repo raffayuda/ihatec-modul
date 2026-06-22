@@ -18,7 +18,6 @@ import {
     ArrowLeft,
     ShieldCheck,
     UserMinus,
-    UserCheck,
     Trash2,
     Edit3,
     Check,
@@ -81,7 +80,7 @@ interface ManajemenUserProps extends SharedData {
 }
 
 export default function ManajemenUser() {
-    const { auth, users, metrics, roleDistribution, flash } = usePage<ManajemenUserProps>().props;
+    const { auth, users, metrics, flash } = usePage<ManajemenUserProps>().props;
     const currentUser = auth?.user;
     const currentRole = currentUser?.role || 'User';
     const hasAccess = currentRole.toLowerCase() === 'admin';

@@ -17,8 +17,6 @@ import {
     Pencil,
     Trash2,
     FileText,
-    PowerOff,
-    Power,
     RefreshCw,
     ChevronLeft,
     ChevronRight,
@@ -46,7 +44,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Database Program Pelatihan', href: '/database-program' },
 ];
 
-function generateAcronymCode(name: string, programs: any[] = []): string {
+function generateAcronymCode(name: string, programs: { code?: string; id?: string }[] = []): string {
     const cleanName = name.trim();
     if (!cleanName) return '';
 
@@ -108,6 +106,22 @@ interface DatabaseProgramProps extends SharedData {
     flash?: { message?: string; error?: string };
 }
 
+interface PdfJsWindow extends Window {
+    pdfjsLib?: {
+        GlobalWorkerOptions: {
+            workerSrc: string;
+        };
+        getDocument: (options: { url: string; withCredentials?: boolean }) => {
+            promise: Promise<{
+                getPage: (pageNumber: number) => Promise<{
+                    getViewport: (options: { scale: number }) => { width: number; height: number };
+                    render: (options: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => { promise: Promise<void> };
+                }>;
+            }>;
+        };
+    };
+}
+
 function PdfThumbnail({ url, fallback }: { url: string; fallback: React.ReactNode }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [loading, setLoading] = useState(true);
@@ -120,45 +134,68 @@ function PdfThumbnail({ url, fallback }: { url: string; fallback: React.ReactNod
 
         const renderPdf = async () => {
             try {
-                if (!(window as any).pdfjsLib) {
+                const w = window as unknown as PdfJsWindow;
+                if (!w.pdfjsLib) {
                     await new Promise((resolve, reject) => {
                         const script = document.createElement('script');
                         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
                         script.onload = () => {
-                            (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+                            if (w.pdfjsLib) {
+                                w.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+                            }
                             resolve(true);
                         };
                         script.onerror = reject;
                         document.body.appendChild(script);
                     });
                 }
-                const pdfjsLib = (window as any).pdfjsLib;
+                const pdfjsLib = w.pdfjsLib;
+                if (!pdfjsLib) {
+                    return;
+                }
                 const loadingTask = pdfjsLib.getDocument({ url, withCredentials: true });
                 const pdf = await loadingTask.promise;
-                if (!isMounted) return;
+                if (!isMounted) {
+                    return;
+                }
                 const page = await pdf.getPage(1);
-                if (!isMounted) return;
+                if (!isMounted) {
+                    return;
+                }
                 const canvas = canvasRef.current;
-                if (!canvas) return;
+                if (!canvas) {
+                    return;
+                }
                 const context = canvas.getContext('2d');
-                if (!context) return;
+                if (!context) {
+                    return;
+                }
                 const unscaledViewport = page.getViewport({ scale: 1 });
                 const scale = 96 / unscaledViewport.width;
                 const viewport = page.getViewport({ scale });
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
                 await page.render({ canvasContext: context, viewport }).promise;
-                if (isMounted) setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             } catch {
-                if (isMounted) { setError(true); setLoading(false); }
+                if (isMounted) {
+                    setError(true);
+                    setLoading(false);
+                }
             }
         };
 
         renderPdf();
-        return () => { isMounted = false; };
+        return () => {
+            isMounted = false;
+        };
     }, [url]);
 
-    if (error) return <>{fallback}</>;
+    if (error) {
+        return <>{fallback}</>;
+    }
 
     return (
         <div className="w-24 h-32 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex items-center justify-center relative shadow-sm overflow-hidden">
@@ -187,7 +224,7 @@ export default function DatabaseProgram({
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('Semua Status');
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const itemsPerPage = 10;
 
     const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
     const [selectedProgramId, setSelectedProgramId] = useState<string>('');

@@ -19,7 +19,6 @@ import {
     ArrowLeft,
     Check,
     X,
-    FileCheck2,
     History,
     ListChecks,
     Paperclip,
@@ -127,12 +126,6 @@ interface ApprovalProps extends SharedData {
     flash?: { message?: string; error?: string };
 }
 
-const PRIORITY_COLORS: Record<string, string> = {
-    High: 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300',
-    Medium: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300',
-    Low: 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400',
-};
-
 const TYPE_COLORS: Record<string, string> = {
     'Modul Baru': 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300',
     'Revisi Modul': 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300',
@@ -144,7 +137,6 @@ const TYPE_COLORS: Record<string, string> = {
 export default function Approval() {
     const { auth, queue, history, stats, flash, isDriveConnected = true } = usePage<ApprovalProps>().props;
     const user = auth?.user;
-    const role = user?.role || 'User';
     const roleLower = (user?.role || '').toLowerCase();
     const hasAccess = roleLower === 'admin' || roleLower === 'manager pd';
 

@@ -2,21 +2,14 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, usePage, router } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
-    Layers,
     BookOpen,
-    Clock,
     CheckCircle2,
-    Download,
     Search,
     Plus,
     Trash2,
-    PlusCircle,
-    Copy,
-    Share2,
     Check,
     FileCode2
 } from 'lucide-react';
@@ -114,7 +107,7 @@ export default function FormulaModul({
                 setTrainingSearchQuery(masterTrainingCodes[0]);
             }
         }
-    }, [masterTrainingCodes]);
+    }, [masterTrainingCodes, adminSelectedTraining, trainingSearchQuery]);
 
     // Sync form values when selected training changes (auto-load existing formula)
     useEffect(() => {

@@ -69,7 +69,7 @@ const SAMPLE_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 export default function Notifikasi() {
-    const { auth, notifications: serverNotifications } = usePage<NotifikasiProps>().props;
+    const { notifications: serverNotifications } = usePage<NotifikasiProps>().props;
 
     const notifications = serverNotifications ?? SAMPLE_NOTIFICATIONS;
     const unreadCount = notifications.filter((n) => !n.is_read).length;

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 class ModuleRequest extends Model
 {
@@ -37,7 +38,7 @@ class ModuleRequest extends Model
         'reject_reason',
         'processed_by',
         'processed_at',
-        
+
         // Kebutuhan Khusus fields
         'jenis_kebutuhan',
         'nama_instansi',
@@ -45,7 +46,7 @@ class ModuleRequest extends Model
         'jam_khusus',
         'pre_post_test',
         'keterangan_kebutuhan',
-        
+
         // Processing fields
         'link_modul',
         'tanggal_realisasi',
@@ -105,52 +106,54 @@ class ModuleRequest extends Model
     {
         $map = [
             1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI',
-            7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
+            7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII',
         ];
+
         return $map[$month] ?? '';
     }
 
     /**
-     * Generate a new request number based on type.
+     * Generate a unique request number inside a DB transaction with row-level lock
+     * to prevent duplicate numbers under concurrent requests.
      */
     public static function generateRequestNumber(string $type = 'Modul Baru'): string
     {
-        if ($type === 'Kebutuhan Khusus') {
+        return DB::transaction(function () use ($type) {
+            if ($type === 'Kebutuhan Khusus') {
+                $year = now()->year;
+                $month = str_pad(now()->month, 2, '0', STR_PAD_LEFT);
+
+                $lastRequest = static::where('type', 'Kebutuhan Khusus')
+                    ->where('request_number', 'like', "%/Modul Khusus/PD/%/{$year}")
+                    ->lockForUpdate()
+                    ->orderByDesc('id')
+                    ->first();
+
+                $newNumber = 1;
+                if ($lastRequest) {
+                    $parts = explode('/', $lastRequest->request_number);
+                    $newNumber = (int) $parts[0] + 1;
+                }
+
+                return str_pad($newNumber, 3, '0', STR_PAD_LEFT)."/Modul Khusus/PD/{$month}/{$year}";
+            }
+
             $year = now()->year;
-            $month = str_pad(now()->month, 2, '0', STR_PAD_LEFT);
-            
-            $lastRequest = static::where('type', 'Kebutuhan Khusus')
-                ->where('request_number', 'like', "%/Modul Khusus/PD/%/{$year}")
+            $romanMonth = self::romanMonth(now()->month);
+
+            $lastRequest = static::whereIn('type', ['Modul Baru', 'Revisi Modul'])
+                ->where('request_number', 'like', "%/Modul/PD/%/{$year}")
+                ->lockForUpdate()
                 ->orderByDesc('id')
                 ->first();
-                
+
+            $newNumber = 1;
             if ($lastRequest) {
                 $parts = explode('/', $lastRequest->request_number);
-                $lastNumber = (int) $parts[0];
-                $newNumber = $lastNumber + 1;
-            } else {
-                $newNumber = 1;
+                $newNumber = (int) $parts[0] + 1;
             }
-            
-            return str_pad($newNumber, 3, '0', STR_PAD_LEFT) . "/Modul Khusus/PD/{$month}/{$year}";
-        }
 
-        $year = now()->year;
-        $romanMonth = self::romanMonth(now()->month);
-
-        $lastRequest = static::whereIn('type', ['Modul Baru', 'Revisi Modul'])
-            ->where('request_number', 'like', "%/Modul/PD/%/{$year}")
-            ->orderByDesc('id')
-            ->first();
-
-        if ($lastRequest) {
-            $parts = explode('/', $lastRequest->request_number);
-            $lastNumber = (int) $parts[0];
-            $newNumber = $lastNumber + 1;
-        } else {
-            $newNumber = 1;
-        }
-
-        return str_pad($newNumber, 3, '0', STR_PAD_LEFT) . "/Modul/PD/{$romanMonth}/{$year}";
+            return str_pad($newNumber, 3, '0', STR_PAD_LEFT)."/Modul/PD/{$romanMonth}/{$year}";
+        });
     }
 }

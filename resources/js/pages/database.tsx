@@ -1,12 +1,10 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, usePage, Link, useForm, router } from '@inertiajs/react';
+import { Head, usePage, useForm, router } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    BookOpen,
-    ShieldAlert,
     RefreshCw,
     Search,
     Plus,
@@ -16,15 +14,8 @@ import {
     MoreVertical,
     ChevronLeft,
     ChevronRight,
-    ArrowLeft,
     FileText,
-    TrendingUp,
     CheckCircle2,
-    Clock,
-    Lock,
-    ExternalLink,
-    ShieldCheck,
-    Briefcase,
     History,
     Loader2,
     AlertTriangle,
@@ -46,8 +37,6 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { PieChart, Pie, Cell, Label } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -57,7 +46,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-function generateAcronymCode(title: string, modules: any[] = []): string {
+function generateAcronymCode(title: string, modules: { id?: string }[] = []): string {
     const cleanTitle = title.trim();
     if (!cleanTitle) return '';
 
@@ -141,6 +130,22 @@ interface PdfThumbnailProps {
     fallback: React.ReactNode;
 }
 
+interface PdfJsWindow extends Window {
+    pdfjsLib?: {
+        GlobalWorkerOptions: {
+            workerSrc: string;
+        };
+        getDocument: (options: { url: string; withCredentials?: boolean }) => {
+            promise: Promise<{
+                getPage: (pageNumber: number) => Promise<{
+                    getViewport: (options: { scale: number }) => { width: number; height: number };
+                    render: (options: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => { promise: Promise<void> };
+                }>;
+            }>;
+        };
+    };
+}
+
 export function PdfThumbnail({ url, fallback }: PdfThumbnailProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [loading, setLoading] = useState(true);
@@ -153,13 +158,16 @@ export function PdfThumbnail({ url, fallback }: PdfThumbnailProps) {
 
         const renderPdf = async () => {
             try {
+                const w = window as unknown as PdfJsWindow;
                 // Ensure pdfjsLib is loaded
-                if (!(window as any).pdfjsLib) {
+                if (!w.pdfjsLib) {
                     await new Promise((resolve, reject) => {
                         const script = document.createElement('script');
                         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
                         script.onload = () => {
-                            (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+                            if (w.pdfjsLib) {
+                                w.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+                            }
                             resolve(true);
                         };
                         script.onerror = reject;
@@ -167,7 +175,7 @@ export function PdfThumbnail({ url, fallback }: PdfThumbnailProps) {
                     });
                 }
 
-                const pdfjsLib = (window as any).pdfjsLib;
+                const pdfjsLib = w.pdfjsLib;
                 if (!pdfjsLib) {
                     throw new Error('PDF.js not loaded');
                 }
@@ -243,8 +251,6 @@ export function PdfThumbnail({ url, fallback }: PdfThumbnailProps) {
 export default function DatabaseModul({
     modules: initialModules = [],
     metrics = { total: 0, approved: 0, revisi: 0 },
-    categories = [],
-    popular = [],
     isDriveConnected = true,
     flash,
 }: DatabaseModulProps) {
@@ -275,17 +281,13 @@ export default function DatabaseModul({
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [historyModule, setHistoryModule] = useState<ModuleItem | null>(null);
 
-    // If selectedModuleId is empty, use the first module code if any
-    const activeSelectedId = useMemo(() => {
-        if (selectedModuleId) return selectedModuleId;
-        return modules.length > 0 ? modules[0].id : '';
-    }, [modules, selectedModuleId]);
+
 
     // Add module form modal
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     // Form hook
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, errors, reset } = useForm({
         code: '',
         title: '',
         revision: '0.0',
@@ -353,17 +355,12 @@ export default function DatabaseModul({
 
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const itemsPerPage = 10;
 
     // Reset current page when filters change
     useEffect(() => {
         setCurrentPage(1);
     }, [searchQuery, typeFilter, langFilter, statusFilter, revFilter]);
-
-    // Active item matching
-    const selectedModule = useMemo(() => {
-        return modules.find(m => m.id === activeSelectedId) || modules[0] || null;
-    }, [modules, activeSelectedId]);
 
     // Handle check all
     const handleSelectAll = (checked: boolean) => {
@@ -474,26 +471,6 @@ export default function DatabaseModul({
             },
         });
     };
-
-    const chartConfig = {
-        modul: { label: 'Modul', color: '#3b82f6' },
-        lembarKerja: { label: 'Lembar Kerja', color: '#a855f7' },
-        postTest: { label: 'Post Test', color: '#ec4899' },
-        lainnya: { label: 'Lainnya', color: '#6b7280' },
-    } satisfies ChartConfig;
-
-    const categoryChartData = useMemo(() => {
-        return categories.length > 0 ? categories : [
-            { name: 'Modul', value: 0, fill: '#3b82f6' },
-            { name: 'Lembar Kerja', value: 0, fill: '#a855f7' },
-            { name: 'Post Test', value: 0, fill: '#ec4899' },
-            { name: 'Lainnya', value: 0, fill: '#6b7280' },
-        ];
-    }, [categories]);
-
-    const totalCategoryModules = useMemo(() => {
-        return categoryChartData.reduce((acc, curr) => acc + curr.value, 0);
-    }, [categoryChartData]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -632,7 +609,7 @@ export default function DatabaseModul({
                                         <div className="w-40">
                                             <SearchableSelect
                                                 value={typeFilter}
-                                                onChange={(val) => setTypeFilter(val)}
+                                                onChange={(val) => setTypeFilter(String(val))}
                                                 options={["Semua Jenis", "Modul", "Lembar Kerja", "Post Test"]}
                                             />
                                         </div>
@@ -641,7 +618,7 @@ export default function DatabaseModul({
                                         <div className="w-40">
                                             <SearchableSelect
                                                 value={langFilter}
-                                                onChange={(val) => setLangFilter(val)}
+                                                onChange={(val) => setLangFilter(String(val))}
                                                 options={["Semua Bahasa", "Indonesia", "English"]}
                                             />
                                         </div>
@@ -650,7 +627,7 @@ export default function DatabaseModul({
                                         <div className="w-40">
                                             <SearchableSelect
                                                 value={statusFilter}
-                                                onChange={(val) => setStatusFilter(val)}
+                                                onChange={(val) => setStatusFilter(String(val))}
                                                 options={["Semua Status", "Approved", "Revisi"]}
                                             />
                                         </div>
@@ -659,7 +636,7 @@ export default function DatabaseModul({
                                         <div className="w-40">
                                             <SearchableSelect
                                                 value={revFilter}
-                                                onChange={(val) => setRevFilter(val)}
+                                                onChange={(val) => setRevFilter(String(val))}
                                                 options={[
                                                     "Semua Revisi",
                                                     "1.0",
@@ -1110,7 +1087,7 @@ export default function DatabaseModul({
                                 </label>
                                 <SearchableSelect
                                     value={data.program}
-                                    onChange={(val) => setData('program', val)}
+                                    onChange={(val) => setData('program', String(val))}
                                     options={["Modul", "Lembar Kerja", "Post Test"]}
                                 />
                             </div>
@@ -1120,7 +1097,7 @@ export default function DatabaseModul({
                                 </label>
                                 <SearchableSelect
                                     value={data.language}
-                                    onChange={(val) => setData('language', val)}
+                                    onChange={(val) => setData('language', String(val))}
                                     options={["Indonesia", "English"]}
                                 />
                             </div>
@@ -1335,7 +1312,7 @@ export default function DatabaseModul({
                                 </label>
                                 <SearchableSelect
                                     value={editForm.data.program}
-                                    onChange={(val) => editForm.setData('program', val)}
+                                    onChange={(val) => editForm.setData('program', String(val))}
                                     options={["Modul", "Lembar Kerja", "Post Test"]}
                                 />
                             </div>
@@ -1345,7 +1322,7 @@ export default function DatabaseModul({
                                 </label>
                                 <SearchableSelect
                                     value={editForm.data.language}
-                                    onChange={(val) => editForm.setData('language', val)}
+                                    onChange={(val) => editForm.setData('language', String(val))}
                                     options={["Indonesia", "English"]}
                                 />
                             </div>
@@ -1547,4 +1524,3 @@ export default function DatabaseModul({
         </AppLayout>
     );
 }
-const circumference = 226.195;

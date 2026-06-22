@@ -14,12 +14,8 @@ import {
     Plus,
     Edit3,
     Trash2,
-    BookOpen,
-    GraduationCap,
-    Globe,
     AlertTriangle,
     CheckCircle2,
-    XCircle,
     ChevronLeft,
     ChevronRight,
     ArrowLeft,
@@ -34,7 +30,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -123,7 +119,7 @@ export default function MasterData() {
         }
         return 'Jenis Kebutuhan Modul';
     };
-    const [selectedTab, setSelectedTab] = useState<string>(getInitialTab);
+    const selectedTab = getInitialTab();
 
     // Search and filter fields
     const [searchQuery, setSearchQuery] = useState('');
@@ -149,7 +145,7 @@ export default function MasterData() {
 
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
-    const [pageSize, setPageSize] = useState('10');
+
 
     const [localToast, setLocalToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -390,18 +386,7 @@ export default function MasterData() {
     }
 
     // Tab config (used for category counts in sidebar — tabs themselves removed from UI)
-    const ALL_CATEGORIES = [
-        'Jenis Kebutuhan Modul',
-        'Kode Pelatihan',
-        'Jenis Modul',
-        'Bahasa Pengantar',
-        'Tipe Pelatihan',
-        'Tipe Sertifikat di Sihalal',
-        'Jenis Sertifikat',
-        'PIC Periksa LK',
-        'Kode Program',
-        'Jenis Perubahan',
-    ] as const;
+
 
     return (
         <AppLayout breadcrumbs={[{ title: selectedTab, href: `/master-data?tab=${selectedTab.toLowerCase().replace(/ /g, '-')}` }]}>

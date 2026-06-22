@@ -9,7 +9,7 @@ interface Option {
 
 interface SearchableSelectProps {
     value?: string | number;
-    onChange: (value: any) => void;
+    onChange: (value: string) => void;
     options: (string | Option)[];
     placeholder?: string;
     className?: string;
@@ -77,7 +77,7 @@ export function SearchableSelect({
     }, [isOpen]);
 
     const handleSelect = (val: string | number) => {
-        onChange(val);
+        onChange(String(val));
         setIsOpen(false);
         setSearchQuery('');
     };
@@ -114,7 +114,7 @@ export function SearchableSelect({
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div 
+                <div
                     className="absolute left-0 right-0 z-50 mt-1 max-h-64 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-800 dark:bg-neutral-950 flex flex-col"
                     style={{ minWidth: '200px' }}
                 >

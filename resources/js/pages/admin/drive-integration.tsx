@@ -20,11 +20,8 @@ import {
     Check, 
     RefreshCw, 
     AlertTriangle, 
-    User, 
-    ExternalLink, 
     Info, 
     CheckCircle2,
-    ArrowUpRight,
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { SearchableSelect } from '@/components/ui/searchable-select';

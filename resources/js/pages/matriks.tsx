@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, usePage, Link } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,16 +14,12 @@ import {
     Trash2,
     ExternalLink,
     FileText,
-    CheckCircle2,
-    XCircle,
     AlertCircle,
     RefreshCw,
     FolderDown,
-    DollarSign,
     BookOpen,
     ShieldCheck,
     Layers,
-    UserCheck,
     Coins
 } from 'lucide-react';
 import {
@@ -34,7 +30,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useForm } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -170,21 +166,23 @@ export default function MatriksPelatihan({
     }, [matrixList]);
 
     // Handle Kode Change to autopopulate Nama Pelatihan
-    const handleAddKodeChange = (val: string) => {
-        const found = kodePelatihanOptions.find((opt) => opt.value === val);
+    const handleAddKodeChange = (val: string | number) => {
+        const strVal = String(val);
+        const found = kodePelatihanOptions.find((opt) => opt.value === strVal);
         addForm.setData((d) => ({
             ...d,
-            kode: val,
-            nama_pelatihan: found ? found.name : val,
+            kode: strVal,
+            nama_pelatihan: found ? found.name : strVal,
         }));
     };
 
-    const handleEditKodeChange = (val: string) => {
-        const found = kodePelatihanOptions.find((opt) => opt.value === val);
+    const handleEditKodeChange = (val: string | number) => {
+        const strVal = String(val);
+        const found = kodePelatihanOptions.find((opt) => opt.value === strVal);
         editForm.setData((d) => ({
             ...d,
-            kode: val,
-            nama_pelatihan: found ? found.name : val,
+            kode: strVal,
+            nama_pelatihan: found ? found.name : strVal,
         }));
     };
 
@@ -403,7 +401,7 @@ export default function MatriksPelatihan({
                             <div className="w-40">
                                 <SearchableSelect
                                     value={statusFilter}
-                                    onChange={setStatusFilter}
+                                    onChange={(val) => setStatusFilter(String(val))}
                                     options={['Semua Status', 'Aktif', 'Nonaktif']}
                                     placeholder="Status"
                                 />
@@ -413,7 +411,7 @@ export default function MatriksPelatihan({
                             <div className="w-48">
                                 <SearchableSelect
                                     value={tipeFilter}
-                                    onChange={setTipeFilter}
+                                    onChange={(val) => setTipeFilter(String(val))}
                                     options={['Semua Tipe', ...tipePelatihanOptions]}
                                     placeholder="Tipe Pelatihan"
                                 />
@@ -697,7 +695,7 @@ export default function MatriksPelatihan({
                                 </label>
                                 <SearchableSelect
                                     value={addForm.data.tipe_pelatihan}
-                                    onChange={(val) => addForm.setData('tipe_pelatihan', val)}
+                                    onChange={(val) => addForm.setData('tipe_pelatihan', String(val))}
                                     options={tipePelatihanOptions}
                                     placeholder="Pilih Tipe Pelatihan"
                                 />
@@ -710,7 +708,7 @@ export default function MatriksPelatihan({
                                 </label>
                                 <SearchableSelect
                                     value={addForm.data.jenis_sertifikat}
-                                    onChange={(val) => addForm.setData('jenis_sertifikat', val)}
+                                    onChange={(val) => addForm.setData('jenis_sertifikat', String(val))}
                                     options={jenisSertifikatOptions}
                                     placeholder="Pilih Jenis Sertifikat"
                                 />
@@ -725,7 +723,7 @@ export default function MatriksPelatihan({
                                 </label>
                                 <SearchableSelect
                                     value={addForm.data.pic_periksa_lk}
-                                    onChange={(val) => addForm.setData('pic_periksa_lk', val)}
+                                    onChange={(val) => addForm.setData('pic_periksa_lk', String(val))}
                                     options={picPeriksaLkOptions}
                                     placeholder="Pilih PIC"
                                 />
@@ -738,7 +736,7 @@ export default function MatriksPelatihan({
                                 </label>
                                 <SearchableSelect
                                     value={addForm.data.tipe_sertifikat_sihalal}
-                                    onChange={(val) => addForm.setData('tipe_sertifikat_sihalal', val)}
+                                    onChange={(val) => addForm.setData('tipe_sertifikat_sihalal', String(val))}
                                     options={tipeSertifikatSihalalOptions}
                                     placeholder="Pilih Tipe Sertifikat"
                                 />
@@ -904,7 +902,7 @@ export default function MatriksPelatihan({
                                 )}
                             </div>
                         </div>
-
+ 
                         <div className="grid grid-cols-2 gap-4">
                             {/* Tipe Pelatihan */}
                             <div className="space-y-1">
@@ -913,7 +911,7 @@ export default function MatriksPelatihan({
                                 </label>
                                 <SearchableSelect
                                     value={editForm.data.tipe_pelatihan}
-                                    onChange={(val) => editForm.setData('tipe_pelatihan', val)}
+                                    onChange={(val) => editForm.setData('tipe_pelatihan', String(val))}
                                     options={tipePelatihanOptions}
                                     placeholder="Pilih Tipe Pelatihan"
                                 />
@@ -926,7 +924,7 @@ export default function MatriksPelatihan({
                                 </label>
                                 <SearchableSelect
                                     value={editForm.data.jenis_sertifikat}
-                                    onChange={(val) => editForm.setData('jenis_sertifikat', val)}
+                                    onChange={(val) => editForm.setData('jenis_sertifikat', String(val))}
                                     options={jenisSertifikatOptions}
                                     placeholder="Pilih Jenis Sertifikat"
                                 />
@@ -941,7 +939,7 @@ export default function MatriksPelatihan({
                                 </label>
                                 <SearchableSelect
                                     value={editForm.data.pic_periksa_lk}
-                                    onChange={(val) => editForm.setData('pic_periksa_lk', val)}
+                                    onChange={(val) => editForm.setData('pic_periksa_lk', String(val))}
                                     options={picPeriksaLkOptions}
                                     placeholder="Pilih PIC"
                                 />
@@ -954,7 +952,7 @@ export default function MatriksPelatihan({
                                 </label>
                                 <SearchableSelect
                                     value={editForm.data.tipe_sertifikat_sihalal}
-                                    onChange={(val) => editForm.setData('tipe_sertifikat_sihalal', val)}
+                                    onChange={(val) => editForm.setData('tipe_sertifikat_sihalal', String(val))}
                                     options={tipeSertifikatSihalalOptions}
                                     placeholder="Pilih Tipe Sertifikat"
                                 />

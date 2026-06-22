@@ -16,14 +16,8 @@ import {
     ChevronLeft,
     ChevronRight,
     ArrowLeft,
-    ShieldAlert,
-    HardDrive,
-    Database,
-    ShieldAlert as ShieldIcon,
-    AlertCircle,
-    UserCheck,
-    History,
-    RefreshCw
+    RefreshCw,
+    ShieldAlert
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import {
@@ -112,6 +106,20 @@ const trendData = [
     { name: '17 Mei', info: 90, success: 70, warning: 40, critical: 22 },
 ];
 
+// Mock dataset matching the user's screenshot
+const events: LogEvent[] = [
+    { id: '1', timestamp: '17 Mei 2024 14:32:11', userName: 'Andi Pratama', userEmail: 'andi.pratama@company.co.id', activity: 'Login berhasil', feature: 'Authentifikasi', ipAddress: '192.168.1.10', severity: 'Success', status: 'Selesai' },
+    { id: '2', timestamp: '17 Mei 2024 14:21:45', userName: 'Dewi Lestari', userEmail: 'dewi.lestari@company.co.id', activity: 'Mengubah data user', feature: 'Manajemen User', ipAddress: '192.168.1.25', severity: 'Warning', status: 'Selesai' },
+    { id: '3', timestamp: '17 Mei 2024 14:18:02', userName: 'Rudi Santoso', userEmail: 'rudi.santoso@company.co.id', activity: 'Update modul pelatihan', feature: 'Database Modul', ipAddress: '192.168.1.18', severity: 'Info', status: 'Selesai' },
+    { id: '4', timestamp: '17 Mei 2024 14:07:33', userName: 'Rina Asriyani', userEmail: 'rina.asriyani@company.co.id', activity: 'Export laporan user', feature: 'Report', ipAddress: '192.168.1.12', severity: 'Info', status: 'Selesai' },
+    { id: '5', timestamp: '17 Mei 2024 13:58:19', userName: 'Agus Setiawan', userEmail: 'agus.setiawan@company.co.id', activity: 'Login gagal (password salah)', feature: 'Authentifikasi', ipAddress: '192.168.1.99', severity: 'Warning', status: 'Selesai' },
+    { id: '6', timestamp: '17 Mei 2024 13:47:02', userName: 'Mega Kusuma', userEmail: 'mega.kusuma@company.co.id', activity: 'Menghapus data role', feature: 'Role & Permission', ipAddress: '192.168.1.30', severity: 'Critical', status: 'Selesai' },
+    { id: '7', timestamp: '17 Mei 2024 13:31:56', userName: 'Yudi Setiawan', userEmail: 'yudi.setiawan@company.co.id', activity: 'Approve pengajuan modul', feature: 'Approval Modul', ipAddress: '192.168.1.16', severity: 'Success', status: 'Selesai' },
+    { id: '8', timestamp: '17 Mei 2024 13:20:44', userName: 'Nita Fadilah', userEmail: 'nita.fadilah@company.co.id', activity: 'Reset password user', feature: 'Manajemen User', ipAddress: '192.168.1.21', severity: 'Info', status: 'Selesai' },
+    { id: '9', timestamp: '17 Mei 2024 13:12:10', userName: 'Bambang Indriyanto', userEmail: 'bambang.indriyanto@company.co.id', activity: 'Perubahan role user', feature: 'Role & Permission', ipAddress: '192.168.1.27', severity: 'Critical', status: 'Selesai' },
+    { id: '10', timestamp: '17 Mei 2024 13:01:05', userName: 'Siti Lestari', userEmail: 'siti.lestari@company.co.id', activity: 'Download data master', feature: 'Master Data', ipAddress: '192.168.1.14', severity: 'Info', status: 'Selesai' }
+];
+
 export default function AuditLog() {
     const page = usePage<SharedData>();
     const user = page.props.auth?.user;
@@ -120,26 +128,12 @@ export default function AuditLog() {
     // Access control: only admin can access this page
     const hasAccess = role === 'admin';
 
-    // Mock dataset matching the user's screenshot
-    const [events, setEvents] = useState<LogEvent[]>([
-        { id: '1', timestamp: '17 Mei 2024 14:32:11', userName: 'Andi Pratama', userEmail: 'andi.pratama@company.co.id', activity: 'Login berhasil', feature: 'Authentifikasi', ipAddress: '192.168.1.10', severity: 'Success', status: 'Selesai' },
-        { id: '2', timestamp: '17 Mei 2024 14:21:45', userName: 'Dewi Lestari', userEmail: 'dewi.lestari@company.co.id', activity: 'Mengubah data user', feature: 'Manajemen User', ipAddress: '192.168.1.25', severity: 'Warning', status: 'Selesai' },
-        { id: '3', timestamp: '17 Mei 2024 14:18:02', userName: 'Rudi Santoso', userEmail: 'rudi.santoso@company.co.id', activity: 'Update modul pelatihan', feature: 'Database Modul', ipAddress: '192.168.1.18', severity: 'Info', status: 'Selesai' },
-        { id: '4', timestamp: '17 Mei 2024 14:07:33', userName: 'Rina Asriyani', userEmail: 'rina.asriyani@company.co.id', activity: 'Export laporan user', feature: 'Report', ipAddress: '192.168.1.12', severity: 'Info', status: 'Selesai' },
-        { id: '5', timestamp: '17 Mei 2024 13:58:19', userName: 'Agus Setiawan', userEmail: 'agus.setiawan@company.co.id', activity: 'Login gagal (password salah)', feature: 'Authentifikasi', ipAddress: '192.168.1.99', severity: 'Warning', status: 'Selesai' },
-        { id: '6', timestamp: '17 Mei 2024 13:47:02', userName: 'Mega Kusuma', userEmail: 'mega.kusuma@company.co.id', activity: 'Menghapus data role', feature: 'Role & Permission', ipAddress: '192.168.1.30', severity: 'Critical', status: 'Selesai' },
-        { id: '7', timestamp: '17 Mei 2024 13:31:56', userName: 'Yudi Setiawan', userEmail: 'yudi.setiawan@company.co.id', activity: 'Approve pengajuan modul', feature: 'Approval Modul', ipAddress: '192.168.1.16', severity: 'Success', status: 'Selesai' },
-        { id: '8', timestamp: '17 Mei 2024 13:20:44', userName: 'Nita Fadilah', userEmail: 'nita.fadilah@company.co.id', activity: 'Reset password user', feature: 'Manajemen User', ipAddress: '192.168.1.21', severity: 'Info', status: 'Selesai' },
-        { id: '9', timestamp: '17 Mei 2024 13:12:10', userName: 'Bambang Indriyanto', userEmail: 'bambang.indriyanto@company.co.id', activity: 'Perubahan role user', feature: 'Role & Permission', ipAddress: '192.168.1.27', severity: 'Critical', status: 'Selesai' },
-        { id: '10', timestamp: '17 Mei 2024 13:01:05', userName: 'Siti Lestari', userEmail: 'siti.lestari@company.co.id', activity: 'Download data master', feature: 'Master Data', ipAddress: '192.168.1.14', severity: 'Info', status: 'Selesai' }
-    ]);
-
     // Filters
     const [searchQuery, setSearchQuery] = useState('');
     const [userFilter, setUserFilter] = useState('Semua User');
     const [featureFilter, setFeatureFilter] = useState('Semua Modul / Fitur');
     const [severityFilter, setSeverityFilter] = useState('Semua Severity');
-    const [dateRangeText, setDateRangeText] = useState('10 Mei 2024 - 17 Mei 2024');
+    const dateRangeText = '10 Mei 2024 - 17 Mei 2024';
     const [pageSize, setPageSize] = useState('10');
 
     const [selectedEvent, setSelectedEvent] = useState<LogEvent | null>(null);
@@ -160,7 +154,7 @@ export default function AuditLog() {
 
             return matchesSearch && matchesUser && matchesFeature && matchesSeverity;
         });
-    }, [events, searchQuery, userFilter, featureFilter, severityFilter]);
+    }, [searchQuery, userFilter, featureFilter, severityFilter]);
 
     // Mock details
     const activityToday: ActivityLogItem[] = [
@@ -321,7 +315,7 @@ export default function AuditLog() {
                                     <div className="w-40">
                                         <SearchableSelect
                                             value={userFilter}
-                                            onChange={(val) => setUserFilter(val)}
+                                            onChange={(val) => setUserFilter(String(val))}
                                             options={[
                                                 "Semua User",
                                                 "Andi Pratama",
@@ -335,7 +329,7 @@ export default function AuditLog() {
                                     <div className="w-48">
                                         <SearchableSelect
                                             value={featureFilter}
-                                            onChange={(val) => setFeatureFilter(val)}
+                                            onChange={(val) => setFeatureFilter(String(val))}
                                             options={[
                                                 "Semua Modul / Fitur",
                                                 "Authentifikasi",
@@ -350,7 +344,7 @@ export default function AuditLog() {
                                     <div className="w-40">
                                         <SearchableSelect
                                             value={severityFilter}
-                                            onChange={(val) => setSeverityFilter(val)}
+                                            onChange={(val) => setSeverityFilter(String(val))}
                                             options={[
                                                 "Semua Severity",
                                                 "Success",
@@ -485,7 +479,7 @@ export default function AuditLog() {
                                     <div className="w-32">
                                         <SearchableSelect
                                             value={pageSize}
-                                            onChange={(val) => setPageSize(val)}
+                                            onChange={(val) => setPageSize(String(val))}
                                             options={[
                                                 { value: '10', label: '10 / halaman' },
                                                 { value: '20', label: '20 / halaman' },

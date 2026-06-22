@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import {
     AlertTriangle,
-    ArrowUpRight,
     Bell,
     BookOpen,
     Check,
@@ -11,7 +10,6 @@ import {
     CircleHelp,
     Clock,
     Database,
-    Eye,
     FileEdit,
     FileText,
     Grid,

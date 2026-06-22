@@ -198,7 +198,7 @@ export default function MasterDataCategoryPage({ config }: { config: CategoryCon
         if (!file) return;
         const formData = new FormData();
         formData.append('file', file);
-        router.post('/master-data/import', formData as any, {
+        router.post('/master-data/import', formData, {
             onError: () =>
                 setLocalToast({ message: 'Gagal mengimpor file. Pastikan format CSV benar.', type: 'error' }),
         });

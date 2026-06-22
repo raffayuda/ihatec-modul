@@ -13,7 +13,7 @@ export function MotionThemeToggle({
     variant = 'circle',
     fromCenter = false,
 }: MotionThemeToggleProps) {
-    const { appearance, updateAppearance } = useAppearance();
+    const { updateAppearance } = useAppearance();
     const [isDark, setIsDark] = useState(false);
 
     useEffect(() => {

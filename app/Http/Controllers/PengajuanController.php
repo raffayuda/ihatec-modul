@@ -2,18 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\ModuleRequestProcessedMail;
+use App\Mail\ModuleRequestSubmittedMail;
+use App\Mail\PerubahanModulReviewedMail;
+use App\Mail\PerubahanModulSubmittedMail;
+use App\Models\MasterData;
 use App\Models\Module;
 use App\Models\ModuleRequest;
-use App\Models\MasterData;
+use App\Models\ModuleRevision;
 use App\Models\Setting;
 use App\Models\TrainingProgram;
 use App\Models\TrainingProgramRevision;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -59,24 +67,24 @@ class PengajuanController extends Controller
             ->orderByDesc('created_at')
             ->get()
             ->map(fn ($req) => [
-                'id'                     => $req->request_number,
-                'dbId'                   => $req->id,
-                'noPerubahan'            => $req->request_number,
-                'tglPengajuan'           => Carbon::parse($req->created_at)->format('d M Y'),
-                'jenisPerubahan'         => $req->type,
-                'kategoriModul'          => $req->program ?? 'Baru',  // stored in program field temporarily
-                'referensiKhusus'        => $req->revision_reason ?? '',
-                'detailPermintaan'       => $req->description ?? '',
-                'keteranganKebutuhan'    => $req->keterangan_kebutuhan ?? '',
-                'jenisKebutuhanPelatihan'=> $req->jenis_kebutuhan ?? '',
-                'bahasaPengantar'        => $req->language ?? 'Indonesia',
-                'jenisModul'             => $req->jenis_modul ? json_decode($req->jenis_modul, true) : [],
-                'modulRows'              => $req->modul_rows ? json_decode($req->modul_rows, true) : [],
-                'programRows'            => $req->program_rows ? json_decode($req->program_rows, true) : [],
-                'status'                 => $req->status,
-                'rejectReason'           => $req->reject_reason,
-                'approvedBy'             => $req->approved_by,
-                'approvedAt'             => $req->approved_at ? Carbon::parse($req->approved_at)->format('d M Y H:i') : null,
+                'id' => $req->request_number,
+                'dbId' => $req->id,
+                'noPerubahan' => $req->request_number,
+                'tglPengajuan' => Carbon::parse($req->created_at)->format('d M Y'),
+                'jenisPerubahan' => $req->type,
+                'kategoriModul' => $req->program ?? 'Baru',  // stored in program field temporarily
+                'referensiKhusus' => $req->revision_reason ?? '',
+                'detailPermintaan' => $req->description ?? '',
+                'keteranganKebutuhan' => $req->keterangan_kebutuhan ?? '',
+                'jenisKebutuhanPelatihan' => $req->jenis_kebutuhan ?? '',
+                'bahasaPengantar' => $req->language ?? 'Indonesia',
+                'jenisModul' => $req->jenis_modul ? json_decode($req->jenis_modul, true) : [],
+                'modulRows' => $req->modul_rows ? json_decode($req->modul_rows, true) : [],
+                'programRows' => $req->program_rows ? json_decode($req->program_rows, true) : [],
+                'status' => $req->status,
+                'rejectReason' => $req->reject_reason,
+                'approvedBy' => $req->approved_by,
+                'approvedAt' => $req->approved_at ? Carbon::parse($req->approved_at)->format('d M Y H:i') : null,
             ]);
 
         // Build masterData for the form from TrainingProgram database
@@ -97,30 +105,30 @@ class PengajuanController extends Controller
         ])->toArray();
 
         $masterData = [
-            'jenisPerubahan'  => MasterData::where('category', 'Jenis Perubahan')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Modul', 'Program'],
+            'jenisPerubahan' => MasterData::where('category', 'Jenis Perubahan')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Modul', 'Program'],
             'bahasaPengantar' => MasterData::where('category', 'Bahasa Pengantar')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Indonesia', 'Inggris'],
-            'jenisModul'      => MasterData::where('category', 'Jenis Modul')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Modul', 'Lembar Kerja', 'Post Test'],
-            'jenisKebutuhan'  => MasterData::where('category', 'Jenis Kebutuhan Modul')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Pelatihan Inhouse', 'Pelatihan Internal', 'Seminar'],
-            'kodeProgram'     => $kodeProgramList,
-            'modules'         => $modulesList,
+            'jenisModul' => MasterData::where('category', 'Jenis Modul')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Modul', 'Lembar Kerja', 'Post Test'],
+            'jenisKebutuhan' => MasterData::where('category', 'Jenis Kebutuhan Modul')->where('status', 'Aktif')->orderBy('name')->pluck('name')->toArray() ?: ['Pelatihan Inhouse', 'Pelatihan Internal', 'Seminar'],
+            'kodeProgram' => $kodeProgramList,
+            'modules' => $modulesList,
             'pengajuanKhusus' => ModuleRequest::where('type', 'Kebutuhan Khusus')
                 ->whereIn('status', ['Baru', 'Drafting'])
                 ->orderByDesc('created_at')
                 ->get()
                 ->map(fn ($req) => [
-                    'id'              => $req->request_number,
-                    'dbId'            => $req->id,
-                    'detail'          => $req->description ?? '',
-                    'jenisKebutuhan'  => $req->jenis_kebutuhan ?? '',
+                    'id' => $req->request_number,
+                    'dbId' => $req->id,
+                    'detail' => $req->description ?? '',
+                    'jenisKebutuhan' => $req->jenis_kebutuhan ?? '',
                     'bahasaPengantar' => $req->language ?? 'Indonesia',
-                    'jenisModul'      => $req->jenis_modul ? json_decode($req->jenis_modul, true) : [],
+                    'jenisModul' => $req->jenis_modul ? json_decode($req->jenis_modul, true) : [],
                 ])
                 ->toArray(),
         ];
 
         return Inertia::render('perubahan-modul', [
             'submissions' => $submissions,
-            'masterData'  => $masterData,
+            'masterData' => $masterData,
         ]);
     }
 
@@ -132,42 +140,56 @@ class PengajuanController extends Controller
         $user = Auth::user();
 
         $validated = $request->validate([
-            'jenis_perubahan'           => 'required|string',
-            'kategori_modul'            => 'required|string',
-            'referensi_khusus'          => 'nullable|string',
-            'detail_permintaan'         => 'nullable|string',
-            'keterangan_kebutuhan'      => 'nullable|string',
+            'jenis_perubahan' => 'required|string',
+            'kategori_modul' => 'required|string',
+            'referensi_khusus' => 'nullable|string',
+            'detail_permintaan' => 'nullable|string',
+            'keterangan_kebutuhan' => 'nullable|string',
             'jenis_kebutuhan_pelatihan' => 'nullable|string',
-            'bahasa_pengantar'          => 'nullable|string',
-            'jenis_modul'               => 'nullable|array',
-            'modul_rows'                => 'nullable|array',
-            'program_rows'              => 'nullable|array',
-            'submit_for_approval'       => 'nullable|boolean',
+            'bahasa_pengantar' => 'nullable|string',
+            'jenis_modul' => 'nullable|array',
+            'modul_rows' => 'nullable|array',
+            'program_rows' => 'nullable|array',
+            'submit_for_approval' => 'nullable|boolean',
         ]);
 
         $isProgram = str_contains(strtolower($validated['jenis_perubahan']), 'program');
         $prefix = $isProgram ? 'Program' : 'Modul';
         $month = now()->format('m');
         $year  = now()->format('Y');
-        $count = ModuleRequest::whereIn('type', ['Modul Baru', 'Revisi Modul', 'Program Baru', 'Revisi Program'])
-            ->whereYear('created_at', $year)->count() + 1;
-        $requestNumber = sprintf('%03d/%s/PD/%s/%s', $count, $prefix, $month, $year);
 
-        $status = ($validated['submit_for_approval'] ?? false) ? 'Menunggu Approval' : 'Draft';
+        $lastRequest = ModuleRequest::whereIn('type', ['Modul Baru', 'Revisi Modul', 'Program Baru', 'Revisi Program'])
+            ->where('request_number', 'like', "%/{$prefix}/PD/%/{$year}")
+            ->orderByDesc('id')
+            ->first();
+
+        if ($lastRequest) {
+            $parts = explode('/', $lastRequest->request_number);
+            $lastNumber = (int) $parts[0];
+            $newNumber = $lastNumber + 1;
+        } else {
+            $newNumber = 1;
+        }
+
+        $requestNumber = sprintf('%03d/%s/PD/%s/%s', $newNumber, $prefix, $month, $year);
+
+        $submitForApproval = (bool) ($validated['submit_for_approval'] ?? false);
+        $status = $submitForApproval ? 'Menunggu Approval' : 'Draft';
 
         $title = $validated['jenis_perubahan'];
-        if (!$isProgram && !empty($validated['modul_rows'])) {
+        if (! $isProgram && ! empty($validated['modul_rows'])) {
             $firstRow = $validated['modul_rows'][0];
-            if (isset($firstRow['namaModul']) && !empty($firstRow['namaModul'])) {
-                $title .= ' - ' . $firstRow['namaModul'];
+            if (isset($firstRow['namaModul']) && ! empty($firstRow['namaModul'])) {
+                $title .= ' - '.$firstRow['namaModul'];
             }
-        } elseif ($isProgram && !empty($validated['program_rows'])) {
+        } elseif ($isProgram && ! empty($validated['program_rows'])) {
             $firstRow = $validated['program_rows'][0];
-            if (isset($firstRow['namaProgram']) && !empty($firstRow['namaProgram'])) {
-                $title .= ' - ' . $firstRow['namaProgram'];
+            if (isset($firstRow['namaProgram']) && ! empty($firstRow['namaProgram'])) {
+                $title .= ' - '.$firstRow['namaProgram'];
             }
         }
 
+        // Handle file uploads before the transaction (I/O outside the lock)
         $modulRows = $request->input('modul_rows', []);
         $uploadedFiles = $request->file('modul_rows');
         if (is_array($uploadedFiles)) {
@@ -175,7 +197,7 @@ class PengajuanController extends Controller
                 if (isset($rowFiles['fileModul'])) {
                     $file = $rowFiles['fileModul'];
                     $code = $modulRows[$index]['kodeModul'] ?? 'MOD';
-                    $fileName = $code . '-' . time() . '.pdf';
+                    $fileName = $code.'-'.time().'.pdf';
                     $path = $file->storeAs('modules', $fileName, 'public');
                     $modulRows[$index]['linkModul'] = Storage::url($path);
                 }
@@ -189,33 +211,54 @@ class PengajuanController extends Controller
                 if (isset($rowFiles['fileProgram'])) {
                     $file = $rowFiles['fileProgram'];
                     $code = $programRows[$index]['kodeProgram'] ?? 'PROG';
-                    $fileName = $code . '-' . time() . '.pdf';
+                    $fileName = $code.'-'.time().'.pdf';
                     $path = $file->storeAs('programs', $fileName, 'public');
                     $programRows[$index]['linkProgram'] = Storage::url($path);
                 }
             }
         }
 
-        ModuleRequest::create([
-            'request_number'      => $requestNumber,
-            'type'                => $validated['jenis_perubahan'],
-            'title'               => $title,
-            'applicant_id'        => $user->id,
-            'status'              => $status,
-            'program'             => $validated['kategori_modul'],         // reuse program field for kategori
-            'revision_reason'     => $validated['referensi_khusus'] ?? null,
-            'description'         => $validated['detail_permintaan'] ?? null,
-            'keterangan_kebutuhan'=> $validated['keterangan_kebutuhan'] ?? null,
-            'jenis_kebutuhan'     => $validated['jenis_kebutuhan_pelatihan'] ?? null,
-            'language'            => $validated['bahasa_pengantar'] ?? 'Indonesia',
-            'jenis_modul'         => json_encode($validated['jenis_modul'] ?? []),
-            'modul_rows'          => json_encode($modulRows),
-            'program_rows'        => json_encode($programRows),
-        ]);
+        // Generate unique request number and create record atomically to prevent duplicates.
+        $moduleRequest = DB::transaction(function () use (
+            $user, $validated, $modulRows, $programRows, $prefix, $month, $year, $title, $status
+        ) {
+            $last = ModuleRequest::whereIn('type', ['Modul Baru', 'Revisi Modul', 'Program Baru', 'Revisi Program'])
+                ->whereYear('created_at', $year)
+                ->lockForUpdate()
+                ->orderByDesc('id')
+                ->first();
 
-        $redirectRoute = $isProgram ? 'perubahan-modul' : 'perubahan-modul';
+            $lastNum = 0;
+            if ($last && preg_match('/^(\d+)/', $last->request_number, $m)) {
+                $lastNum = (int) $m[1];
+            }
 
-        return redirect()->route($redirectRoute)->with('message', 'Pengajuan berhasil disimpan.');
+            $requestNumber = sprintf('%03d/%s/PD/%s/%s', $lastNum + 1, $prefix, $month, $year);
+
+            return ModuleRequest::create([
+                'request_number' => $requestNumber,
+                'type' => $validated['jenis_perubahan'],
+                'title' => $title,
+                'applicant_id' => $user->id,
+                'status' => $status,
+                'program' => $validated['kategori_modul'],
+                'revision_reason' => $validated['referensi_khusus'] ?? null,
+                'description' => $validated['detail_permintaan'] ?? null,
+                'keterangan_kebutuhan' => $validated['keterangan_kebutuhan'] ?? null,
+                'jenis_kebutuhan' => $validated['jenis_kebutuhan_pelatihan'] ?? null,
+                'language' => $validated['bahasa_pengantar'] ?? 'Indonesia',
+                'jenis_modul' => json_encode($validated['jenis_modul'] ?? []),
+                'modul_rows' => json_encode($modulRows),
+                'program_rows' => json_encode($programRows),
+            ]);
+        });
+
+        // If submitted for manager approval, notify Manager PD + Staf PD (the submitter) via queue.
+        if ($submitForApproval) {
+            $this->notifyPerubahanSubmitted($moduleRequest);
+        }
+
+        return redirect()->route('perubahan-modul')->with('message', 'Pengajuan berhasil disimpan.');
     }
 
     /**
@@ -231,16 +274,16 @@ class PengajuanController extends Controller
 
         $req = ModuleRequest::findOrFail($id);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($req, $user) {
+        DB::transaction(function () use ($req, $user) {
             $req->update([
-                'status'      => 'Disetujui',
+                'status' => 'Disetujui',
                 'approved_by' => $user->name,
                 'approved_at' => now(),
             ]);
 
             $isProgram = str_contains(strtolower($req->type), 'program');
 
-            if (!$isProgram) {
+            if (! $isProgram) {
                 // Parse modul_rows
                 $rows = json_decode($req->modul_rows, true) ?: [];
                 foreach ($rows as $row) {
@@ -287,7 +330,7 @@ class PengajuanController extends Controller
                     }
 
                     // Create module revision history
-                    \App\Models\ModuleRevision::create([
+                    ModuleRevision::create([
                         'module_id' => $module->id,
                         'revision' => $revision,
                         'note' => $row['alasanPerubahan'] ?? 'Perubahan disetujui.',
@@ -320,13 +363,13 @@ class PengajuanController extends Controller
                     if ($relativeFilePath && Storage::disk('public')->exists($relativeFilePath)) {
                         $size = Storage::disk('public')->size($relativeFilePath);
                         $fileSizeStr = $this->formatFileSize($size);
-                        
+
                         $absolutePath = Storage::disk('public')->path($relativeFilePath);
                         $pageCount = $this->getPdfPageCount($absolutePath);
                     }
 
                     $effectiveDate = null;
-                    if (!empty($row['tanggalBerlaku'])) {
+                    if (! empty($row['tanggalBerlaku'])) {
                         try {
                             $effectiveDate = Carbon::parse($row['tanggalBerlaku'])->format('Y-m-d');
                         } catch (\Exception $e) {
@@ -388,6 +431,9 @@ class PengajuanController extends Controller
             }
         });
 
+        // Notify Staf PD (applicant) + Manager PD via queue after approval.
+        $this->notifyPerubahanReviewed($req->fresh(), 'approved');
+
         return redirect()->route('perubahan-modul')->with('message', 'Pengajuan berhasil disetujui.');
     }
 
@@ -408,13 +454,15 @@ class PengajuanController extends Controller
 
         $req = ModuleRequest::findOrFail($id);
         $req->update([
-            'status'        => 'Ditolak',
+            'status' => 'Ditolak',
             'reject_reason' => $validated['reason'],
         ]);
 
+        // Notify Staf PD (applicant) + Manager PD via queue after rejection.
+        $this->notifyPerubahanReviewed($req->fresh(), 'rejected');
+
         return redirect()->route('perubahan-modul')->with('message', 'Pengajuan telah ditolak.');
     }
-
 
     /**
      * Shared render logic for both index and indexPerubahan.
@@ -563,7 +611,7 @@ class PengajuanController extends Controller
                 'description' => 'required|string',
                 'deadline' => 'required|date',
                 'priority' => 'nullable|in:High,Medium,Low',
-                
+
                 // Pelatihan Inhouse specific validation
                 'nama_instansi' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string|max:255',
                 'jam_khusus' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|numeric',
@@ -618,7 +666,7 @@ class PengajuanController extends Controller
             ];
         }
 
-        ModuleRequest::create([
+        $newRequest = ModuleRequest::create([
             'request_number' => $requestNumber,
             'type' => $validated['type'],
             'title' => $validated['title'],
@@ -643,6 +691,11 @@ class PengajuanController extends Controller
             'keterangan_kebutuhan' => $validated['keterangan_kebutuhan'] ?? null,
             ...$fileData,
         ]);
+
+        // Notify User (applicant) + all Staf PD when a Kebutuhan Khusus is submitted.
+        if ($validated['type'] === 'Kebutuhan Khusus') {
+            $this->notifyPengajuanSubmitted($newRequest->load('applicant'));
+        }
 
         $redirectRoute = $validated['type'] === 'Kebutuhan Khusus' ? 'pengajuan' : 'perubahan-modul';
 
@@ -711,35 +764,37 @@ class PengajuanController extends Controller
         }
 
         $validated = $request->validate([
-            'jenis_perubahan'           => 'required|string',
-            'kategori_modul'            => 'required|string',
-            'referensi_khusus'          => 'nullable|string',
-            'detail_permintaan'         => 'nullable|string',
-            'keterangan_kebutuhan'      => 'nullable|string',
+            'jenis_perubahan' => 'required|string',
+            'kategori_modul' => 'required|string',
+            'referensi_khusus' => 'nullable|string',
+            'detail_permintaan' => 'nullable|string',
+            'keterangan_kebutuhan' => 'nullable|string',
             'jenis_kebutuhan_pelatihan' => 'nullable|string',
-            'bahasa_pengantar'          => 'nullable|string',
-            'jenis_modul'               => 'nullable|array',
-            'modul_rows'                => 'nullable|array',
-            'program_rows'              => 'nullable|array',
-            'submit_for_approval'       => 'nullable|boolean',
+            'bahasa_pengantar' => 'nullable|string',
+            'jenis_modul' => 'nullable|array',
+            'modul_rows' => 'nullable|array',
+            'program_rows' => 'nullable|array',
+            'submit_for_approval' => 'nullable|boolean',
         ]);
 
         $isProgram = str_contains(strtolower($validated['jenis_perubahan']), 'program');
-        
+
         $title = $validated['jenis_perubahan'];
-        if (!$isProgram && !empty($validated['modul_rows'])) {
+        if (! $isProgram && ! empty($validated['modul_rows'])) {
             $firstRow = $validated['modul_rows'][0];
-            if (isset($firstRow['namaModul']) && !empty($firstRow['namaModul'])) {
-                $title .= ' - ' . $firstRow['namaModul'];
+            if (isset($firstRow['namaModul']) && ! empty($firstRow['namaModul'])) {
+                $title .= ' - '.$firstRow['namaModul'];
             }
-        } elseif ($isProgram && !empty($validated['program_rows'])) {
+        } elseif ($isProgram && ! empty($validated['program_rows'])) {
             $firstRow = $validated['program_rows'][0];
-            if (isset($firstRow['namaProgram']) && !empty($firstRow['namaProgram'])) {
-                $title .= ' - ' . $firstRow['namaProgram'];
+            if (isset($firstRow['namaProgram']) && ! empty($firstRow['namaProgram'])) {
+                $title .= ' - '.$firstRow['namaProgram'];
             }
         }
 
-        $status = ($validated['submit_for_approval'] ?? false) ? 'Menunggu Approval' : $moduleRequest->status;
+        $wasNotSubmitted = ! in_array($moduleRequest->status, ['Menunggu Approval', 'Disetujui', 'Ditolak']);
+        $submitForApproval = (bool) ($validated['submit_for_approval'] ?? false);
+        $status = $submitForApproval ? 'Menunggu Approval' : $moduleRequest->status;
 
         $modulRows = $request->input('modul_rows', []);
         $uploadedFiles = $request->file('modul_rows');
@@ -748,7 +803,7 @@ class PengajuanController extends Controller
                 if (isset($rowFiles['fileModul'])) {
                     $file = $rowFiles['fileModul'];
                     $code = $modulRows[$index]['kodeModul'] ?? 'MOD';
-                    $fileName = $code . '-' . time() . '.pdf';
+                    $fileName = $code.'-'.time().'.pdf';
                     $path = $file->storeAs('modules', $fileName, 'public');
                     $modulRows[$index]['linkModul'] = Storage::url($path);
                 }
@@ -762,7 +817,7 @@ class PengajuanController extends Controller
                 if (isset($rowFiles['fileProgram'])) {
                     $file = $rowFiles['fileProgram'];
                     $code = $programRows[$index]['kodeProgram'] ?? 'PROG';
-                    $fileName = $code . '-' . time() . '.pdf';
+                    $fileName = $code.'-'.time().'.pdf';
                     $path = $file->storeAs('programs', $fileName, 'public');
                     $programRows[$index]['linkProgram'] = Storage::url($path);
                 }
@@ -770,19 +825,24 @@ class PengajuanController extends Controller
         }
 
         $moduleRequest->update([
-            'title'               => $title,
-            'type'                => $validated['jenis_perubahan'],
-            'status'              => $status,
-            'program'             => $validated['kategori_modul'],
-            'revision_reason'     => $validated['referensi_khusus'] ?? null,
-            'description'         => $validated['detail_permintaan'] ?? null,
-            'keterangan_kebutuhan'=> $validated['keterangan_kebutuhan'] ?? null,
-            'jenis_kebutuhan'     => $validated['jenis_kebutuhan_pelatihan'] ?? null,
-            'language'            => $validated['bahasa_pengantar'] ?? 'Indonesia',
-            'jenis_modul'         => json_encode($validated['jenis_modul'] ?? []),
-            'modul_rows'          => json_encode($modulRows),
-            'program_rows'        => json_encode($programRows),
+            'title' => $title,
+            'type' => $validated['jenis_perubahan'],
+            'status' => $status,
+            'program' => $validated['kategori_modul'],
+            'revision_reason' => $validated['referensi_khusus'] ?? null,
+            'description' => $validated['detail_permintaan'] ?? null,
+            'keterangan_kebutuhan' => $validated['keterangan_kebutuhan'] ?? null,
+            'jenis_kebutuhan' => $validated['jenis_kebutuhan_pelatihan'] ?? null,
+            'language' => $validated['bahasa_pengantar'] ?? 'Indonesia',
+            'jenis_modul' => json_encode($validated['jenis_modul'] ?? []),
+            'modul_rows' => json_encode($modulRows),
+            'program_rows' => json_encode($programRows),
         ]);
+
+        // Notify Manager PD + Staf PD if the request was just submitted for approval.
+        if ($submitForApproval && $wasNotSubmitted) {
+            $this->notifyPerubahanSubmitted($moduleRequest->fresh());
+        }
 
         return redirect()->route('perubahan-modul')->with('message', 'Pengajuan berhasil diperbarui.');
     }
@@ -798,13 +858,13 @@ class PengajuanController extends Controller
         $isProcessor = in_array(strtolower($user->role), ['admin', 'staf pd']);
 
         // Only applicant or admin/staf pd can edit
-        if ($moduleRequest->applicant_id !== $user->id && !$isProcessor) {
+        if ($moduleRequest->applicant_id !== $user->id && ! $isProcessor) {
             abort(403, 'Akses ditolak.');
         }
 
         // Processing Kebutuhan Khusus by Admin or Staf PD (or cancellation by User)
         if ($moduleRequest->type === 'Kebutuhan Khusus' && ($request->has('link_modul') || $request->has('tanggal_realisasi') || $request->has('tanggal_kebutuhan_baru') || in_array($request->input('status'), ['Baru', 'Selesai', 'Batal', 'Hold']))) {
-            if (!$isProcessor) {
+            if (! $isProcessor) {
                 // Regular User can cancel their own request if status is 'Baru' (representing 'Process')
                 if ($user->id === $moduleRequest->applicant_id && $moduleRequest->status === 'Baru' && $request->input('status') === 'Batal') {
                     $oldStatus = $moduleRequest->status;
@@ -815,21 +875,8 @@ class PengajuanController extends Controller
                         'processed_at' => now(),
                     ]);
 
-                    // Send email notification for cancellation
-                    try {
-                        $emailsToNotify = collect([$user->email]);
-                        $managerEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['manager pd'])
-                            ->where('status', 'Aktif')
-                            ->pluck('email');
-                        $emailsToNotify = $emailsToNotify->merge($managerEmails)->unique()->filter();
-
-                        if ($emailsToNotify->isNotEmpty()) {
-                            \Illuminate\Support\Facades\Mail::to($emailsToNotify)
-                                ->send(new \App\Mail\ModuleRequestProcessedMail($moduleRequest));
-                        }
-                    } catch (\Exception $e) {
-                        Log::error('Gagal mengirim email: ' . $e->getMessage());
-                    }
+                    // Notify User + Staf PD about the cancellation.
+                    $this->notifyPengajuanProcessed($moduleRequest->fresh(['applicant']));
 
                     return redirect()->route($redirectRoute)->with('message', 'Pengajuan berhasil dibatalkan.');
                 }
@@ -857,25 +904,9 @@ class PengajuanController extends Controller
 
             $moduleRequest->update($validated);
 
-            // Send email if status changed to Selesai, Batal or Hold
+            // Notify User + Staf PD when status changes to Selesai / Hold / Batal.
             if ($oldStatus !== $moduleRequest->status && in_array($moduleRequest->status, ['Selesai', 'Batal', 'Hold'])) {
-                try {
-                    $emailsToNotify = collect();
-                    if ($moduleRequest->applicant && $moduleRequest->applicant->email) {
-                        $emailsToNotify->push($moduleRequest->applicant->email);
-                    }
-                    $managerEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['manager pd'])
-                        ->where('status', 'Aktif')
-                        ->pluck('email');
-                    $emailsToNotify = $emailsToNotify->merge($managerEmails)->unique()->filter();
-
-                    if ($emailsToNotify->isNotEmpty()) {
-                        \Illuminate\Support\Facades\Mail::to($emailsToNotify)
-                            ->send(new \App\Mail\ModuleRequestProcessedMail($moduleRequest));
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Gagal mengirim email notifikasi processing Kebutuhan Khusus: ' . $e->getMessage());
-                }
+                $this->notifyPengajuanProcessed($moduleRequest->fresh(['applicant']));
             }
 
             return redirect()->route($redirectRoute)
@@ -905,25 +936,9 @@ class PengajuanController extends Controller
 
             $moduleRequest->update($validated);
 
-            // Send email if status changed to Selesai, Batal, or Hold
+            // Notify User + Staf PD when status changes to Selesai / Hold / Batal.
             if ($oldStatus !== $moduleRequest->status && in_array($moduleRequest->status, ['Selesai', 'Batal', 'Hold'])) {
-                try {
-                    $emailsToNotify = collect();
-                    if ($moduleRequest->applicant && $moduleRequest->applicant->email) {
-                        $emailsToNotify->push($moduleRequest->applicant->email);
-                    }
-                    $managerEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['manager pd'])
-                        ->where('status', 'Aktif')
-                        ->pluck('email');
-                    $emailsToNotify = $emailsToNotify->merge($managerEmails)->unique()->filter();
-
-                    if ($emailsToNotify->isNotEmpty()) {
-                        \Illuminate\Support\Facades\Mail::to($emailsToNotify)
-                            ->send(new \App\Mail\ModuleRequestProcessedMail($moduleRequest));
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Gagal mengirim email notifikasi processing Kebutuhan Khusus: ' . $e->getMessage());
-                }
+                $this->notifyPengajuanProcessed($moduleRequest->fresh(['applicant']));
             }
 
             return redirect()->route($redirectRoute)
@@ -932,7 +947,7 @@ class PengajuanController extends Controller
 
         // Regular applicant editing the request or Admin fixing typos
         $isAdmin = strtolower($user->role) === 'admin';
-        if ($moduleRequest->applicant_id === $user->id && !$isAdmin && ! in_array($moduleRequest->status, ['Baru', 'Drafting'])) {
+        if ($moduleRequest->applicant_id === $user->id && ! $isAdmin && ! in_array($moduleRequest->status, ['Baru', 'Drafting'])) {
             return redirect()->route($redirectRoute)
                 ->with('error', 'Pengajuan tidak dapat diedit karena sudah diproses.');
         }
@@ -940,7 +955,7 @@ class PengajuanController extends Controller
         if ($request->input('type') === 'Kebutuhan Khusus') {
             // Only validate deadline constraint for user/non-admin if it has changed
             $deadline = Carbon::parse($request->input('deadline'));
-            if (!$isAdmin) {
+            if (! $isAdmin) {
                 $minDate = now()->addDays(14)->startOfDay();
                 if ($deadline->lt($minDate)) {
                     return back()->withErrors(['deadline' => 'Tanggal kebutuhan khusus minimal harus 14 hari dari hari ini.'])->withInput();
@@ -954,7 +969,7 @@ class PengajuanController extends Controller
                 'description' => 'required|string',
                 'deadline' => 'required|date',
                 'priority' => 'nullable|in:High,Medium,Low',
-                
+
                 // Pelatihan Inhouse specific validation
                 'nama_instansi' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|string|max:255',
                 'jam_khusus' => 'required_if:jenis_kebutuhan,Pelatihan Inhouse|nullable|numeric',
@@ -978,7 +993,7 @@ class PengajuanController extends Controller
             $validated['title'] = $validated['judul_program'];
         } else {
             $fileRule = 'nullable|file|mimes:pdf|max:20480';
-            if ($request->input('type') === 'Revisi Modul' && !$moduleRequest->file_path) {
+            if ($request->input('type') === 'Revisi Modul' && ! $moduleRequest->file_path) {
                 $fileRule = 'required|file|mimes:pdf|max:20480';
             }
 
@@ -1097,26 +1112,122 @@ class PengajuanController extends Controller
 
         $moduleRequest->update(['status' => 'Menunggu Approval']);
 
-        try {
-            if ($moduleRequest->applicant && $moduleRequest->applicant->email) {
-                \Illuminate\Support\Facades\Mail::to($moduleRequest->applicant->email)
-                    ->send(new \App\Mail\ModuleRequestSubmittedMail($moduleRequest));
-            }
-
-            $managerEmails = \App\Models\User::whereRaw('LOWER(role) = ?', ['manager pd'])
-                ->where('status', 'Aktif')
-                ->pluck('email');
-
-            if ($managerEmails->isNotEmpty()) {
-                \Illuminate\Support\Facades\Mail::to($managerEmails)
-                    ->send(new \App\Mail\ModuleRequestSubmittedMail($moduleRequest));
-            }
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Gagal mengirim email notifikasi submit: ' . $e->getMessage());
-        }
+        $this->notifyPerubahanSubmitted($moduleRequest);
 
         return redirect()->route($redirectRoute)
             ->with('message', "Pengajuan {$moduleRequest->request_number} berhasil dikirim ke antrian approval.");
+    }
+
+    // ── Private notification helpers ────────────────────────────────────────────
+
+    /**
+     * Notify User (applicant) + all Staf PD when a Kebutuhan Khusus is submitted.
+     * Uses the queue so the HTTP response stays fast.
+     */
+    private function notifyPengajuanSubmitted(ModuleRequest $req): void
+    {
+        try {
+            $stafPdEmails = User::whereRaw('LOWER(role) = ?', ['staf pd'])
+                ->where('status', 'Aktif')
+                ->pluck('email');
+
+            $recipients = collect([$req->applicant?->email])
+                ->merge($stafPdEmails)
+                ->unique()
+                ->filter()
+                ->values();
+
+            if ($recipients->isNotEmpty()) {
+                Mail::to($recipients)->queue(new ModuleRequestSubmittedMail($req));
+            }
+        } catch (\Exception $e) {
+            Log::error('notifyPengajuanSubmitted gagal: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Notify User (applicant) + Staf PD (processor) when Kebutuhan Khusus is processed.
+     * Uses the queue so the HTTP response stays fast.
+     */
+    private function notifyPengajuanProcessed(ModuleRequest $req): void
+    {
+        try {
+            $stafPdEmails = User::whereRaw('LOWER(role) = ?', ['staf pd'])
+                ->where('status', 'Aktif')
+                ->pluck('email');
+
+            $recipients = collect([$req->applicant?->email])
+                ->merge($stafPdEmails)
+                ->unique()
+                ->filter()
+                ->values();
+
+            if ($recipients->isNotEmpty()) {
+                Mail::to($recipients)->queue(new ModuleRequestProcessedMail($req));
+            }
+        } catch (\Exception $e) {
+            Log::error('notifyPengajuanProcessed gagal: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Notify Manager PD + Staf PD when a Perubahan Modul is submitted for approval.
+     */
+    private function notifyPerubahanSubmitted(ModuleRequest $req): void
+    {
+        try {
+            $managerEmails = User::whereRaw('LOWER(role) = ?', ['manager pd'])
+                ->where('status', 'Aktif')
+                ->pluck('email');
+
+            $stafPdEmails = User::whereRaw('LOWER(role) = ?', ['staf pd'])
+                ->where('status', 'Aktif')
+                ->pluck('email');
+
+            $recipients = collect([$req->applicant?->email])
+                ->merge($managerEmails)
+                ->merge($stafPdEmails)
+                ->unique()
+                ->filter()
+                ->values();
+
+            if ($recipients->isNotEmpty()) {
+                Mail::to($recipients)->queue(new PerubahanModulSubmittedMail($req));
+            }
+        } catch (\Exception $e) {
+            Log::error('notifyPerubahanSubmitted gagal: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Notify Staf PD (applicant) + Manager PD after a Perubahan Modul is approved or rejected.
+     *
+     * @param  string  $action  'approved' | 'rejected'
+     */
+    private function notifyPerubahanReviewed(ModuleRequest $req, string $action): void
+    {
+        try {
+            $managerEmails = User::whereRaw('LOWER(role) = ?', ['manager pd'])
+                ->where('status', 'Aktif')
+                ->pluck('email');
+
+            $stafPdEmails = User::whereRaw('LOWER(role) = ?', ['staf pd'])
+                ->where('status', 'Aktif')
+                ->pluck('email');
+
+            $recipients = collect([$req->applicant?->email])
+                ->merge($managerEmails)
+                ->merge($stafPdEmails)
+                ->unique()
+                ->filter()
+                ->values();
+
+            if ($recipients->isNotEmpty()) {
+                Mail::to($recipients)->queue(new PerubahanModulReviewedMail($req, $action));
+            }
+        } catch (\Exception $e) {
+            Log::error('notifyPerubahanReviewed gagal: '.$e->getMessage());
+        }
     }
 
     /**
